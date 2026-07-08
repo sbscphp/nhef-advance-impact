@@ -5,6 +5,7 @@ use App\Http\Controllers\v1\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\v1\Admin\Auth\PasswordController as AdminPasswordController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
+use App\Http\Controllers\v1\Admin\UserManagement\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/admin')->group(function () {
@@ -39,5 +40,54 @@ Route::prefix('v1/admin')->group(function () {
         Route::match(['patch', 'post'], '/2fa', [SettingsController::class, 'toggleTwoFactor']);
         Route::match(['patch', 'post'], '/password', [SettingsController::class, 'changePassword']);
         Route::match(['patch', 'post'], '/notifications', [SettingsController::class, 'updateNotificationPreferences']);
+    });
+
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('permissions', [UserManagementController::class, 'permissionList'])
+            ->middleware(['permission:roles.read']);
+
+        Route::prefix('roles')->group(function () {
+            Route::get('/dropdown/{status?}', [UserManagementController::class, 'roleDropdown'])
+                ->where('status', 'active|inactive|all')
+                ->middleware(['permission:roles.read']);
+            Route::get('/with-permissions', [UserManagementController::class, 'rolesWithPermissions'])
+                ->middleware(['permission:roles.read']);
+            Route::get('/stats', [UserManagementController::class, 'roleStats'])
+                ->middleware(['permission:roles.read']);
+            Route::post('/', [UserManagementController::class, 'createRole'])
+                ->middleware(['permission:roles.create']);
+            Route::get('/', [UserManagementController::class, 'roleList'])
+                ->middleware(['permission:roles.read']);
+            Route::get('/{roleId}', [UserManagementController::class, 'viewRole'])
+                ->middleware(['permission:roles.read']);
+            Route::patch('/{roleId}', [UserManagementController::class, 'updateRole'])
+                ->middleware(['permission:roles.update']);
+            Route::patch('/{roleId}/toggle-status', [UserManagementController::class, 'setRoleActiveStatus'])
+                ->middleware(['permission:roles.update']);
+            Route::delete('/{roleId}', [UserManagementController::class, 'deleteRole'])
+                ->middleware(['permission:roles.delete']);
+        });
+
+        Route::prefix('admin-users')->group(function () {
+            Route::get('/dropdown/{status?}', [UserManagementController::class, 'adminDropdown'])
+                ->where('status', 'active|inactive|all')
+                ->middleware(['permission:admins.read']);
+            Route::get('/stats', [UserManagementController::class, 'adminStats'])
+                ->middleware(['permission:admins.read']);
+            Route::post('/', [UserManagementController::class, 'createAdmin'])
+                ->middleware(['permission:admins.create']);
+            Route::get('/', [UserManagementController::class, 'adminList'])
+                ->middleware(['permission:admins.read']);
+            Route::get('/{adminId}', [UserManagementController::class, 'viewAdmin'])
+                ->middleware(['permission:admins.read']);
+            Route::patch('/{adminId}', [UserManagementController::class, 'updateAdmin'])
+                ->middleware(['permission:admins.update']);
+            Route::patch('/{adminId}/toggle-status', [UserManagementController::class, 'setAdminActiveStatus'])
+                ->middleware(['permission:admins.update']);
+            Route::post('/{adminId}/resend-invite-link', [UserManagementController::class, 'resendAdminInviteLink'])
+                ->middleware(['permission:admins.update']);
+            Route::delete('/{adminId}', [UserManagementController::class, 'deleteAdmin'])
+                ->middleware(['permission:admins.delete']);
+        });
     });
 });
