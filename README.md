@@ -389,14 +389,6 @@ composer run test
 php artisan test
 ```
 
----
-
-## Related docs
-
-- [`docs/GIVING_IDENTITIES.md`](docs/GIVING_IDENTITIES.md) — donor/giving identity concepts for the wider platform (not all of that surface is wired in the current auth-focused API routes).
-
----
-
 ## License
 
 MIT (see `composer.json`).
