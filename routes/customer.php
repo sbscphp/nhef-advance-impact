@@ -4,6 +4,8 @@ use App\Http\Controllers\v1\Customer\Auth\EmailVerificationController;
 use App\Http\Controllers\v1\Customer\Auth\LoginController;
 use App\Http\Controllers\v1\Customer\Auth\PasswordController;
 use App\Http\Controllers\v1\Customer\Auth\RegisterController;
+use App\Http\Controllers\v1\Customer\Fundraising\CampaignController;
+use App\Http\Controllers\v1\Customer\Fundraising\PledgeController;
 use App\Http\Controllers\v1\Customer\Notification\NotificationController;
 use App\Http\Controllers\v1\Customer\Settings\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +14,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::get('registration/options', [RegisterController::class, 'metadata'])->middleware('throttle:60,1');
         Route::post('signup', [RegisterController::class, 'store'])->middleware('throttle:customer-register');
+        Route::post('signup/complete', [RegisterController::class, 'completeRegistration'])->middleware('throttle:customer-otp-verify');
         Route::post('email/verify-otp', [EmailVerificationController::class, 'verify'])->middleware('throttle:customer-otp-verify');
         Route::post('email/resend-otp', [EmailVerificationController::class, 'resend'])->middleware('throttle:customer-otp-send');
 
@@ -44,5 +47,18 @@ Route::prefix('v1')->group(function () {
         Route::match(['patch', 'post'], '/biometrics', [SettingsController::class, 'toggleBiometrics']);
         Route::match(['patch', 'post'], '/password', [SettingsController::class, 'changePassword']);
         Route::match(['patch', 'post'], '/notifications', [SettingsController::class, 'updateNotificationPreferences']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('campaigns')->group(function () {
+        Route::get('/', [CampaignController::class, 'index']);
+        Route::get('/{uuid}', [CampaignController::class, 'show']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('pledges')->group(function () {
+        Route::get('/', [PledgeController::class, 'index']);
+        Route::post('/', [PledgeController::class, 'store'])->middleware('throttle:customer-pledge-create');
+        Route::get('/{uuid}', [PledgeController::class, 'show']);
+        Route::post('/{uuid}/installments/{installmentUuid}/pay', [PledgeController::class, 'payInstallment']);
+        Route::post('/payments/{reference}/verify', [PledgeController::class, 'verifyPayment']);
     });
 });

@@ -19,6 +19,9 @@ enum ModuleEnums: string
     /** Admin/customer sign-in and session events (not tied to CRUD permissions map). */
     case authentication = 'authentication';
 
+    /** Campaigns, pledges, donations, and payment gateway events. */
+    case fundraising = 'fundraising';
+
     public function label(): string
     {
         return match ($this) {
@@ -27,6 +30,7 @@ enum ModuleEnums: string
             self::audit_trail => 'Audit trail',
             self::settings => 'Settings',
             self::authentication => 'Authentication',
+            self::fundraising => 'Fundraising',
         };
     }
 

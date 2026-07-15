@@ -13,7 +13,13 @@ use App\Models\User;
 use App\Responser\JsonResponser;
 use App\Services\Settings\AccountSettingsService;
 use Illuminate\Http\Request;
+use Knuckles\Scribe\Attributes\Authenticated;
+use Knuckles\Scribe\Attributes\BodyParam;
+use Knuckles\Scribe\Attributes\Endpoint;
+use Knuckles\Scribe\Attributes\Group;
+use Knuckles\Scribe\Attributes\Response;
 
+#[Group('Customer Settings', 'Authenticated account settings for customers: profile, two-factor/biometrics toggles, password change, and notification preferences.')]
 class SettingsController extends Controller
 {
     public function __construct(private readonly AccountSettingsService $settingsService) {}
@@ -69,6 +75,27 @@ class SettingsController extends Controller
         }
     }
 
+    /**
+     * Change password
+     *
+     * Sets a new password for the authenticated customer. Unlike the forgot-password flow,
+     * this does not require the current password, but the new password may not match the
+     * existing one.
+     */
+    #[Endpoint('Change password')]
+    #[Authenticated]
+    #[BodyParam('password', 'string', 'New password: min 8 characters, mixed case, letters, numbers, and symbols.', required: true, example: 'Str0ng!Pass1')]
+    #[BodyParam('password_confirmation', 'string', 'Must match `password`.', required: true, example: 'Str0ng!Pass1')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Password changed successfully.',
+        'data' => null,
+    ], description: 'Password updated.')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'You cannot reuse your current password.',
+        'data' => null,
+    ], description: 'New password matches the current one, or fails the password policy.')]
     public function changePassword(ChangeSettingsPasswordRequest $request)
     {
         try {

@@ -4,10 +4,18 @@ namespace App\Providers;
 
 use App\Repositories\ApiUser\ApiUserRepository;
 use App\Repositories\Auth\OtpRepository;
+use App\Repositories\Campaign\CampaignRepository;
 use App\Repositories\Contracts\ApiUser\ApiUserRepositoryInterface;
 use App\Repositories\Contracts\Auth\OtpRepositoryInterface;
+use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
+use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
+use App\Repositories\Contracts\Pledge\PledgePaymentRepositoryInterface;
+use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\Theme\ThemeRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
+use App\Repositories\Pledge\PledgeInstallmentRepository;
+use App\Repositories\Pledge\PledgePaymentRepository;
+use App\Repositories\Pledge\PledgeRepository;
 use App\Repositories\Theme\ThemeRepository;
 use App\Repositories\User\UserRepository;
 use Carbon\CarbonImmutable;
@@ -31,6 +39,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(OtpRepositoryInterface::class, OtpRepository::class);
         $this->app->bind(ApiUserRepositoryInterface::class, ApiUserRepository::class);
         $this->app->bind(ThemeRepositoryInterface::class, ThemeRepository::class);
+        $this->app->bind(CampaignRepositoryInterface::class, CampaignRepository::class);
+        $this->app->bind(PledgeRepositoryInterface::class, PledgeRepository::class);
+        $this->app->bind(PledgeInstallmentRepositoryInterface::class, PledgeInstallmentRepository::class);
+        $this->app->bind(PledgePaymentRepositoryInterface::class, PledgePaymentRepository::class);
     }
 
     /**
@@ -40,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureRateLimiting();
+        $this->configureScribePostmanEnhancements();
 
         ResetPassword::createUrlUsing(function ($user, string $token) {
             return config('app.frontend_url')."/reset-password?token={$token}&email=".urlencode($user->email);
@@ -117,6 +130,82 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('customer-register', function (Request $request) {
             return Limit::perMinute(10)->by((string) $request->ip());
         });
+
+        RateLimiter::for('customer-pledge-create', function (Request $request) {
+            $userId = $request->user()?->id;
+
+            return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
+        });
+    }
+
+    /**
+     * Postman convenience: on `scribe:generate`, patch the generated Postman collection so the
+     * "Login" request stores its `access_token` into an `accessToken` collection variable, which
+     * every protected request then reads via the {{accessToken}} auth placeholder (config/scribe.php).
+     * Guarded by class_exists() since knuckleswtf/scribe is a require-dev package.
+     */
+    protected function configureScribePostmanEnhancements(): void
+    {
+        if (! class_exists(\Knuckles\Scribe\Scribe::class)) {
+            return;
+        }
+
+        \Knuckles\Scribe\Scribe::afterGenerating(function (array $paths): void {
+            $postmanPath = $paths['postman'] ?? null;
+
+            if (! is_string($postmanPath) || ! is_file($postmanPath)) {
+                return;
+            }
+
+            $collection = json_decode((string) file_get_contents($postmanPath), true);
+
+            if (! is_array($collection)) {
+                return;
+            }
+
+            $collection['variable'] = array_values(array_filter(
+                (array) ($collection['variable'] ?? []),
+                fn ($variable) => ($variable['key'] ?? null) !== 'accessToken'
+            ));
+            $collection['variable'][] = ['key' => 'accessToken', 'value' => '', 'type' => 'string'];
+
+            if (isset($collection['item']) && is_array($collection['item'])) {
+                $this->attachAccessTokenScriptToLogin($collection['item']);
+            }
+
+            file_put_contents($postmanPath, json_encode($collection, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        });
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function attachAccessTokenScriptToLogin(array &$items): void
+    {
+        foreach ($items as &$item) {
+            if (isset($item['item']) && is_array($item['item'])) {
+                $this->attachAccessTokenScriptToLogin($item['item']);
+
+                continue;
+            }
+
+            if (($item['name'] ?? null) !== 'Login') {
+                continue;
+            }
+
+            $item['event'] = [[
+                'listen' => 'test',
+                'script' => [
+                    'type' => 'text/javascript',
+                    'exec' => [
+                        'const json = pm.response.json();',
+                        'if (json && json.data && json.data.access_token) {',
+                        "    pm.collectionVariables.set('accessToken', json.data.access_token);",
+                        '}',
+                    ],
+                ],
+            ]];
+        }
     }
 
     private function loginThrottleKey(Request $request): string

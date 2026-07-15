@@ -58,4 +58,16 @@ return [
         ],
     ],
 
+    /*
+    | PAYMENT_MODE controls gateway dispatch for pledges/donations:
+    | stub — no gateway call; verify() reports immediate success (local/Postman testing)
+    | log  — same as stub, plus logs what would have been sent
+    | live — sent via Paystack
+    */
+    'paystack' => [
+        'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+    ],
+
 ];

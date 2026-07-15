@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes; feature branch: public
@@ -11,4 +12,6 @@ Route::prefix('v1')->group(function () {
             'timestamp' => now()->toISOString(),
         ]);
     });
+
+    Route::post('webhooks/paystack', [PaystackWebhookController::class, 'handle']);
 });
