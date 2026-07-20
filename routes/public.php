@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\v1\Fundraising\CampaignController;
+use App\Http\Controllers\v1\Fundraising\DonationPaymentController;
 use App\Http\Controllers\v1\Fundraising\PaymentController;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -25,4 +26,5 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::post('pledges/payments/{reference}/verify', [PaymentController::class, 'verify']);
+    Route::post('donations/payments/{reference}/verify', [DonationPaymentController::class, 'verify']);
 });

@@ -68,6 +68,7 @@ class PaystackService implements PaymentGatewayInterface
 
         $data = $response->json('data', []);
         $gatewayStatus = (string) ($data['status'] ?? 'failed');
+        $authorization = $data['authorization'] ?? [];
 
         return [
             'status' => $gatewayStatus === 'success' ? 'successful' : $gatewayStatus,
@@ -75,7 +76,22 @@ class PaystackService implements PaymentGatewayInterface
             'currency' => $data['currency'] ?? null,
             'paid_at' => $data['paid_at'] ?? null,
             'channel' => $data['channel'] ?? null,
-            'card_last_four' => $data['authorization']['last4'] ?? null,
+            'card_last_four' => $authorization['last4'] ?? null,
+            // Only present (and only reusable: true) when Paystack allows this card to be
+            // charged again later — see PaymentMethodService::saveFromAuthorization().
+            // `authorization_code` is minted fresh per transaction even for the same card;
+            // `signature` is Paystack's actual same-card identifier and what dedup keys off.
+            'authorization' => [
+                'authorization_code' => $authorization['authorization_code'] ?? null,
+                'signature' => $authorization['signature'] ?? null,
+                'reusable' => (bool) ($authorization['reusable'] ?? false),
+                'card_type' => $authorization['card_type'] ?? null,
+                'last4' => $authorization['last4'] ?? null,
+                'exp_month' => $authorization['exp_month'] ?? null,
+                'exp_year' => $authorization['exp_year'] ?? null,
+                'bin' => $authorization['bin'] ?? null,
+                'bank' => $authorization['bank'] ?? null,
+            ],
         ];
     }
 

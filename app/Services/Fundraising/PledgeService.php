@@ -23,6 +23,7 @@ use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgePaymentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
+use App\Services\Settings\PaymentMethodService;
 use App\Services\Theme\ThemeResolver;
 use App\Services\ThirdParty\Payment\PaymentGatewayService;
 use App\Support\Money;
@@ -43,6 +44,7 @@ class PledgeService
         private readonly PledgePaymentRepositoryInterface $paymentRepository,
         private readonly PaymentGatewayService $paymentGatewayService,
         private readonly NotificationDispatchService $notificationDispatchService,
+        private readonly PaymentMethodService $paymentMethodService,
     ) {}
 
     /**
@@ -239,6 +241,10 @@ class PledgeService
                     'gateway_currency' => $result['currency'],
                 ]),
             ]);
+
+            if ($payment->user !== null) {
+                $this->paymentMethodService->saveFromAuthorization($payment->user, $result['authorization']);
+            }
 
             $installment = $payment->installment;
             $pledge = $payment->pledge;

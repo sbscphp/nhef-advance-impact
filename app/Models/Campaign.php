@@ -32,6 +32,11 @@ class Campaign extends Model
         return $this->hasMany(Pledge::class);
     }
 
+    public function donations(): HasMany
+    {
+        return $this->hasMany(Donation::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', CampaignStatusEnum::ACTIVE->value);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\v1\Webhooks;
 
 use App\Http\Controllers\Controller;
+use App\Services\Fundraising\DonationService;
 use App\Services\Fundraising\PledgeService;
 use App\Services\ThirdParty\Payment\PaymentGatewayService;
 use App\Support\PaymentMode;
@@ -27,14 +28,16 @@ class PaystackWebhookController extends Controller
     public function __construct(
         private readonly PaymentGatewayService $paymentGatewayService,
         private readonly PledgeService $pledgeService,
+        private readonly DonationService $donationService,
     ) {}
 
     /**
      * Paystack webhook
      *
-     * Confirms `charge.success` events against the gateway and settles the matching pledge
-     * payment. Verified with the `x-paystack-signature` header (HMAC-SHA512) when
-     * `PAYMENT_MODE=live`; requests are ignored otherwise since no real gateway sends them.
+     * Confirms `charge.success` events against the gateway and settles the matching pledge or
+     * donation payment (dispatched by the `PLG_`/`DON_` prefix we mint the reference with).
+     * Verified with the `x-paystack-signature` header (HMAC-SHA512) when `PAYMENT_MODE=live`;
+     * requests are ignored otherwise since no real gateway sends them.
      */
     #[Endpoint('Paystack webhook')]
     #[Unauthenticated]
@@ -62,7 +65,11 @@ class PaystackWebhookController extends Controller
         $reference = (string) $request->input('data.reference');
 
         if ($event === 'charge.success' && $reference !== '') {
-            $this->pledgeService->verifyPayment($reference, $request);
+            if (str_starts_with($reference, 'DON_')) {
+                $this->donationService->verifyPayment($reference, $request);
+            } else {
+                $this->pledgeService->verifyPayment($reference, $request);
+            }
         }
 
         return response()->json(['error' => false, 'message' => 'Acknowledged.', 'data' => null], 200);

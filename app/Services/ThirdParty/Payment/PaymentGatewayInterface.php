@@ -2,6 +2,8 @@
 
 namespace App\Services\ThirdParty\Payment;
 
+use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
+
 /**
  * Contract for a hosted-checkout payment gateway. The flow behind every implementation:
  *
@@ -12,8 +14,8 @@ namespace App\Services\ThirdParty\Payment;
  *      status. This is the only step that should ever mark a payment as successful; a
  *      browser redirect back to our app is not proof of payment on its own.
  *
- * See {@see \App\Services\ThirdParty\Payment\PaystackService} for the concrete Paystack
- * implementation and {@see \App\Http\Controllers\v1\Webhooks\PaystackWebhookController} for
+ * See {@see PaystackService} for the concrete Paystack
+ * implementation and {@see PaystackWebhookController} for
  * the other (server-to-server) way verify() gets triggered.
  */
 interface PaymentGatewayInterface
@@ -24,7 +26,7 @@ interface PaymentGatewayInterface
     public function initialize(string $reference, string $amount, string $currency, string $email, array $meta = []): array;
 
     /**
-     * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string}
+     * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
      */
     public function verify(string $reference): array;
 }

@@ -8,11 +8,17 @@ use App\Repositories\Campaign\CampaignRepository;
 use App\Repositories\Contracts\ApiUser\ApiUserRepositoryInterface;
 use App\Repositories\Contracts\Auth\OtpRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
+use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
+use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
+use App\Repositories\Contracts\PaymentMethod\PaymentMethodRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgePaymentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\Theme\ThemeRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
+use App\Repositories\Donation\DonationPaymentRepository;
+use App\Repositories\Donation\DonationRepository;
+use App\Repositories\PaymentMethod\PaymentMethodRepository;
 use App\Repositories\Pledge\PledgeInstallmentRepository;
 use App\Repositories\Pledge\PledgePaymentRepository;
 use App\Repositories\Pledge\PledgeRepository;
@@ -27,6 +33,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Knuckles\Scribe\Scribe;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,6 +50,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PledgeRepositoryInterface::class, PledgeRepository::class);
         $this->app->bind(PledgeInstallmentRepositoryInterface::class, PledgeInstallmentRepository::class);
         $this->app->bind(PledgePaymentRepositoryInterface::class, PledgePaymentRepository::class);
+        $this->app->bind(DonationRepositoryInterface::class, DonationRepository::class);
+        $this->app->bind(DonationPaymentRepositoryInterface::class, DonationPaymentRepository::class);
+        $this->app->bind(PaymentMethodRepositoryInterface::class, PaymentMethodRepository::class);
     }
 
     /**
@@ -142,6 +152,18 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('guest-pledge-create', function (Request $request) {
             return Limit::perMinute(5)->by((string) $request->ip());
         });
+
+        RateLimiter::for('customer-donation-create', function (Request $request) {
+            $userId = $request->user()?->id;
+
+            return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
+        });
+
+        // No account to key off for guests, so this is IP-only — tighter than the
+        // authenticated limit since it's also the only real abuse guard on this endpoint.
+        RateLimiter::for('guest-donation-create', function (Request $request) {
+            return Limit::perMinute(5)->by((string) $request->ip());
+        });
     }
 
     /**
@@ -152,11 +174,11 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureScribePostmanEnhancements(): void
     {
-        if (! class_exists(\Knuckles\Scribe\Scribe::class)) {
+        if (! class_exists(Scribe::class)) {
             return;
         }
 
-        \Knuckles\Scribe\Scribe::afterGenerating(function (array $paths): void {
+        Scribe::afterGenerating(function (array $paths): void {
             $postmanPath = $paths['postman'] ?? null;
 
             if (! is_string($postmanPath) || ! is_file($postmanPath)) {

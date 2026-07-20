@@ -4,8 +4,10 @@ use App\Http\Controllers\v1\Customer\Auth\EmailVerificationController;
 use App\Http\Controllers\v1\Customer\Auth\LoginController;
 use App\Http\Controllers\v1\Customer\Auth\PasswordController;
 use App\Http\Controllers\v1\Customer\Auth\RegisterController;
+use App\Http\Controllers\v1\Customer\Fundraising\DonationController;
 use App\Http\Controllers\v1\Customer\Fundraising\PledgeController;
 use App\Http\Controllers\v1\Customer\Notification\NotificationController;
+use App\Http\Controllers\v1\Customer\Settings\PaymentMethodController;
 use App\Http\Controllers\v1\Customer\Settings\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,6 +48,10 @@ Route::prefix('v1')->group(function () {
         Route::match(['patch', 'post'], '/biometrics', [SettingsController::class, 'toggleBiometrics']);
         Route::match(['patch', 'post'], '/password', [SettingsController::class, 'changePassword']);
         Route::match(['patch', 'post'], '/notifications', [SettingsController::class, 'updateNotificationPreferences']);
+
+        Route::get('/payment-methods', [PaymentMethodController::class, 'index']);
+        Route::patch('/payment-methods/{uuid}/default', [PaymentMethodController::class, 'setDefault']);
+        Route::delete('/payment-methods/{uuid}', [PaymentMethodController::class, 'destroy']);
     });
 
     Route::middleware('auth:sanctum')->prefix('pledges')->group(function () {
@@ -53,5 +59,15 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [PledgeController::class, 'store'])->middleware('throttle:customer-pledge-create');
         Route::get('/{uuid}', [PledgeController::class, 'show']);
         Route::post('/{uuid}/installments/{installmentUuid}/pay', [PledgeController::class, 'payInstallment']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('donations')->group(function () {
+        Route::get('/', [DonationController::class, 'index']);
+        Route::post('/', [DonationController::class, 'store'])->middleware('throttle:customer-donation-create');
+        Route::get('/{uuid}', [DonationController::class, 'show']);
+        Route::post('/{uuid}/charge', [DonationController::class, 'chargeNext']);
+        Route::post('/{uuid}/pause', [DonationController::class, 'pause']);
+        Route::post('/{uuid}/resume', [DonationController::class, 'resume']);
+        Route::post('/{uuid}/cancel', [DonationController::class, 'cancel']);
     });
 });
