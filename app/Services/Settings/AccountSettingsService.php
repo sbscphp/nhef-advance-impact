@@ -4,6 +4,7 @@ namespace App\Services\Settings;
 
 use App\Enums\ModuleEnums;
 use App\Exceptions\ApiException;
+use App\Helpers\FileUploadHelper;
 use App\Http\Resources\UserResource;
 use App\Models\Admin;
 use App\Models\User;
@@ -23,6 +24,7 @@ class AccountSettingsService
         'middlename' => 'Middle name',
         'university' => 'University',
         'year_of_graduation' => 'Year of graduation',
+        'profile_picture_url' => 'Profile picture',
     ];
 
     public function __construct(
@@ -119,6 +121,13 @@ class AccountSettingsService
             if (array_key_exists($field, $data)) {
                 $updates[$field] = $data[$field];
             }
+        }
+
+        if (array_key_exists('profile_picture', $data)) {
+            $picture = $data['profile_picture'];
+            $updates['profile_picture_url'] = ($picture === null || $picture === '')
+                ? null
+                : FileUploadHelper::smartSingleFileUpload($picture, 'avatars');
         }
 
         if ($updates === []) {

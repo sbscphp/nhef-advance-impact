@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\v1\Customer\Settings;
 
+use App\Helpers\FileUploadHelper;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Settings\CustomerProfileUpdateRequest;
@@ -39,6 +40,7 @@ class SettingsController extends Controller
             'firstname' => 'John',
             'lastname' => 'Doe',
             'middlename' => null,
+            'profile_picture_url' => 'https://res.cloudinary.com/nhef/image/upload/v1/avatars/123_2026-07-20_1700000000.jpg',
             'email' => 'john@email.com',
             'email_verified_at' => '2026-07-15T10:00:00Z',
             'registration_step' => 'completed',
@@ -75,7 +77,10 @@ class SettingsController extends Controller
      * Update profile
      *
      * Updates the authenticated customer's profile fields. All fields are optional — send
-     * only the ones you want to change. `email` cannot be changed here.
+     * only the ones you want to change. `email` cannot be changed here. `profile_picture`
+     * accepts a multipart image upload, an existing http(s) URL, or a base64/data-URI image;
+     * send it as `null` (or an empty string) to remove the current picture. Uploads are stored
+     * on Cloudinary — see {@see FileUploadHelper}.
      */
     #[Endpoint('Update profile')]
     #[Authenticated]
@@ -86,10 +91,11 @@ class SettingsController extends Controller
     #[BodyParam('country_code', 'string', 'Phone country code prefix, e.g. +234.', required: false, example: '+234')]
     #[BodyParam('university', 'string', 'University attended.', required: false, example: 'Unilag')]
     #[BodyParam('year_of_graduation', 'int', 'Year of graduation.', required: false, example: 2026)]
+    #[BodyParam('profile_picture', 'file', 'New profile picture — image file, http(s) URL, or base64/data-URI. Send null/empty to remove the current picture. Max 10MB; JPG/PNG/GIF/WEBP.', required: false, example: null)]
     #[Response(status: 200, content: [
         'error' => false,
         'message' => 'Profile updated.',
-        'data' => ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'firstname' => 'John', 'university' => 'Unilag'],
+        'data' => ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'firstname' => 'John', 'profile_picture_url' => 'https://res.cloudinary.com/nhef/image/upload/v1/avatars/123_2026-07-20_1700000000.jpg'],
     ], description: 'Profile updated.')]
     #[Response(status: 422, content: [
         'error' => true,
