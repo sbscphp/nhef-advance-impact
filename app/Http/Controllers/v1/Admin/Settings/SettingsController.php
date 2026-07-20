@@ -82,6 +82,7 @@ class SettingsController extends Controller
             $admin = $this->requireAdmin($request);
             $this->settingsService->updatePassword(
                 $admin,
+                (string) $request->input('current_password'),
                 (string) $request->input('password')
             );
 

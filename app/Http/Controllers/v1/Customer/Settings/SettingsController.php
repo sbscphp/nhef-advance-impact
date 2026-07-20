@@ -78,12 +78,12 @@ class SettingsController extends Controller
     /**
      * Change password
      *
-     * Sets a new password for the authenticated customer. Unlike the forgot-password flow,
-     * this does not require the current password, but the new password may not match the
-     * existing one.
+     * Sets a new password for the authenticated customer. Requires the current password to
+     * confirm the change; the new password may not match the existing one.
      */
     #[Endpoint('Change password')]
     #[Authenticated]
+    #[BodyParam('current_password', 'string', 'The customer\'s current password.', required: true, example: 'OldPass1!')]
     #[BodyParam('password', 'string', 'New password: min 8 characters, mixed case, letters, numbers, and symbols.', required: true, example: 'Str0ng!Pass1')]
     #[BodyParam('password_confirmation', 'string', 'Must match `password`.', required: true, example: 'Str0ng!Pass1')]
     #[Response(status: 200, content: [
@@ -93,15 +93,16 @@ class SettingsController extends Controller
     ], description: 'Password updated.')]
     #[Response(status: 422, content: [
         'error' => true,
-        'message' => 'You cannot reuse your current password.',
+        'message' => 'The current password is incorrect.',
         'data' => null,
-    ], description: 'New password matches the current one, or fails the password policy.')]
+    ], description: 'current_password does not match, new password matches the current one, or fails the password policy.')]
     public function changePassword(ChangeSettingsPasswordRequest $request)
     {
         try {
             $user = $this->requireCustomer($request);
             $this->settingsService->updatePassword(
                 $user,
+                (string) $request->input('current_password'),
                 (string) $request->input('password')
             );
 

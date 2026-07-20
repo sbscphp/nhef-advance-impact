@@ -8,8 +8,8 @@ use App\Http\Resources\UserResource;
 use App\Models\Admin;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
-use App\Support\PasswordRules;
 use App\Services\Notifications\NotificationDispatchService;
+use App\Support\PasswordRules;
 use Illuminate\Support\Facades\Hash;
 
 class AccountSettingsService
@@ -63,8 +63,12 @@ class AccountSettingsService
         ];
     }
 
-    public function updatePassword(User|Admin $authenticatable, string $newPassword): void
+    public function updatePassword(User|Admin $authenticatable, string $currentPassword, string $newPassword): void
     {
+        if (! Hash::check($currentPassword, (string) $authenticatable->password)) {
+            throw new ApiException('The current password is incorrect.', 422);
+        }
+
         $this->validatePasswordStrength($newPassword);
 
         if (Hash::check($newPassword, (string) $authenticatable->password)) {
