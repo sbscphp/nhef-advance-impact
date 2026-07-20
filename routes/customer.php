@@ -66,6 +66,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [DonationController::class, 'store'])->middleware('throttle:customer-donation-create');
         Route::get('/{uuid}', [DonationController::class, 'show']);
         Route::post('/{uuid}/charge', [DonationController::class, 'chargeNext']);
+        Route::patch('/{uuid}', [DonationController::class, 'modify']);
         Route::post('/{uuid}/pause', [DonationController::class, 'pause']);
         Route::post('/{uuid}/resume', [DonationController::class, 'resume']);
         Route::post('/{uuid}/cancel', [DonationController::class, 'cancel']);

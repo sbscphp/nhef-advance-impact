@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Donations\ChargeDonationRequest;
 use App\Http\Requests\Customer\Donations\DonationListRequest;
 use App\Http\Requests\Customer\Donations\MakeDonationRequest;
+use App\Http\Requests\Customer\Donations\ModifyDonationRequest;
 use App\Http\Resources\Fundraising\DonationResource;
 use App\Models\User;
 use App\Responser\JsonResponser;
@@ -83,6 +84,8 @@ class DonationController extends Controller
     #[Endpoint('List my donations')]
     #[Authenticated]
     #[QueryParam('status', 'string', 'Filter by donation status.', required: false, example: 'active', enum: DonationStatusEnum::class)]
+    #[QueryParam('search', 'string', 'Filter by campaign title (partial match).', required: false, example: 'Scholarship')]
+    #[QueryParam('is_recurring', 'boolean', 'true for the "Recurring Donations" view (monthly/quarterly/annually); false for one-time donations only. Omit to see both.', required: false, example: true)]
     #[QueryParam('page', 'int', 'Page number.', required: false, example: 1)]
     #[QueryParam('per_page', 'int', 'Results per page (max 100).', required: false, example: 15)]
     #[Response(status: 200, content: [
@@ -161,6 +164,42 @@ class DonationController extends Controller
             return JsonResponser::send(false, 'Payment initialized.', $result, 200);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Customer\Fundraising\DonationController@chargeNext');
+        }
+    }
+
+    /**
+     * Modify recurring donation
+     *
+     * Changes the amount and/or frequency of an active or paused recurring donation for
+     * future cycles — this does not charge anything immediately (use "Charge next cycle" for
+     * that). Frequency can only change between recurring cadences; it cannot be set to
+     * `one_time` (use "Cancel recurring donation" to stop recurring instead). At least one of
+     * `amount` or `frequency` is required.
+     */
+    #[Endpoint('Modify recurring donation')]
+    #[Authenticated]
+    #[UrlParam('uuid', 'string', 'Donation UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
+    #[BodyParam('amount', 'number', 'New amount charged per cycle. Required if frequency is omitted.', required: false, example: 10000)]
+    #[BodyParam('frequency', 'string', 'New donation frequency (monthly, quarterly, or annually only). Required if amount is omitted.', required: false, example: 'quarterly')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Donation modified.',
+        'data' => ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'amount' => '10000.00', 'frequency' => 'quarterly'],
+    ], description: 'Donation modified.')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'Only an active or paused recurring donation can be modified.',
+        'data' => null,
+    ], description: 'Donation is one-time, or already completed/cancelled.')]
+    public function modify(ModifyDonationRequest $request, string $uuid)
+    {
+        try {
+            $user = $this->requireCustomer($request);
+            $donation = $this->donationService->modifyDonation($user, $uuid, $request->validated(), $request);
+
+            return JsonResponser::send(false, 'Donation modified.', DonationResource::make($donation), 200);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Customer\Fundraising\DonationController@modify');
         }
     }
 

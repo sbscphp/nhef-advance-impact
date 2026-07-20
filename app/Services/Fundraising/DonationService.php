@@ -249,6 +249,59 @@ class DonationService
     }
 
     /**
+     * Changes the amount and/or frequency of an active or paused recurring donation. This
+     * doesn't charge anything — it only changes what the next "Charge next cycle" call will
+     * use. Frequency can only change between recurring cadences (never to one_time; use
+     * cancelDonation() to stop recurring altogether).
+     *
+     * @param  array{amount?: numeric-string|float, frequency?: string}  $validated
+     */
+    public function modifyDonation(User $user, string $donationUuid, array $validated, Request $request): Donation
+    {
+        $donation = $this->findForUser($user, $donationUuid);
+
+        if (! $donation->isRecurring() || ! in_array($donation->status, [DonationStatusEnum::ACTIVE->value, DonationStatusEnum::PAUSED->value], true)) {
+            throw new ApiException('Only an active or paused recurring donation can be modified.', 422);
+        }
+
+        $updates = [];
+
+        if (array_key_exists('amount', $validated)) {
+            $updates['amount'] = $validated['amount'];
+        }
+
+        if (array_key_exists('frequency', $validated) && $validated['frequency'] !== $donation->frequency) {
+            $newFrequency = DonationFrequencyEnum::from($validated['frequency']);
+            $updates['frequency'] = $newFrequency->value;
+            // Charging is donor-triggered, not scheduled — this date is a reminder, not a
+            // deadline, so when the cadence itself changes it should reflect the new cadence
+            // rather than a stale date computed under the old one.
+            $updates['next_charge_at'] = now()->addMonths($newFrequency->intervalMonths())->toDateString();
+        }
+
+        if ($updates === []) {
+            return $donation;
+        }
+
+        $donation = $this->donationRepository->update($donation, $updates);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::CUSTOMER,
+            AuditActionEnum::DONATION_MODIFIED,
+            $request,
+            $user->uuid,
+            ['donation_uuid' => $donation->uuid, ...$updates],
+            $user->displayName().' modified a recurring donation to "'.$donation->campaign->title.'".',
+            Donation::class,
+            $donation->uuid,
+            ModuleEnums::fundraising,
+            200,
+        );
+
+        return $donation;
+    }
+
+    /**
      * The one place that actually confirms money moved. Called from two different entry
      * points — DonationPaymentController::verify() (customer/frontend, after the Paystack
      * redirect) and PaystackWebhookController (Paystack calling us directly) — and it doesn't
