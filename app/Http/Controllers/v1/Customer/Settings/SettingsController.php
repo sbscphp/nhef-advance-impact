@@ -24,6 +24,41 @@ class SettingsController extends Controller
 {
     public function __construct(private readonly AccountSettingsService $settingsService) {}
 
+    /**
+     * Get profile
+     *
+     * Returns the authenticated customer's profile and account settings.
+     */
+    #[Endpoint('Get profile')]
+    #[Authenticated]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Profile retrieved.',
+        'data' => [
+            'uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8',
+            'firstname' => 'John',
+            'lastname' => 'Doe',
+            'middlename' => null,
+            'email' => 'john@email.com',
+            'email_verified_at' => '2026-07-15T10:00:00Z',
+            'registration_step' => 'completed',
+            'phone_number' => '+2340000000',
+            'country_code' => '+234',
+            'university' => 'Unilag',
+            'year_of_graduation' => 2026,
+            '2fa' => false,
+            'email_notifications_enabled' => true,
+            'push_notifications_enabled' => true,
+            'biometrics_enabled' => false,
+            'is_active' => true,
+            'can_login' => true,
+            'last_login_at' => '2026-07-19T08:00:00Z',
+            'last_active_at' => '2026-07-20T08:00:00Z',
+            'role' => ['name' => 'Alumni'],
+            'created_at' => '2026-01-01T00:00:00Z',
+            'updated_at' => '2026-07-20T08:00:00Z',
+        ],
+    ], description: 'Customer profile retrieved.')]
     public function profile(Request $request)
     {
         try {
@@ -36,6 +71,31 @@ class SettingsController extends Controller
         }
     }
 
+    /**
+     * Update profile
+     *
+     * Updates the authenticated customer's profile fields. All fields are optional — send
+     * only the ones you want to change. `email` cannot be changed here.
+     */
+    #[Endpoint('Update profile')]
+    #[Authenticated]
+    #[BodyParam('firstname', 'string', 'First name.', required: false, example: 'John')]
+    #[BodyParam('lastname', 'string', 'Last name.', required: false, example: 'Doe')]
+    #[BodyParam('middlename', 'string', 'Middle name.', required: false, example: null)]
+    #[BodyParam('phone_number', 'string', 'Phone number, without country code.', required: false, example: '0000000000')]
+    #[BodyParam('country_code', 'string', 'Phone country code prefix, e.g. +234.', required: false, example: '+234')]
+    #[BodyParam('university', 'string', 'University attended.', required: false, example: 'Unilag')]
+    #[BodyParam('year_of_graduation', 'int', 'Year of graduation.', required: false, example: 2026)]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Profile updated.',
+        'data' => ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'firstname' => 'John', 'university' => 'Unilag'],
+    ], description: 'Profile updated.')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'The email field is prohibited.',
+        'data' => null,
+    ], description: 'Attempted to change email, or a field failed validation.')]
     public function updateProfile(CustomerProfileUpdateRequest $request)
     {
         try {
@@ -48,6 +108,18 @@ class SettingsController extends Controller
         }
     }
 
+    /**
+     * Toggle two-factor authentication
+     *
+     * Flips 2FA on or off for the authenticated customer (no body — it toggles the current state).
+     */
+    #[Endpoint('Toggle two-factor authentication')]
+    #[Authenticated]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Two-factor authentication updated.',
+        'data' => ['2fa' => true],
+    ], description: '2FA preference updated.')]
     public function toggleTwoFactor(ToggleTwoFactorRequest $request)
     {
         try {
@@ -60,6 +132,20 @@ class SettingsController extends Controller
         }
     }
 
+    /**
+     * Toggle biometrics
+     *
+     * Sets the authenticated customer's biometric login preference. Omit `biometrics_enabled`
+     * to flip the current state instead of setting it explicitly.
+     */
+    #[Endpoint('Toggle biometrics')]
+    #[Authenticated]
+    #[BodyParam('biometrics_enabled', 'boolean', 'Explicit value to set; omit to toggle the current state.', required: false, example: true)]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Biometrics preference updated.',
+        'data' => ['biometrics_enabled' => true],
+    ], description: 'Biometrics preference updated.')]
     public function toggleBiometrics(ToggleBiometricsRequest $request)
     {
         try {
@@ -112,6 +198,21 @@ class SettingsController extends Controller
         }
     }
 
+    /**
+     * Update notification preferences
+     *
+     * Updates the authenticated customer's email/push notification preferences. At least one
+     * of the two fields is required.
+     */
+    #[Endpoint('Update notification preferences')]
+    #[Authenticated]
+    #[BodyParam('email_notifications_enabled', 'boolean', 'Receive account/donation emails. Required if push_notifications_enabled is omitted.', required: false, example: true)]
+    #[BodyParam('push_notifications_enabled', 'boolean', 'Receive push notifications. Required if email_notifications_enabled is omitted.', required: false, example: true)]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Notification preferences updated.',
+        'data' => ['email_notifications_enabled' => true, 'push_notifications_enabled' => true],
+    ], description: 'Notification preferences updated.')]
     public function updateNotificationPreferences(UpdateNotificationPreferencesRequest $request)
     {
         try {

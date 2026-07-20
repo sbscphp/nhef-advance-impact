@@ -21,6 +21,8 @@ class AccountSettingsService
         'firstname' => 'First name',
         'lastname' => 'Last name',
         'middlename' => 'Middle name',
+        'university' => 'University',
+        'year_of_graduation' => 'Year of graduation',
     ];
 
     public function __construct(
@@ -113,7 +115,7 @@ class AccountSettingsService
     {
         $updates = [];
 
-        foreach (['firstname', 'lastname', 'middlename', 'phone_number', 'country_code'] as $field) {
+        foreach (['firstname', 'lastname', 'middlename', 'phone_number', 'country_code', 'university', 'year_of_graduation'] as $field) {
             if (array_key_exists($field, $data)) {
                 $updates[$field] = $data[$field];
             }

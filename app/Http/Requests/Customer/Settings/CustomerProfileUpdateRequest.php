@@ -17,6 +17,8 @@ class CustomerProfileUpdateRequest extends ApiFormRequest
             'middlename' => ['sometimes', 'nullable', 'string', 'max:255'],
             'phone_number' => ['sometimes', 'nullable', 'string', 'max:20'],
             'country_code' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'university' => ['sometimes', 'string', 'max:255'],
+            'year_of_graduation' => ['sometimes', 'integer', 'min:1960', 'max:'.now()->year],
             'email' => ['prohibited'],
         ];
     }
