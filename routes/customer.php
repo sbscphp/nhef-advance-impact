@@ -4,7 +4,6 @@ use App\Http\Controllers\v1\Customer\Auth\EmailVerificationController;
 use App\Http\Controllers\v1\Customer\Auth\LoginController;
 use App\Http\Controllers\v1\Customer\Auth\PasswordController;
 use App\Http\Controllers\v1\Customer\Auth\RegisterController;
-use App\Http\Controllers\v1\Customer\Fundraising\CampaignController;
 use App\Http\Controllers\v1\Customer\Fundraising\PledgeController;
 use App\Http\Controllers\v1\Customer\Notification\NotificationController;
 use App\Http\Controllers\v1\Customer\Settings\SettingsController;
@@ -49,16 +48,10 @@ Route::prefix('v1')->group(function () {
         Route::match(['patch', 'post'], '/notifications', [SettingsController::class, 'updateNotificationPreferences']);
     });
 
-    Route::middleware('auth:sanctum')->prefix('campaigns')->group(function () {
-        Route::get('/', [CampaignController::class, 'index']);
-        Route::get('/{uuid}', [CampaignController::class, 'show']);
-    });
-
     Route::middleware('auth:sanctum')->prefix('pledges')->group(function () {
         Route::get('/', [PledgeController::class, 'index']);
         Route::post('/', [PledgeController::class, 'store'])->middleware('throttle:customer-pledge-create');
         Route::get('/{uuid}', [PledgeController::class, 'show']);
         Route::post('/{uuid}/installments/{installmentUuid}/pay', [PledgeController::class, 'payInstallment']);
-        Route::post('/payments/{reference}/verify', [PledgeController::class, 'verifyPayment']);
     });
 });

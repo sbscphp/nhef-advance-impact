@@ -18,6 +18,8 @@ class PledgeResource extends JsonResource
         return [
             'uuid' => $this->uuid,
             'campaign' => CampaignResource::make($this->whenLoaded('campaign')),
+            'is_guest' => $this->isGuest(),
+            'donor_name' => $this->donorName(),
             'frequency' => $this->frequency,
             'currency' => $this->currency,
             'total_amount' => (string) $this->total_amount,

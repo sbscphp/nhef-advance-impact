@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\v1\Fundraising\CampaignController;
+use App\Http\Controllers\v1\Fundraising\PaymentController;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,4 +16,13 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::post('webhooks/paystack', [PaystackWebhookController::class, 'handle']);
+
+    // Campaign browsing and payment verification are shared by the authenticated customer
+    // flow and the guest donor flow (routes/guest.php) — no account needed for either.
+    Route::prefix('campaigns')->group(function () {
+        Route::get('/', [CampaignController::class, 'index']);
+        Route::get('/{uuid}', [CampaignController::class, 'show']);
+    });
+
+    Route::post('pledges/payments/{reference}/verify', [PaymentController::class, 'verify']);
 });

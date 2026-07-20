@@ -21,7 +21,7 @@ class PledgeRepository implements PledgeRepositoryInterface
     public function findByUuidForUser(int $userId, string $uuid): ?Pledge
     {
         return Pledge::query()
-            ->with(['campaign', 'installments' => fn ($query) => $query->orderBy('sequence'), 'payments'])
+            ->with(['user', 'campaign', 'installments' => fn ($query) => $query->orderBy('sequence'), 'payments'])
             ->where('user_id', $userId)
             ->where('uuid', $uuid)
             ->first();
@@ -30,7 +30,7 @@ class PledgeRepository implements PledgeRepositoryInterface
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator
     {
         return Pledge::query()
-            ->with('campaign')
+            ->with(['user', 'campaign'])
             ->where('user_id', $userId)
             ->when(
                 filled($filters['status'] ?? null),

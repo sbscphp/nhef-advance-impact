@@ -10,7 +10,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Pledges\MakePledgeRequest;
 use App\Http\Requests\Customer\Pledges\PayInstallmentRequest;
 use App\Http\Requests\Customer\Pledges\PledgeListRequest;
-use App\Http\Resources\Fundraising\PledgePaymentResource;
 use App\Http\Resources\Fundraising\PledgeResource;
 use App\Models\User;
 use App\Responser\JsonResponser;
@@ -169,40 +168,6 @@ class PledgeController extends Controller
             return JsonResponser::send(false, 'Payment initialized.', $result, 200);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Customer\Fundraising\PledgeController@payInstallment');
-        }
-    }
-
-    /**
-     * Verify payment
-     *
-     * Confirms a payment's status with the gateway. Safe to call after redirect back from
-     * checkout even if the webhook already confirmed it (idempotent).
-     */
-    #[Endpoint('Verify payment')]
-    #[Authenticated]
-    #[UrlParam('reference', 'string', 'Gateway reference returned by "Make a pledge" or "Pay an installment".', required: true, example: 'PLG_ABCDEFGHIJKLMNOPQRST')]
-    #[Response(status: 200, content: [
-        'error' => false,
-        'message' => 'Payment verified.',
-        'data' => ['payment' => ['status' => 'successful'], 'pledge' => ['status' => 'on_track']],
-    ], description: 'Payment verified with the gateway (successful or failed).')]
-    #[Response(status: 404, content: [
-        'error' => true,
-        'message' => 'Payment not found.',
-        'data' => null,
-    ], description: 'No payment with that gateway reference.')]
-    public function verifyPayment(Request $request, string $reference)
-    {
-        try {
-            $this->requireCustomer($request);
-            $result = $this->pledgeService->verifyPayment($reference, $request);
-
-            return JsonResponser::send(false, 'Payment verified.', [
-                'payment' => PledgePaymentResource::make($result['payment']),
-                'pledge' => PledgeResource::make($result['pledge']),
-            ], 200);
-        } catch (\Throwable $th) {
-            return GeneralHelper::handleControllerThrowable($th, 'Customer\Fundraising\PledgeController@verifyPayment');
         }
     }
 

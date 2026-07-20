@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests\Customer\Campaigns;
+namespace App\Http\Requests\Campaigns;
 
 use App\Enums\CampaignCategoryEnum;
 use App\Http\Requests\ApiFormRequest;

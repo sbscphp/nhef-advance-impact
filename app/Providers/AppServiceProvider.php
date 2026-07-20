@@ -136,6 +136,12 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
         });
+
+        // No account to key off for guests, so this is IP-only — tighter than the
+        // authenticated limit since it's also the only real abuse guard on this endpoint.
+        RateLimiter::for('guest-pledge-create', function (Request $request) {
+            return Limit::perMinute(5)->by((string) $request->ip());
+        });
     }
 
     /**

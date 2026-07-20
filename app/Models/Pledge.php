@@ -60,4 +60,20 @@ class Pledge extends Model
 
         return (int) min(100, round(((float) $this->amount_paid / (float) $this->total_amount) * 100));
     }
+
+    /** True for a guest pledge (BRD ENT-04: donate without an account) — no user_id. */
+    public function isGuest(): bool
+    {
+        return $this->user_id === null;
+    }
+
+    public function donorName(): string
+    {
+        return $this->isGuest() ? (string) $this->guest_name : $this->user->displayName();
+    }
+
+    public function donorEmail(): string
+    {
+        return $this->isGuest() ? (string) $this->guest_email : (string) $this->user->email;
+    }
 }
