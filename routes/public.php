@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\v1\Fundraising\CampaignController;
 use App\Http\Controllers\v1\Fundraising\DonationPaymentController;
+use App\Http\Controllers\v1\Fundraising\DonationReceiptController;
 use App\Http\Controllers\v1\Fundraising\PaymentController;
+use App\Http\Controllers\v1\Recognition\LeaderboardController;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,4 +29,13 @@ Route::prefix('v1')->group(function () {
 
     Route::post('pledges/payments/{reference}/verify', [PaymentController::class, 'verify']);
     Route::post('donations/payments/{reference}/verify', [DonationPaymentController::class, 'verify']);
+
+    // Matches the reserved pattern in RequestResponseEncryptionMiddleware::BYPASS_REGEX — this
+    // is opened directly from an emailed receipt link, so it can't carry an X-ClientKey header;
+    // the `signed` middleware's signature is the credential instead.
+    Route::get('public/receipts/{uuid}/download', [DonationReceiptController::class, 'download'])
+        ->middleware('signed')
+        ->name('receipts.download');
+
+    Route::get('public/recognition/leaderboard', [LeaderboardController::class, 'index']);
 });

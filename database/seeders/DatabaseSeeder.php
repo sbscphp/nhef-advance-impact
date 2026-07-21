@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             ThemeSeeder::class,
             ApiUserSeeder::class,
             CampaignSeeder::class,
+            DonorTierSeeder::class,
         ]);
     }
 }

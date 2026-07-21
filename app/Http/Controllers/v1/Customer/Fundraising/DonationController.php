@@ -8,9 +8,12 @@ use App\Enums\PaymentMethodEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Donations\ChargeDonationRequest;
+use App\Http\Requests\Customer\Donations\DonationHistoryOverviewRequest;
 use App\Http\Requests\Customer\Donations\DonationListRequest;
+use App\Http\Requests\Customer\Donations\DonationPaymentListRequest;
 use App\Http\Requests\Customer\Donations\MakeDonationRequest;
 use App\Http\Requests\Customer\Donations\ModifyDonationRequest;
+use App\Http\Resources\Fundraising\DonationPaymentResource;
 use App\Http\Resources\Fundraising\DonationResource;
 use App\Models\User;
 use App\Responser\JsonResponser;
@@ -132,6 +135,104 @@ class DonationController extends Controller
             return JsonResponser::send(false, 'Donation retrieved.', DonationResource::make($donation), 200);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Customer\Fundraising\DonationController@show');
+        }
+    }
+
+    /**
+     * List my donation payments
+     *
+     * Returns a flat, cross-donation transaction log — every payment the customer has made,
+     * regardless of which donation it belongs to. The "Donation History" view.
+     */
+    #[Endpoint('List my donation payments')]
+    #[Authenticated]
+    #[QueryParam('status', 'string', 'Filter by payment status.', required: false, example: 'successful')]
+    #[QueryParam('search', 'string', 'Filter by campaign title (partial match).', required: false, example: 'Scholarship')]
+    #[QueryParam('from', 'date', 'Only payments paid on/after this date.', required: false, example: '2026-01-01')]
+    #[QueryParam('to', 'date', 'Only payments paid on/before this date.', required: false, example: '2026-01-31')]
+    #[QueryParam('page', 'int', 'Page number.', required: false, example: 1)]
+    #[QueryParam('per_page', 'int', 'Results per page (max 100).', required: false, example: 15)]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Donation payments retrieved.',
+        'data' => ['current_page' => 1, 'data' => [], 'per_page' => 15, 'total' => 0],
+    ], description: 'Paginated list of the customer\'s donation payments.')]
+    public function paymentHistory(DonationPaymentListRequest $request)
+    {
+        try {
+            $user = $this->requireCustomer($request);
+            $paginator = $this->donationService->paginatePaymentsForUser($user, $request->validated());
+
+            $payload = $paginator->toArray();
+            $payload['data'] = DonationPaymentResource::collection($paginator)->resolve();
+
+            return JsonResponser::send(false, 'Donation payments retrieved.', $payload, 200);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Customer\Fundraising\DonationController@paymentHistory');
+        }
+    }
+
+    /**
+     * Donation history overview
+     *
+     * "Total Donation Target" is the sum of goal amounts across every (NGN) campaign this
+     * donor has ever paid into; "Total Donation Received" is the (NGN) sum of successful
+     * payments, optionally scoped to a date range.
+     */
+    #[Endpoint('Donation history overview')]
+    #[Authenticated]
+    #[QueryParam('from', 'date', 'Scope "received" to payments paid on/after this date.', required: false, example: '2026-01-01')]
+    #[QueryParam('to', 'date', 'Scope "received" to payments paid on/before this date.', required: false, example: '2026-01-31')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Overview retrieved.',
+        'data' => [
+            'target' => '89000000.00',
+            'target_formatted' => 'NGN 89,000,000.00',
+            'received' => '39293943.00',
+            'received_formatted' => 'NGN 39,293,943.00',
+        ],
+    ], description: 'Overview totals retrieved.')]
+    public function paymentHistoryOverview(DonationHistoryOverviewRequest $request)
+    {
+        try {
+            $user = $this->requireCustomer($request);
+            $overview = $this->donationService->historyOverview($user, $request->validated('from'), $request->validated('to'));
+
+            return JsonResponser::send(false, 'Overview retrieved.', $overview, 200);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Customer\Fundraising\DonationController@paymentHistoryOverview');
+        }
+    }
+
+    /**
+     * View donation payment
+     *
+     * Returns a single transaction's detail, including its receipt download link. The "View
+     * Donation" screen.
+     */
+    #[Endpoint('View donation payment')]
+    #[Authenticated]
+    #[UrlParam('uuid', 'string', 'Donation payment UUID.', required: true, example: 'd4e5f6a7-b8c9-40d1-92e3-f4a5b6c7d8e9')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Donation payment retrieved.',
+        'data' => ['uuid' => 'd4e5f6a7-b8c9-40d1-92e3-f4a5b6c7d8e9', 'status' => 'successful'],
+    ], description: 'Donation payment found and belongs to the authenticated customer.')]
+    #[Response(status: 404, content: [
+        'error' => true,
+        'message' => 'Payment not found.',
+        'data' => null,
+    ], description: 'No payment with that UUID belongs to the authenticated customer.')]
+    public function showPayment(Request $request, string $uuid)
+    {
+        try {
+            $user = $this->requireCustomer($request);
+            $payment = $this->donationService->findPaymentForUser($user, $uuid);
+
+            return JsonResponser::send(false, 'Donation payment retrieved.', DonationPaymentResource::make($payment), 200);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Customer\Fundraising\DonationController@showPayment');
         }
     }
 

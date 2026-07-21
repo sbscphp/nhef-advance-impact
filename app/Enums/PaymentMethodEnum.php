@@ -14,4 +14,13 @@ enum PaymentMethodEnum: string
     {
         return array_column(self::cases(), 'value');
     }
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::CARD => 'Card',
+            self::BANK_TRANSFER => 'Bank Transfer',
+            self::WALLET => 'Wallet',
+        };
+    }
 }

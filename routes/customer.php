@@ -7,6 +7,7 @@ use App\Http\Controllers\v1\Customer\Auth\RegisterController;
 use App\Http\Controllers\v1\Customer\Fundraising\DonationController;
 use App\Http\Controllers\v1\Customer\Fundraising\PledgeController;
 use App\Http\Controllers\v1\Customer\Notification\NotificationController;
+use App\Http\Controllers\v1\Customer\Recognition\RecognitionController;
 use App\Http\Controllers\v1\Customer\Settings\PaymentMethodController;
 use App\Http\Controllers\v1\Customer\Settings\SettingsController;
 use Illuminate\Support\Facades\Route;
@@ -64,11 +65,20 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->prefix('donations')->group(function () {
         Route::get('/', [DonationController::class, 'index']);
         Route::post('/', [DonationController::class, 'store'])->middleware('throttle:customer-donation-create');
+        // Must be registered before /{uuid} — otherwise "payments" would be swallowed as a
+        // donation uuid by the wildcard route below.
+        Route::get('/payments', [DonationController::class, 'paymentHistory']);
+        Route::get('/payments/overview', [DonationController::class, 'paymentHistoryOverview']);
+        Route::get('/payments/{uuid}', [DonationController::class, 'showPayment']);
         Route::get('/{uuid}', [DonationController::class, 'show']);
         Route::post('/{uuid}/charge', [DonationController::class, 'chargeNext']);
         Route::patch('/{uuid}', [DonationController::class, 'modify']);
         Route::post('/{uuid}/pause', [DonationController::class, 'pause']);
         Route::post('/{uuid}/resume', [DonationController::class, 'resume']);
         Route::post('/{uuid}/cancel', [DonationController::class, 'cancel']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('recognition')->group(function () {
+        Route::get('/me', [RecognitionController::class, 'me']);
     });
 });

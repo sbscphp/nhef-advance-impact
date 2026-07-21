@@ -10,6 +10,7 @@ use App\Repositories\Contracts\Auth\OtpRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
+use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\PaymentMethod\PaymentMethodRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgePaymentRepositoryInterface;
@@ -18,6 +19,7 @@ use App\Repositories\Contracts\Theme\ThemeRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Repositories\Donation\DonationPaymentRepository;
 use App\Repositories\Donation\DonationRepository;
+use App\Repositories\DonorTier\DonorTierRepository;
 use App\Repositories\PaymentMethod\PaymentMethodRepository;
 use App\Repositories\Pledge\PledgeInstallmentRepository;
 use App\Repositories\Pledge\PledgePaymentRepository;
@@ -53,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DonationRepositoryInterface::class, DonationRepository::class);
         $this->app->bind(DonationPaymentRepositoryInterface::class, DonationPaymentRepository::class);
         $this->app->bind(PaymentMethodRepositoryInterface::class, PaymentMethodRepository::class);
+        $this->app->bind(DonorTierRepositoryInterface::class, DonorTierRepository::class);
     }
 
     /**

@@ -19,6 +19,7 @@ use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
+use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Settings\PaymentMethodService;
 use App\Services\Theme\ThemeResolver;
@@ -40,6 +41,7 @@ class DonationService
         private readonly PaymentGatewayService $paymentGatewayService,
         private readonly NotificationDispatchService $notificationDispatchService,
         private readonly PaymentMethodService $paymentMethodService,
+        private readonly DonorTierRepositoryInterface $donorTierRepository,
     ) {}
 
     /**
@@ -345,6 +347,12 @@ class DonationService
         }
 
         return DB::transaction(function () use ($payment, $result, $reference, $request): array {
+            // Captured before markSuccessful() below so it reflects the total *excluding* this
+            // payment — used to detect a tier crossing (REC-04) once this payment is counted.
+            $previousNgnTotal = ($payment->user !== null && $payment->currency === 'NGN')
+                ? $this->paymentRepository->sumSuccessfulForUser($payment->user->id, null, null)
+                : null;
+
             $payment = $this->paymentRepository->markSuccessful($payment, [
                 'paid_at' => now(),
                 'card_last_four' => $result['card_last_four'],
@@ -357,6 +365,11 @@ class DonationService
 
             if ($payment->user !== null) {
                 $this->paymentMethodService->saveFromAuthorization($payment->user, $result['authorization']);
+            }
+
+            if ($previousNgnTotal !== null) {
+                $newNgnTotal = (string) ((float) $previousNgnTotal + (float) $payment->amount);
+                $this->notifyTierUpgradeIfAny($payment->user, $previousNgnTotal, $newNgnTotal);
             }
 
             $donation = $payment->donation;
@@ -433,6 +446,50 @@ class DonationService
         }
 
         return $donation;
+    }
+
+    /**
+     * Flat, cross-donation transaction log for the "Donation History" screen — every payment
+     * the donor has made, regardless of which donation it belongs to.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginatePaymentsForUser(User $user, array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->paymentRepository->paginateForUser($user->id, $filters, $perPage);
+    }
+
+    public function findPaymentForUser(User $user, string $uuid): DonationPayment
+    {
+        $payment = $this->paymentRepository->findByUuidForUser($user->id, $uuid);
+
+        if (! $payment instanceof DonationPayment) {
+            throw new ApiException('Payment not found.', 404);
+        }
+
+        return $payment;
+    }
+
+    /**
+     * "Total Donation Target" is the sum of goal_amount across every campaign this donor has
+     * ever successfully paid into (not time-boxed — a campaign's goal isn't a period-specific
+     * figure); "Total Donation Received" is scoped to the given date range, if any.
+     *
+     * @return array{target: string, received: string}
+     */
+    public function historyOverview(User $user, ?string $from, ?string $to): array
+    {
+        $target = $this->paymentRepository->distinctCampaignGoalTotalForUser($user->id);
+        $received = $this->paymentRepository->sumSuccessfulForUser($user->id, $from, $to);
+
+        return [
+            'target' => $target,
+            'target_formatted' => Money::format($target, 'NGN'),
+            'received' => $received,
+            'received_formatted' => Money::format($received, 'NGN'),
+        ];
     }
 
     /**
@@ -515,5 +572,37 @@ class DonationService
                 'message' => $th->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * REC-04: celebration notification when a payment pushes the donor's lifetime NGN total
+     * into a new (higher) recognition tier. A no-op if they're still in the same tier (or
+     * haven't reached the lowest one), or if $previousTotal is null (guest, or non-NGN
+     * payment — out of the NGN-only Recognition Wall's scope; see RecognitionService).
+     */
+    private function notifyTierUpgradeIfAny(?User $user, string $previousTotal, string $newTotal): void
+    {
+        if ($user === null) {
+            return;
+        }
+
+        $previousTier = $this->donorTierRepository->findForAmount($previousTotal);
+        $newTier = $this->donorTierRepository->findForAmount($newTotal);
+
+        if ($newTier === null || $previousTier?->id === $newTier->id) {
+            return;
+        }
+
+        $notification = new GenericDatabaseNotification(
+            module: ModuleEnums::fundraising->value,
+            event: 'donor_tier_reached',
+            title: 'New recognition tier reached',
+            message: 'Congratulations! Your generosity has earned you the "'.$newTier->name.'" tier on our Recognition Wall.',
+            meta: ['tier' => $newTier->name],
+            sendMail: true,
+            mailSubject: 'You\'ve reached '.$newTier->name.'!',
+        );
+
+        $this->notificationDispatchService->notifyUsersByUuids([$user->uuid], $notification);
     }
 }
