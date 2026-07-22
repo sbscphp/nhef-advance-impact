@@ -42,3 +42,4 @@ yarn-error.log
 /public/vendor/scribe
 
 .claude/skills
+CLAUDE.md
