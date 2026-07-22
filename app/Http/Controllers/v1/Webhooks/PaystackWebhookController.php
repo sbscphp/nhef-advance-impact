@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\v1\Webhooks;
 
 use App\Http\Controllers\Controller;
+use App\Services\Events\EventTicketService;
 use App\Services\Fundraising\DonationService;
 use App\Services\Fundraising\PledgeService;
 use App\Services\ThirdParty\Payment\PaymentGatewayService;
@@ -29,13 +30,15 @@ class PaystackWebhookController extends Controller
         private readonly PaymentGatewayService $paymentGatewayService,
         private readonly PledgeService $pledgeService,
         private readonly DonationService $donationService,
+        private readonly EventTicketService $eventTicketService,
     ) {}
 
     /**
      * Paystack webhook
      *
-     * Confirms `charge.success` events against the gateway and settles the matching pledge or
-     * donation payment (dispatched by the `PLG_`/`DON_` prefix we mint the reference with).
+     * Confirms `charge.success` events against the gateway and settles the matching pledge,
+     * donation, or event-ticket payment (dispatched by the `PLG_`/`DON_`/`TIX_` prefix we mint
+     * the reference with).
      * Verified with the `x-paystack-signature` header (HMAC-SHA512) when `PAYMENT_MODE=live`;
      * requests are ignored otherwise since no real gateway sends them.
      */
@@ -67,6 +70,8 @@ class PaystackWebhookController extends Controller
         if ($event === 'charge.success' && $reference !== '') {
             if (str_starts_with($reference, 'DON_')) {
                 $this->donationService->verifyPayment($reference, $request);
+            } elseif (str_starts_with($reference, 'TIX_')) {
+                $this->eventTicketService->verifyPayment($reference, $request);
             } else {
                 $this->pledgeService->verifyPayment($reference, $request);
             }

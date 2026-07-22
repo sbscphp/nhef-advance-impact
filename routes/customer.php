@@ -4,6 +4,7 @@ use App\Http\Controllers\v1\Customer\Auth\EmailVerificationController;
 use App\Http\Controllers\v1\Customer\Auth\LoginController;
 use App\Http\Controllers\v1\Customer\Auth\PasswordController;
 use App\Http\Controllers\v1\Customer\Auth\RegisterController;
+use App\Http\Controllers\v1\Customer\Events\EventRegistrationController;
 use App\Http\Controllers\v1\Customer\Fundraising\DonationController;
 use App\Http\Controllers\v1\Customer\Fundraising\PledgeController;
 use App\Http\Controllers\v1\Customer\Notification\NotificationController;
@@ -80,5 +81,13 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->prefix('recognition')->group(function () {
         Route::get('/me', [RecognitionController::class, 'me']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('events')->group(function () {
+        // Must be registered before /{uuid}/register — otherwise "registrations" would be
+        // swallowed as an event uuid by the wildcard route below.
+        Route::get('/registrations', [EventRegistrationController::class, 'index']);
+        Route::get('/registrations/{uuid}', [EventRegistrationController::class, 'show']);
+        Route::post('/{uuid}/register', [EventRegistrationController::class, 'store'])->middleware('throttle:customer-event-register');
     });
 });

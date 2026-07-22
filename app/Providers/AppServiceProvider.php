@@ -11,6 +11,11 @@ use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Repositories\Contracts\Event\EventRegistrationItemRepositoryInterface;
+use App\Repositories\Contracts\Event\EventRegistrationPaymentRepositoryInterface;
+use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
+use App\Repositories\Contracts\Event\EventRepositoryInterface;
+use App\Repositories\Contracts\Event\EventTicketTypeRepositoryInterface;
 use App\Repositories\Contracts\PaymentMethod\PaymentMethodRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgePaymentRepositoryInterface;
@@ -20,6 +25,11 @@ use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Repositories\Donation\DonationPaymentRepository;
 use App\Repositories\Donation\DonationRepository;
 use App\Repositories\DonorTier\DonorTierRepository;
+use App\Repositories\Event\EventRegistrationItemRepository;
+use App\Repositories\Event\EventRegistrationPaymentRepository;
+use App\Repositories\Event\EventRegistrationRepository;
+use App\Repositories\Event\EventRepository;
+use App\Repositories\Event\EventTicketTypeRepository;
 use App\Repositories\PaymentMethod\PaymentMethodRepository;
 use App\Repositories\Pledge\PledgeInstallmentRepository;
 use App\Repositories\Pledge\PledgePaymentRepository;
@@ -56,6 +66,11 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(DonationPaymentRepositoryInterface::class, DonationPaymentRepository::class);
         $this->app->bind(PaymentMethodRepositoryInterface::class, PaymentMethodRepository::class);
         $this->app->bind(DonorTierRepositoryInterface::class, DonorTierRepository::class);
+        $this->app->bind(EventRepositoryInterface::class, EventRepository::class);
+        $this->app->bind(EventTicketTypeRepositoryInterface::class, EventTicketTypeRepository::class);
+        $this->app->bind(EventRegistrationRepositoryInterface::class, EventRegistrationRepository::class);
+        $this->app->bind(EventRegistrationItemRepositoryInterface::class, EventRegistrationItemRepository::class);
+        $this->app->bind(EventRegistrationPaymentRepositoryInterface::class, EventRegistrationPaymentRepository::class);
     }
 
     /**
@@ -165,6 +180,18 @@ class AppServiceProvider extends ServiceProvider
         // No account to key off for guests, so this is IP-only — tighter than the
         // authenticated limit since it's also the only real abuse guard on this endpoint.
         RateLimiter::for('guest-donation-create', function (Request $request) {
+            return Limit::perMinute(5)->by((string) $request->ip());
+        });
+
+        RateLimiter::for('customer-event-register', function (Request $request) {
+            $userId = $request->user()?->id;
+
+            return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
+        });
+
+        // No account to key off for guests, so this is IP-only — tighter than the
+        // authenticated limit since it's also the only real abuse guard on this endpoint.
+        RateLimiter::for('guest-event-register', function (Request $request) {
             return Limit::perMinute(5)->by((string) $request->ip());
         });
     }

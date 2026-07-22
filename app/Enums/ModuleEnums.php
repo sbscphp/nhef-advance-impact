@@ -22,6 +22,9 @@ enum ModuleEnums: string
     /** Campaigns, pledges, donations, and payment gateway events. */
     case fundraising = 'fundraising';
 
+    /** Events, ticket types, and ticket registration/payment events. */
+    case events = 'events';
+
     public function label(): string
     {
         return match ($this) {
@@ -31,6 +34,7 @@ enum ModuleEnums: string
             self::settings => 'Settings',
             self::authentication => 'Authentication',
             self::fundraising => 'Fundraising',
+            self::events => 'Events',
         };
     }
 

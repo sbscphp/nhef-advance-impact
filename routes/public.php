@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\v1\Events\EventController;
+use App\Http\Controllers\v1\Events\EventRegistrationPaymentController;
 use App\Http\Controllers\v1\Fundraising\CampaignController;
 use App\Http\Controllers\v1\Fundraising\DonationPaymentController;
 use App\Http\Controllers\v1\Fundraising\DonationReceiptController;
@@ -29,6 +31,15 @@ Route::prefix('v1')->group(function () {
 
     Route::post('pledges/payments/{reference}/verify', [PaymentController::class, 'verify']);
     Route::post('donations/payments/{reference}/verify', [DonationPaymentController::class, 'verify']);
+
+    // Event browsing and payment verification are shared by the authenticated customer flow
+    // and the guest registration flow (routes/guest.php) — no account needed for either.
+    Route::prefix('events')->group(function () {
+        Route::get('/', [EventController::class, 'index']);
+        Route::get('/{uuid}', [EventController::class, 'show']);
+    });
+
+    Route::post('events/registrations/payments/{reference}/verify', [EventRegistrationPaymentController::class, 'verify']);
 
     // Matches the reserved pattern in RequestResponseEncryptionMiddleware::BYPASS_REGEX — this
     // is opened directly from an emailed receipt link, so it can't carry an X-ClientKey header;
