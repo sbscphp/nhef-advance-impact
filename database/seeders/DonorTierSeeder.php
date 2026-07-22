@@ -7,7 +7,7 @@ use Illuminate\Database\Seeder;
 
 /**
  * Default donor recognition tiers (BRD REC-02). Institution-specific customization has no
- * admin CRUD yet — these are seed defaults, adjustable directly in the database until one
+ * admin CRUD yet; these are seed defaults, adjustable directly in the database until one
  * exists.
  */
 class DonorTierSeeder extends Seeder

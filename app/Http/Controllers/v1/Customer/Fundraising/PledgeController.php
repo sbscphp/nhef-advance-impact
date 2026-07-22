@@ -29,17 +29,6 @@ class PledgeController extends Controller
 {
     public function __construct(private readonly PledgeService $pledgeService) {}
 
-    /**
-     * Make a pledge
-     *
-     * Creates a one-time or recurring pledge against a campaign and initializes payment for
-     * the first installment. Recurring pledges have their installment count and due dates
-     * derived from `start_date`, `end_date`, and `frequency` (e.g. monthly over a 3-month
-     * range produces 3 installments), split evenly across the total amount. One-time pledges
-     * use `expected_payment_date` as the single installment's due date. Follow
-     * `authorization_url` to complete payment, then call "Verify payment" (or wait for the
-     * gateway webhook).
-     */
     #[Endpoint('Make a pledge')]
     #[Authenticated]
     #[BodyParam('campaign_uuid', 'string', 'UUID of the campaign to donate to.', required: true, example: 'b2c3d4e5-f6a7-48b9-90c1-d2e3f4a5b6c7')]
@@ -80,11 +69,6 @@ class PledgeController extends Controller
         }
     }
 
-    /**
-     * List my pledges
-     *
-     * Returns the authenticated customer's pledges, optionally filtered by status.
-     */
     #[Endpoint('List my pledges')]
     #[Authenticated]
     #[QueryParam('status', 'string', 'Filter by pledge status.', required: false, example: 'on_track', enum: PledgeStatusEnum::class)]
@@ -107,12 +91,6 @@ class PledgeController extends Controller
         }
     }
 
-    /**
-     * View pledge
-     *
-     * Returns a single pledge with its installment schedule and payment history
-     * (matches the "My Pledge" view: total, paid, remaining, installments, payment history).
-     */
     #[Endpoint('View pledge')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Pledge UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
@@ -138,12 +116,6 @@ class PledgeController extends Controller
         }
     }
 
-    /**
-     * Pay an installment
-     *
-     * Initializes payment for a specific pending installment on an existing pledge (the next
-     * scheduled instalment on a recurring pledge, or a retry of a failed payment).
-     */
     #[Endpoint('Pay an installment')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Pledge UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]

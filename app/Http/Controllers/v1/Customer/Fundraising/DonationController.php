@@ -33,14 +33,6 @@ class DonationController extends Controller
 {
     public function __construct(private readonly DonationService $donationService) {}
 
-    /**
-     * Make a donation
-     *
-     * Creates a one-time or recurring donation against a campaign and initializes payment for
-     * the first (or only) charge. Recurring donations charge the same `amount` every cycle;
-     * call "Charge next cycle" to trigger each subsequent charge. Follow `authorization_url` to
-     * complete payment, then call "Verify payment" (or wait for the gateway webhook).
-     */
     #[Endpoint('Make a donation')]
     #[Authenticated]
     #[BodyParam('campaign_uuid', 'string', 'UUID of the campaign to donate to.', required: true, example: 'b2c3d4e5-f6a7-48b9-90c1-d2e3f4a5b6c7')]
@@ -78,12 +70,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * List my donations
-     *
-     * Returns the authenticated customer's donations, optionally filtered by status — the
-     * "cumulative donation history" view (BRD FEM-07).
-     */
     #[Endpoint('List my donations')]
     #[Authenticated]
     #[QueryParam('status', 'string', 'Filter by donation status.', required: false, example: 'active', enum: DonationStatusEnum::class)]
@@ -108,11 +94,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * View donation
-     *
-     * Returns a single donation with its payment history.
-     */
     #[Endpoint('View donation')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Donation UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
@@ -138,12 +119,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * List my donation payments
-     *
-     * Returns a flat, cross-donation transaction log — every payment the customer has made,
-     * regardless of which donation it belongs to. The "Donation History" view.
-     */
     #[Endpoint('List my donation payments')]
     #[Authenticated]
     #[QueryParam('status', 'string', 'Filter by payment status.', required: false, example: 'successful')]
@@ -172,13 +147,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * Donation history overview
-     *
-     * "Total Donation Target" is the sum of goal amounts across every (NGN) campaign this
-     * donor has ever paid into; "Total Donation Received" is the (NGN) sum of successful
-     * payments, optionally scoped to a date range.
-     */
     #[Endpoint('Donation history overview')]
     #[Authenticated]
     #[QueryParam('from', 'date', 'Scope "received" to payments paid on/after this date.', required: false, example: '2026-01-01')]
@@ -205,12 +173,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * View donation payment
-     *
-     * Returns a single transaction's detail, including its receipt download link. The "View
-     * Donation" screen.
-     */
     #[Endpoint('View donation payment')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Donation payment UUID.', required: true, example: 'd4e5f6a7-b8c9-40d1-92e3-f4a5b6c7d8e9')]
@@ -236,12 +198,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * Charge next cycle
-     *
-     * Initializes payment for the next cycle of an active recurring donation (or retries a
-     * failed charge).
-     */
     #[Endpoint('Charge next cycle')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Donation UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
@@ -268,15 +224,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * Modify recurring donation
-     *
-     * Changes the amount and/or frequency of an active or paused recurring donation for
-     * future cycles — this does not charge anything immediately (use "Charge next cycle" for
-     * that). Frequency can only change between recurring cadences; it cannot be set to
-     * `one_time` (use "Cancel recurring donation" to stop recurring instead). At least one of
-     * `amount` or `frequency` is required.
-     */
     #[Endpoint('Modify recurring donation')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Donation UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
@@ -304,11 +251,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * Pause recurring donation
-     *
-     * Pauses an active recurring donation — no further cycles can be charged until resumed.
-     */
     #[Endpoint('Pause recurring donation')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Donation UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
@@ -334,11 +276,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * Resume recurring donation
-     *
-     * Resumes a paused recurring donation — the donor can charge its next cycle again.
-     */
     #[Endpoint('Resume recurring donation')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Donation UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
@@ -364,11 +301,6 @@ class DonationController extends Controller
         }
     }
 
-    /**
-     * Cancel recurring donation
-     *
-     * Cancels a recurring donation for good — unlike pause, this cannot be undone by resuming.
-     */
     #[Endpoint('Cancel recurring donation')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Donation UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]

@@ -16,8 +16,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Saved cards ("My Payment Methods" settings screen). Populated by {@see saveFromAuthorization}
- * — called from PledgeService/DonationService::verifyPayment() whenever Paystack returns a
+ * Saved cards ("My Payment Methods" settings screen). Populated by {@see saveFromAuthorization},
+ * called from PledgeService/DonationService::verifyPayment() whenever Paystack returns a
  * reusable authorization for a logged-in customer's successful payment. Guests never get a
  * saved method since they have no account to attach one to.
  */
@@ -40,7 +40,7 @@ class PaymentMethodService
         }
 
         try {
-            // Paystack mints a new authorization_code per transaction even for the same card —
+            // Paystack mints a new authorization_code per transaction even for the same card;
             // `signature` is the actual same-card identifier, so that's what we dedupe on.
             // authorization_code is only a fallback match for the rare case signature is absent.
             $existing = $signature !== null && $signature !== ''
@@ -49,7 +49,7 @@ class PaymentMethodService
 
             if ($existing instanceof PaymentMethod) {
                 $this->paymentMethodRepository->update($existing, [
-                    // Refresh to the newest authorization_code — older ones can expire even
+                    // Refresh to the newest authorization_code; older ones can expire even
                     // though the card (signature) is still the same.
                     'authorization_code' => $code,
                     'signature' => $signature ?? $existing->signature,

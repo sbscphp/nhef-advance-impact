@@ -27,12 +27,6 @@ class RegisterController extends Controller
         private readonly DropdownService $dropdownService,
     ) {}
 
-    /**
-     * Get registration options
-     *
-     * Dropdown metadata for the sign-up form: countries, degrees, employment statuses,
-     * and the list of selectable graduation years.
-     */
     #[Endpoint('Get registration options')]
     #[Unauthenticated]
     #[Response(status: 200, content: [
@@ -84,13 +78,6 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Sign up
-     *
-     * Creates a new alumni/customer account and emails a "Verify Email Address" link.
-     * No password is collected at this step; the customer sets one after clicking the link
-     * (see "Complete registration" below).
-     */
     #[Endpoint('Sign up')]
     #[Unauthenticated]
     #[BodyParam('firstname', 'string', 'Customer first name.', required: true, example: 'Joy')]
@@ -136,13 +123,6 @@ class RegisterController extends Controller
         }
     }
 
-    /**
-     * Complete registration
-     *
-     * Called from the "Verify Email Address" link (`reset_token` is the `token` query
-     * parameter on that link). Sets the customer's password, marks their email verified,
-     * and signs them in (or issues a login OTP if two-factor is required).
-     */
     #[Endpoint('Complete registration (set password)')]
     #[Unauthenticated]
     #[BodyParam('reset_token', 'string', 'The `token` query parameter from the "Verify Email Address" email link.', required: true, example: 'eyJpdiI6IkhxZnZaY01SSkV2UVdqY0F2WnBqV0E9PSIsInZhbHVlIjoi...')]

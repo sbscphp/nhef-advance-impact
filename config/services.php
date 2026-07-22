@@ -35,8 +35,8 @@ return [
     'sms' => [
         /*
         | SMS_MODE controls provider dispatch when security.otp_sms_dispatch_enabled is true:
-        | log  — message written to logs only
-        | live — sent via Termii (NG) or SMS_FOREIGN_PROVIDER (foreign)
+        | log: message written to logs only
+        | live: sent via Termii (NG) or SMS_FOREIGN_PROVIDER (foreign)
         | Fixed SMS OTP while dispatch is off: security.otp_sms_stub_code (OTP_SMS_STUB_CODE).
         */
         'foreign_provider' => env('SMS_FOREIGN_PROVIDER', 'twilio'),
@@ -60,9 +60,9 @@ return [
 
     /*
     | PAYMENT_MODE controls gateway dispatch for pledges/donations:
-    | stub — no gateway call; verify() reports immediate success (local/Postman testing)
-    | log  — same as stub, plus logs what would have been sent
-    | live — sent via Paystack
+    | stub: no gateway call; verify() reports immediate success (local/Postman testing)
+    | log: same as stub, plus logs what would have been sent
+    | live: sent via Paystack
     */
     'paystack' => [
         'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),

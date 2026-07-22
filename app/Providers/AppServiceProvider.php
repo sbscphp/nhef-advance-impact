@@ -49,9 +49,6 @@ use Knuckles\Scribe\Scribe;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
@@ -73,9 +70,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EventRegistrationPaymentRepositoryInterface::class, EventRegistrationPaymentRepository::class);
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         $this->configureDefaults();
@@ -165,7 +159,7 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
         });
 
-        // No account to key off for guests, so this is IP-only — tighter than the
+        // No account to key off for guests, so this is IP-only; tighter than the
         // authenticated limit since it's also the only real abuse guard on this endpoint.
         RateLimiter::for('guest-pledge-create', function (Request $request) {
             return Limit::perMinute(5)->by((string) $request->ip());
@@ -177,7 +171,7 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
         });
 
-        // No account to key off for guests, so this is IP-only — tighter than the
+        // No account to key off for guests, so this is IP-only; tighter than the
         // authenticated limit since it's also the only real abuse guard on this endpoint.
         RateLimiter::for('guest-donation-create', function (Request $request) {
             return Limit::perMinute(5)->by((string) $request->ip());
@@ -189,7 +183,7 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
         });
 
-        // No account to key off for guests, so this is IP-only — tighter than the
+        // No account to key off for guests, so this is IP-only; tighter than the
         // authenticated limit since it's also the only real abuse guard on this endpoint.
         RateLimiter::for('guest-event-register', function (Request $request) {
             return Limit::perMinute(5)->by((string) $request->ip());

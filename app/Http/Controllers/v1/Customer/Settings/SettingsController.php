@@ -25,11 +25,6 @@ class SettingsController extends Controller
 {
     public function __construct(private readonly AccountSettingsService $settingsService) {}
 
-    /**
-     * Get profile
-     *
-     * Returns the authenticated customer's profile and account settings.
-     */
     #[Endpoint('Get profile')]
     #[Authenticated]
     #[Response(status: 200, content: [
@@ -73,15 +68,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Update profile
-     *
-     * Updates the authenticated customer's profile fields. All fields are optional — send
-     * only the ones you want to change. `email` cannot be changed here. `profile_picture`
-     * accepts a multipart image upload, an existing http(s) URL, or a base64/data-URI image;
-     * send it as `null` (or an empty string) to remove the current picture. Uploads are stored
-     * on Cloudinary — see {@see FileUploadHelper}.
-     */
     #[Endpoint('Update profile')]
     #[Authenticated]
     #[BodyParam('firstname', 'string', 'First name.', required: false, example: 'John')]
@@ -91,7 +77,7 @@ class SettingsController extends Controller
     #[BodyParam('country_code', 'string', 'Phone country code prefix, e.g. +234.', required: false, example: '+234')]
     #[BodyParam('university', 'string', 'University attended.', required: false, example: 'Unilag')]
     #[BodyParam('year_of_graduation', 'int', 'Year of graduation.', required: false, example: 2026)]
-    #[BodyParam('profile_picture', 'file', 'New profile picture — image file, http(s) URL, or base64/data-URI. Send null/empty to remove the current picture. Max 10MB; JPG/PNG/GIF/WEBP.', required: false, example: null)]
+    #[BodyParam('profile_picture', 'file', 'New profile picture: image file, http(s) URL, or base64/data-URI. Send null/empty to remove the current picture. Max 10MB; JPG/PNG/GIF/WEBP.', required: false, example: null)]
     #[Response(status: 200, content: [
         'error' => false,
         'message' => 'Profile updated.',
@@ -114,11 +100,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Toggle two-factor authentication
-     *
-     * Flips 2FA on or off for the authenticated customer (no body — it toggles the current state).
-     */
     #[Endpoint('Toggle two-factor authentication')]
     #[Authenticated]
     #[Response(status: 200, content: [
@@ -138,12 +119,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Toggle biometrics
-     *
-     * Sets the authenticated customer's biometric login preference. Omit `biometrics_enabled`
-     * to flip the current state instead of setting it explicitly.
-     */
     #[Endpoint('Toggle biometrics')]
     #[Authenticated]
     #[BodyParam('biometrics_enabled', 'boolean', 'Explicit value to set; omit to toggle the current state.', required: false, example: true)]
@@ -167,12 +142,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Change password
-     *
-     * Sets a new password for the authenticated customer. Requires the current password to
-     * confirm the change; the new password may not match the existing one.
-     */
     #[Endpoint('Change password')]
     #[Authenticated]
     #[BodyParam('current_password', 'string', 'The customer\'s current password.', required: true, example: 'OldPass1!')]
@@ -204,12 +173,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Update notification preferences
-     *
-     * Updates the authenticated customer's email/push notification preferences. At least one
-     * of the two fields is required.
-     */
     #[Endpoint('Update notification preferences')]
     #[Authenticated]
     #[BodyParam('email_notifications_enabled', 'boolean', 'Receive account/donation emails. Required if push_notifications_enabled is omitted.', required: false, example: true)]

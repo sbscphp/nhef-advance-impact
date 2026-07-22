@@ -16,21 +16,15 @@ use Knuckles\Scribe\Attributes\Unauthenticated;
 use Knuckles\Scribe\Attributes\UrlParam;
 
 /**
- * Shared between the customer and guest donate flows — a payment's gateway reference is
+ * Shared between the customer and guest donate flows: a payment's gateway reference is
  * itself the credential (a random 20-char string only the person who initiated it has), so
- * verifying by reference doesn't need — and guest payments couldn't have — an account.
+ * verifying by reference doesn't need (and guest payments couldn't have) an account.
  */
-#[Group('Fundraising / Payments', 'Confirm a pledge payment with the gateway. Public — the reference itself is the credential.')]
+#[Group('Fundraising / Payments', 'Confirm a pledge payment with the gateway. Public: the reference itself is the credential.')]
 class PaymentController extends Controller
 {
     public function __construct(private readonly PledgeService $pledgeService) {}
 
-    /**
-     * Verify payment
-     *
-     * Confirms a payment's status with the gateway. Safe to call after redirect back from
-     * checkout even if the webhook already confirmed it (idempotent).
-     */
     #[Endpoint('Verify payment')]
     #[Unauthenticated]
     #[UrlParam('reference', 'string', 'Gateway reference returned by "Make a pledge" (customer or guest) or "Pay an installment".', required: true, example: 'PLG_ABCDEFGHIJKLMNOPQRST')]

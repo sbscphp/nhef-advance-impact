@@ -22,17 +22,11 @@ use Knuckles\Scribe\Attributes\UrlParam;
  * App\Http\Controllers\v1\Guest\Events\GuestEventRegistrationController), so there's nothing
  * here that needs an account.
  */
-#[Group('Events', 'Browse published events available for ticket registration (BRD EVT-01, EVT-02). Public — no account required.')]
+#[Group('Events', 'Browse published events available for ticket registration (BRD EVT-01, EVT-02). Public: no account required.')]
 class EventController extends Controller
 {
     public function __construct(private readonly EventTicketService $eventTicketService) {}
 
-    /**
-     * List events
-     *
-     * Returns published events open (or about to open) for registration, optionally filtered
-     * by title search, soonest first.
-     */
     #[Endpoint('List events')]
     #[Unauthenticated]
     #[QueryParam('search', 'string', 'Filter by title (partial match).', required: false, example: 'Coding Bootcamp')]
@@ -59,11 +53,6 @@ class EventController extends Controller
         }
     }
 
-    /**
-     * View event
-     *
-     * Returns a single published event's details, including its ticket types.
-     */
     #[Endpoint('View event')]
     #[Unauthenticated]
     #[UrlParam('uuid', 'string', 'Event UUID.', required: true, example: 'e1f2a3b4-c5d6-47e8-98f9-a0b1c2d3e4f5')]

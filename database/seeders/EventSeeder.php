@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 /**
  * Sample published events for local development and Postman testing. Events have no admin
- * CRUD yet (BRD EVT-01) — same precedent as DonorTierSeeder — so this is the only way to get
+ * CRUD yet (BRD EVT-01), same precedent as DonorTierSeeder, so this is the only way to get
  * events into the database until that's built.
  *
  * php artisan db:seed --class=EventSeeder
@@ -23,7 +23,7 @@ class EventSeeder extends Seeder
         $events = [
             [
                 'title' => 'New Year Event',
-                'description' => 'Ring in the new year with fellow alumni — an evening of networking, dinner, and celebration.',
+                'description' => 'Ring in the new year with fellow alumni: an evening of networking, dinner, and celebration.',
                 'venue_name' => 'Lagos Marriott Hotel, Ikeja',
                 'venue_address' => '122 Joel Ogunnaike Street, Ikeja GRA, Lagos',
                 'starts_at' => now()->addMonth()->setTime(9, 0),

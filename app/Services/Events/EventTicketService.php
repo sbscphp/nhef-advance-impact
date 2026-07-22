@@ -68,7 +68,7 @@ class EventTicketService
     }
 
     /**
-     * @param  ?User  $user  Null for a guest registration (BRD ENT-04) — $validated must then
+     * @param  ?User  $user  Null for a guest registration (BRD ENT-04); $validated must then
      *                       carry `full_name` and `email` (see GuestRegisterForEventRequest).
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
@@ -160,7 +160,7 @@ class EventTicketService
                 201,
             );
 
-            // Free registrations settle immediately — there's nothing for a payment gateway to do.
+            // Free registrations settle immediately; there's nothing for a payment gateway to do.
             if ((float) $amount <= 0.0) {
                 $registration = $this->completeRegistration($registration, $ticketTypes, $event, $request);
 
@@ -183,9 +183,9 @@ class EventTicketService
 
     /**
      * The one place that actually confirms money moved (or, for free tickets, the immediate
-     * settlement path in register()). Called from two entry points —
-     * EventRegistrationPaymentController::verify() and PaystackWebhookController — and it
-     * doesn't matter which gets here first: the early-return below makes a second call for an
+     * settlement path in register()). Called from two entry points:
+     * EventRegistrationPaymentController::verify() and PaystackWebhookController; it
+     * doesn't matter which gets here first, since the early-return below makes a second call for an
      * already-settled payment a harmless no-op.
      *
      * @return array<string, mixed>

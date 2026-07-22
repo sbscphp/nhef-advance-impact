@@ -12,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Donation acknowledgement email (BRD FEM-07). Used for guest donors, who have no account to
- * receive an in-app {@see \App\Notifications\GenericDatabaseNotification} — see
+ * receive an in-app {@see \App\Notifications\GenericDatabaseNotification}; see
  * PledgeService::notifyPaymentSucceeded().
  */
 class PaymentReceiptMail extends Mailable

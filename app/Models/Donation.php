@@ -47,7 +47,7 @@ class Donation extends Model
         return DonationFrequencyEnum::from($this->frequency)->isRecurring();
     }
 
-    /** True for a guest donation (BRD ENT-04: donate without an account) — no user_id. */
+    /** True for a guest donation (BRD ENT-04: donate without an account); no user_id. */
     public function isGuest(): bool
     {
         return $this->user_id === null;

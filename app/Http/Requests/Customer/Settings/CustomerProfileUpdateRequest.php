@@ -26,8 +26,8 @@ class CustomerProfileUpdateRequest extends ApiFormRequest
             'year_of_graduation' => ['sometimes', 'integer', 'min:1960', 'max:'.now()->year],
             'email' => ['prohibited'],
             // Accepts an uploaded image file, an existing http(s) URL, a base64/data-URI
-            // string, or null to remove the current picture — see FileUploadHelper and
-            // AccountSettingsService::updateCustomerProfile().
+            // string, or null to remove the current picture (see FileUploadHelper and
+            // AccountSettingsService::updateCustomerProfile()).
             'profile_picture' => ['sometimes', 'nullable', $this->profilePictureRule()],
         ];
     }
@@ -35,7 +35,7 @@ class CustomerProfileUpdateRequest extends ApiFormRequest
     private function profilePictureRule(): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail): void {
-            // Empty string is treated the same as null — "remove the current picture" (see
+            // Empty string is treated the same as null, meaning "remove the current picture" (see
             // AccountSettingsService::updateCustomerProfile()).
             if ($value === null || $value === '') {
                 return;

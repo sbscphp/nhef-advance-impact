@@ -7,10 +7,10 @@ use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 /**
  * Contract for a hosted-checkout payment gateway. The flow behind every implementation:
  *
- *   1. initialize() — call the gateway, get back a checkout page (authorization_url) the
+ *   1. initialize(): call the gateway, get back a checkout page (authorization_url) the
  *      donor is sent to. No card data ever touches our server.
  *   2. Donor pays on the gateway's hosted page.
- *   3. verify() — call the gateway back with the reference to get the *authoritative*
+ *   3. verify(): call the gateway back with the reference to get the *authoritative*
  *      status. This is the only step that should ever mark a payment as successful; a
  *      browser redirect back to our app is not proof of payment on its own.
  *

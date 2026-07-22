@@ -18,12 +18,6 @@ class RecognitionController extends Controller
 {
     public function __construct(private readonly RecognitionService $recognitionService) {}
 
-    /**
-     * My rank
-     *
-     * Returns the authenticated donor's current rank, tier, lifetime NGN total, and progress
-     * to the next tier. Rank is null until they have at least one successful NGN donation.
-     */
     #[Endpoint('My rank')]
     #[Authenticated]
     #[Response(status: 200, content: [

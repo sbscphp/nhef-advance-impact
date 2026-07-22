@@ -14,7 +14,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Donor recognition wall (BRD REC-01/REC-02). Scoped to successful, NGN-denominated donation
- * payments only — summing across currencies isn't meaningful, and there's no FX-rate source
+ * payments only; summing across currencies isn't meaningful, and there's no FX-rate source
  * in this codebase. Anonymous donations never appear on the public leaderboard.
  */
 class RecognitionService
@@ -63,7 +63,7 @@ class RecognitionService
      */
     public function myRank(User $user): array
     {
-        // The donor's own total counts everything they've given (anonymous gifts included —
+        // The donor's own total counts everything they've given (anonymous gifts included;
         // it's their own money), but their rank is computed against the same publicly visible
         // pool the leaderboard itself uses, since that's what "rank" means on the public wall.
         $total = (string) DonationPayment::query()
@@ -97,7 +97,7 @@ class RecognitionService
     /**
      * Shared base for both the leaderboard and the rank-comparison query in myRank(): one row
      * per user, their lifetime NGN total from successful, non-anonymous donations. Guests
-     * (user_id null) are excluded automatically — there's no account to rank.
+     * (user_id null) are excluded automatically; there's no account to rank.
      */
     private function baseAggregateQuery(): Builder
     {

@@ -18,7 +18,7 @@ use Knuckles\Scribe\Attributes\Unauthenticated;
 
 /**
  * Guest donor flow (BRD ENT-04): donate without registering an account. Same pledge/payment
- * machinery as the authenticated flow (PledgeService::createPledge(null, ...)) — the only
+ * machinery as the authenticated flow (PledgeService::createPledge(null, ...)). The only
  * difference is identity comes from `full_name`/`email` in the request instead of a token.
  * There is deliberately no "list my pledges" here: a guest has no login to fetch that with
  * later. Use "Verify payment" (Fundraising / Payments group) to confirm the payment, and
@@ -29,13 +29,6 @@ class GuestPledgeController extends Controller
 {
     public function __construct(private readonly PledgeService $pledgeService) {}
 
-    /**
-     * Make a guest pledge
-     *
-     * Same shape and installment-schedule rules as the authenticated "Make a pledge" endpoint
-     * (Customer Fundraising / Pledges), plus `full_name` and `email` to identify the donor.
-     * A payment receipt is emailed to `email` once the payment is confirmed.
-     */
     #[Endpoint('Make a guest pledge')]
     #[Unauthenticated]
     #[BodyParam('campaign_uuid', 'string', 'UUID of the campaign to donate to.', required: true, example: 'b2c3d4e5-f6a7-48b9-90c1-d2e3f4a5b6c7')]
@@ -47,7 +40,7 @@ class GuestPledgeController extends Controller
     #[BodyParam('is_anonymous', 'boolean', 'Hide donor identity on the recognition wall.', required: false, example: false)]
     #[BodyParam('payment_method', 'string', 'Payment method for this installment.', required: true, example: 'card', enum: PaymentMethodEnum::class)]
     #[BodyParam('full_name', 'string', 'Donor\'s full name.', required: true, example: 'Jane Donor')]
-    #[BodyParam('email', 'string', 'Donor\'s email — used for the payment gateway and the emailed receipt.', required: true, example: 'jane.donor@example.com')]
+    #[BodyParam('email', 'string', 'Donor\'s email (used for the payment gateway and the emailed receipt).', required: true, example: 'jane.donor@example.com')]
     #[Response(status: 201, content: [
         'error' => false,
         'message' => 'Pledge created.',

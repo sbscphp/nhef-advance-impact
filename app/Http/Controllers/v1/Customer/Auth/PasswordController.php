@@ -27,12 +27,6 @@ class PasswordController extends Controller
 
     public function __construct(private readonly PasswordResetService $passwordResetService) {}
 
-    /**
-     * Forgot password
-     *
-     * Requests a password-reset OTP for the given email. To avoid account enumeration, this
-     * may return 200 with a decoy `challenge_token` even when no account matches the email.
-     */
     #[Endpoint('Forgot password')]
     #[Unauthenticated]
     #[BodyParam('email', 'string', 'Account email address.', required: true, example: 'joy.ene@example.com')]
@@ -72,11 +66,6 @@ class PasswordController extends Controller
         }
     }
 
-    /**
-     * Resend forgot-password OTP
-     *
-     * Resends the password-reset code for an active challenge session.
-     */
     #[Endpoint('Resend forgot-password OTP')]
     #[Unauthenticated]
     #[BodyParam('challenge_token', 'string', 'Challenge token from the original forgot-password request.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
@@ -145,12 +134,6 @@ class PasswordController extends Controller
         }
     }
 
-    /**
-     * Verify forgot-password OTP
-     *
-     * Confirms the password-reset code and returns a `reset_token` to use with
-     * "Reset password" below.
-     */
     #[Endpoint('Verify forgot-password OTP')]
     #[Unauthenticated]
     #[BodyParam('challenge_token', 'string', 'Challenge token from the forgot-password request.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
@@ -193,12 +176,6 @@ class PasswordController extends Controller
         }
     }
 
-    /**
-     * Reset password
-     *
-     * Sets a new password using the `reset_token` returned by "Verify forgot-password OTP".
-     * This revokes all of the account's existing tokens.
-     */
     #[Endpoint('Reset password')]
     #[Unauthenticated]
     #[BodyParam('reset_token', 'string', 'The reset token from the verify-OTP step.', required: true, example: 'eyJpdiI6IkhxZnZaY01SSkV2UVdqY0F2WnBqV0E9PSIsInZhbHVlIjoi...')]

@@ -42,7 +42,7 @@ class EventRegistration extends Model
         return $this->hasMany(EventRegistrationPayment::class);
     }
 
-    /** True for a guest registration (BRD ENT-04) — no user_id. */
+    /** True for a guest registration (BRD ENT-04); no user_id. */
     public function isGuest(): bool
     {
         return $this->user_id === null;

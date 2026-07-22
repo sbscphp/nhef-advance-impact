@@ -23,16 +23,11 @@ use Knuckles\Scribe\Attributes\UrlParam;
  * App\Http\Controllers\v1\Guest\Fundraising\GuestPledgeController), so there's nothing here
  * that needs an account.
  */
-#[Group('Fundraising / Campaigns', 'Browse active fundraising campaigns available for donations and pledges (BRD FEM-02, FEM-03). Public — no account required.')]
+#[Group('Fundraising / Campaigns', 'Browse active fundraising campaigns available for donations and pledges (BRD FEM-02, FEM-03). Public: no account required.')]
 class CampaignController extends Controller
 {
     public function __construct(private readonly CampaignService $campaignService) {}
 
-    /**
-     * List campaigns
-     *
-     * Returns active campaigns open for donations, optionally filtered by category or title search.
-     */
     #[Endpoint('List campaigns')]
     #[Unauthenticated]
     #[QueryParam('category', 'string', 'Filter by campaign category.', required: false, example: 'scholarship', enum: CampaignCategoryEnum::class)]
@@ -60,11 +55,6 @@ class CampaignController extends Controller
         }
     }
 
-    /**
-     * View campaign
-     *
-     * Returns a single active campaign's details, including funding progress.
-     */
     #[Endpoint('View campaign')]
     #[Unauthenticated]
     #[UrlParam('uuid', 'string', 'Campaign UUID.', required: true, example: 'b2c3d4e5-f6a7-48b9-90c1-d2e3f4a5b6c7')]

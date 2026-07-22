@@ -15,7 +15,7 @@ class ModifyDonationRequest extends ApiFormRequest
     {
         return [
             'amount' => ['sometimes', 'required_without:frequency', 'numeric', 'min:100'],
-            // A recurring donation can only be modified to another recurring cadence — not
+            // A recurring donation can only be modified to another recurring cadence; it cannot be
             // collapsed to one_time via Modify (use Cancel to stop recurring altogether).
             'frequency' => [
                 'sometimes',

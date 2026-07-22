@@ -26,11 +26,6 @@ class SettingsController extends Controller
 {
     public function __construct(private readonly AccountSettingsService $settingsService) {}
 
-    /**
-     * Get profile
-     *
-     * Returns the authenticated admin's profile, roles, and permissions.
-     */
     #[Endpoint('Get profile')]
     #[Authenticated]
     #[Response(status: 200, content: [
@@ -66,11 +61,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Update profile
-     *
-     * Updates the authenticated admin's display name.
-     */
     #[Endpoint('Update profile')]
     #[Authenticated]
     #[BodyParam('name', 'string', 'Display name.', required: true, example: 'Jane Officer')]
@@ -111,11 +101,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Toggle two-factor authentication
-     *
-     * Flips 2FA on or off for the authenticated admin (no body — it toggles the current state).
-     */
     #[Endpoint('Toggle two-factor authentication')]
     #[Authenticated]
     #[Response(status: 200, content: [
@@ -135,12 +120,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Change password
-     *
-     * Sets a new password for the authenticated admin. Requires the current password to
-     * confirm the change; the new password may not match the existing one.
-     */
     #[Endpoint('Change password')]
     #[Authenticated]
     #[BodyParam('current_password', 'string', 'The admin\'s current password.', required: true, example: 'OldPass1!')]
@@ -172,12 +151,6 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Update notification preferences
-     *
-     * Updates the authenticated admin's email/push notification preferences. At least one of
-     * the two fields is required.
-     */
     #[Endpoint('Update notification preferences')]
     #[Authenticated]
     #[BodyParam('email_notifications_enabled', 'boolean', 'Receive account/system emails. Required if push_notifications_enabled is omitted.', required: false, example: true)]

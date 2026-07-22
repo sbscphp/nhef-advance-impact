@@ -19,7 +19,7 @@ use Knuckles\Scribe\Attributes\UrlParam;
 /**
  * Guest event registration flow (BRD ENT-04/EVT-07): register for an event without an
  * account. Same registration/payment machinery as the authenticated flow
- * (EventTicketService::register(null, ...)) — the only difference is identity comes from
+ * (EventTicketService::register(null, ...)). The only difference is identity comes from
  * `full_name`/`email` in the request instead of a token. There is deliberately no "my
  * tickets" here: a guest has no login to fetch that with later. Use "Verify payment"
  * (Events / Payments group) to confirm the payment, and follow the emailed confirmation for
@@ -30,13 +30,6 @@ class GuestEventRegistrationController extends Controller
 {
     public function __construct(private readonly EventTicketService $eventTicketService) {}
 
-    /**
-     * Register for event as guest
-     *
-     * Same shape as the authenticated "Register for event" endpoint (Customer Events /
-     * Registrations), plus `full_name` and `email` to identify the attendee. A confirmation
-     * email is sent to `email` once the payment is confirmed (or immediately, for free tickets).
-     */
     #[Endpoint('Register for event as guest')]
     #[Unauthenticated]
     #[UrlParam('uuid', 'string', 'Event UUID.', required: true, example: 'e1f2a3b4-c5d6-47e8-98f9-a0b1c2d3e4f5')]
@@ -45,7 +38,7 @@ class GuestEventRegistrationController extends Controller
     #[BodyParam('tickets[].quantity', 'int', 'Number of this ticket type to buy.', required: true, example: 1)]
     #[BodyParam('payment_method', 'string', 'Payment method for this charge (ignored for fully free registrations).', required: true, example: 'card', enum: PaymentMethodEnum::class)]
     #[BodyParam('full_name', 'string', 'Attendee\'s full name.', required: true, example: 'Jane Attendee')]
-    #[BodyParam('email', 'string', 'Attendee\'s email — used for the payment gateway and the emailed confirmation.', required: true, example: 'jane.attendee@example.com')]
+    #[BodyParam('email', 'string', 'Attendee\'s email (used for the payment gateway and the emailed confirmation).', required: true, example: 'jane.attendee@example.com')]
     #[Response(status: 201, content: [
         'error' => false,
         'message' => 'Registration created.',

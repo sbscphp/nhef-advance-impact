@@ -16,12 +16,12 @@ use Knuckles\Scribe\Attributes\Response;
 use Knuckles\Scribe\Attributes\Unauthenticated;
 
 /**
- * Paystack calls this URL directly (server-to-server) when a charge succeeds — it's the
+ * Paystack calls this URL directly (server-to-server) when a charge succeeds. It's the
  * reliable counterpart to the browser-redirect verify flow (see PaymentGatewayService's
  * class docblock for the full lifecycle). Not wired up by any code here: register
  * `{app_url}/api/v1/webhooks/paystack` in the Paystack Dashboard under Settings -> API Keys
  * & Webhooks. That's a one-time manual step, separate per environment (Paystack won't reach
- * a local `localhost` URL — tunnel it with ngrok or similar to test this locally).
+ * a local `localhost` URL, so tunnel it with ngrok or similar to test this locally).
  */
 #[Group('Webhooks', 'Inbound gateway webhooks. Not called by clients directly.')]
 class PaystackWebhookController extends Controller
@@ -34,13 +34,10 @@ class PaystackWebhookController extends Controller
     ) {}
 
     /**
-     * Paystack webhook
-     *
      * Confirms `charge.success` events against the gateway and settles the matching pledge,
      * donation, or event-ticket payment (dispatched by the `PLG_`/`DON_`/`TIX_` prefix we mint
-     * the reference with).
-     * Verified with the `x-paystack-signature` header (HMAC-SHA512) when `PAYMENT_MODE=live`;
-     * requests are ignored otherwise since no real gateway sends them.
+     * the reference with). Verified with the `x-paystack-signature` header (HMAC-SHA512) when
+     * `PAYMENT_MODE=live`; requests are ignored otherwise since no real gateway sends them.
      */
     #[Endpoint('Paystack webhook')]
     #[Unauthenticated]

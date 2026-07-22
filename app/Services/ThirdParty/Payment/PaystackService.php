@@ -18,7 +18,7 @@ class PaystackService implements PaymentGatewayInterface
      * (https://paystack.com/docs/api/transaction/#initialize).
      *
      * `callback_url` only controls where Paystack redirects the donor's *browser* after
-     * checkout (`{callback_url}?reference=...&trxref=...`) — it's a UX nicety, not how we
+     * checkout (`{callback_url}?reference=...&trxref=...`); it's a UX nicety, not how we
      * confirm payment. That redirect can be lost (closed tab, network blip), so it's not
      * trusted on its own; the frontend still has to call our verify endpoint, and the
      * webhook (see PaystackWebhookController) is the reliable backup for that same check.
@@ -54,7 +54,7 @@ class PaystackService implements PaymentGatewayInterface
      * (https://paystack.com/docs/api/transaction/#verify). Called from two places, whichever
      * fires first: the customer-facing "Verify payment" endpoint (after the browser redirect)
      * and PaystackWebhookController (server-to-server, independent of the browser). Both call
-     * PledgeService::verifyPayment(), which is idempotent — a second call is a harmless no-op.
+     * PledgeService::verifyPayment(), which is idempotent; a second call is a harmless no-op.
      */
     public function verify(string $reference): array
     {
@@ -78,7 +78,7 @@ class PaystackService implements PaymentGatewayInterface
             'channel' => $data['channel'] ?? null,
             'card_last_four' => $authorization['last4'] ?? null,
             // Only present (and only reusable: true) when Paystack allows this card to be
-            // charged again later — see PaymentMethodService::saveFromAuthorization().
+            // charged again later; see PaymentMethodService::saveFromAuthorization().
             // `authorization_code` is minted fresh per transaction even for the same card;
             // `signature` is Paystack's actual same-card identifier and what dedup keys off.
             'authorization' => [

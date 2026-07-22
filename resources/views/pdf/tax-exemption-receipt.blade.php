@@ -64,7 +64,7 @@
         <table class="info-table">
             <tr>
                 <td class="info-label">Organization</td>
-                <td class="info-value">{{ $organizationName ?? $donorName ?? '—' }}</td>
+                <td class="info-value">{{ $organizationName ?? $donorName ?? '-' }}</td>
             </tr>
             @if(!empty($rcNumber))
             <tr>

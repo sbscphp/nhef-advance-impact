@@ -37,12 +37,6 @@ class LoginController extends Controller
         $this->authService = $authService;
     }
 
-    /**
-     * Login
-     *
-     * Authenticates with email/password. Returns access/refresh tokens directly, or a
-     * `challenge_token` if the email still needs verifying or two-factor OTP is required.
-     */
     #[Endpoint('Login')]
     #[Unauthenticated]
     #[BodyParam('email', 'string', 'Customer email address.', required: true, example: 'joy.ene@example.com')]
@@ -112,11 +106,6 @@ class LoginController extends Controller
         }
     }
 
-    /**
-     * Verify login OTP
-     *
-     * Confirms the two-factor OTP sent during login and returns access/refresh tokens.
-     */
     #[Endpoint('Verify login OTP')]
     #[Unauthenticated]
     #[BodyParam('challenge_token', 'string', 'Challenge token issued by the login endpoint.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
@@ -170,11 +159,6 @@ class LoginController extends Controller
         }
     }
 
-    /**
-     * Resend login OTP
-     *
-     * Resends the two-factor login code for an active challenge session.
-     */
     #[Endpoint('Resend login OTP')]
     #[Unauthenticated]
     #[BodyParam('challenge_token', 'string', 'Challenge token from the original login OTP send.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
@@ -230,12 +214,6 @@ class LoginController extends Controller
         }
     }
 
-    /**
-     * Refresh token
-     *
-     * Exchanges a valid refresh token for a new access token (and refresh token, if rotation
-     * is enabled).
-     */
     #[Endpoint('Refresh token')]
     #[Unauthenticated]
     #[BodyParam('refresh_token', 'string', 'A valid, unexpired refresh token.', required: true, example: '2|6Wrm65vWMHQPYnbLEN6woWc6hKTzurqXjJAIYS4Ofe83a1e4')]
@@ -272,11 +250,6 @@ class LoginController extends Controller
         }
     }
 
-    /**
-     * Logout
-     *
-     * Revokes the current access/refresh token pair for the authenticated customer.
-     */
     #[Endpoint('Logout')]
     #[Authenticated]
     #[Response(status: 200, content: [

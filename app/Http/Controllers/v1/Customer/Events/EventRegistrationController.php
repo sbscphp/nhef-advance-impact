@@ -26,14 +26,6 @@ class EventRegistrationController extends Controller
 {
     public function __construct(private readonly EventTicketService $eventTicketService) {}
 
-    /**
-     * Register for event
-     *
-     * Buys one or more ticket types for a published event. Free tickets (price 0) settle
-     * immediately with no `authorization_url`; paid tickets return a checkout link to complete
-     * — follow `authorization_url`, then call "Verify payment" (Events / Payments group) or
-     * wait for the gateway webhook.
-     */
     #[Endpoint('Register for event')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Event UUID.', required: true, example: 'e1f2a3b4-c5d6-47e8-98f9-a0b1c2d3e4f5')]
@@ -71,11 +63,6 @@ class EventRegistrationController extends Controller
         }
     }
 
-    /**
-     * My tickets
-     *
-     * Returns the authenticated customer's event registrations.
-     */
     #[Endpoint('My tickets')]
     #[Authenticated]
     #[QueryParam('status', 'string', 'Filter by registration status.', required: false, example: 'completed')]
@@ -98,11 +85,6 @@ class EventRegistrationController extends Controller
         }
     }
 
-    /**
-     * View ticket
-     *
-     * Returns a single event registration with its line items and payments.
-     */
     #[Endpoint('View ticket')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Registration UUID.', required: true, example: 'a1b2c3d4-e5f6-47a8-89b0-c1d2e3f4a5b6')]

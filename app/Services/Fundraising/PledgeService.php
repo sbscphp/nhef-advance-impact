@@ -48,7 +48,7 @@ class PledgeService
     ) {}
 
     /**
-     * @param  ?User  $user  Null for a guest pledge (BRD ENT-04) — $validated must then carry
+     * @param  ?User  $user  Null for a guest pledge (BRD ENT-04); $validated must then carry
      *                       `full_name` and `email` (see GuestMakePledgeRequest).
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
@@ -190,9 +190,9 @@ class PledgeService
 
     /**
      * The one place that actually confirms money moved. Called from two different entry
-     * points — PledgeController::verifyPayment() (customer/frontend, after the Paystack
-     * redirect) and PaystackWebhookController (Paystack calling us directly) — and it doesn't
-     * matter which gets here first: the early-return below makes a second call for an
+     * points: PledgeController::verifyPayment() (customer/frontend, after the Paystack
+     * redirect) and PaystackWebhookController (Paystack calling us directly); it doesn't
+     * matter which gets here first, since the early-return below makes a second call for an
      * already-settled payment a harmless no-op.
      *
      * @return array<string, mixed>
@@ -205,7 +205,7 @@ class PledgeService
             throw new ApiException('Payment not found.', 404);
         }
 
-        // Already settled by the other entry point (webhook vs frontend verify) — nothing to do.
+        // Already settled by the other entry point (webhook vs frontend verify); nothing to do.
         if ($payment->status === PaymentStatusEnum::SUCCESSFUL->value) {
             return ['payment' => $payment, 'pledge' => $payment->pledge];
         }
@@ -371,13 +371,12 @@ class PledgeService
     }
 
     /**
-     * @return array{authorization_url: string, access_code: ?string, reference: string}
-     */
-    /**
      * Kicks off payment for one installment: mints our own reference, asks the gateway for a
      * checkout link (PaymentGatewayService::initialize()), and records a *pending*
      * PledgePayment row so verifyPayment() has something to find later by this reference.
-     * Nothing is marked paid here — that only happens once the gateway confirms it.
+     * Nothing is marked paid here; that only happens once the gateway confirms it.
+     *
+     * @return array{authorization_url: string, access_code: ?string, reference: string}
      */
     private function initializePaymentFor(?User $user, Pledge $pledge, PledgeInstallment $installment, ?string $paymentMethod, ?string $guestEmail = null): array
     {

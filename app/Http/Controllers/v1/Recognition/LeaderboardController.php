@@ -16,7 +16,7 @@ use Knuckles\Scribe\Attributes\Response;
 use Knuckles\Scribe\Attributes\Unauthenticated;
 
 /**
- * Public recognition wall (BRD REC-01) — donors ranked by lifetime NGN giving. Anonymous
+ * Public recognition wall (BRD REC-01): donors ranked by lifetime NGN giving. Anonymous
  * donors never appear here (see RecognitionService); guests (no account) can't be ranked
  * since there's nothing to attach a public identity to.
  */
@@ -25,9 +25,6 @@ class LeaderboardController extends Controller
 {
     public function __construct(private readonly RecognitionService $recognitionService) {}
 
-    /**
-     * List leaderboard
-     */
     #[Endpoint('List leaderboard')]
     #[Unauthenticated]
     #[QueryParam('page', 'int', 'Page number.', required: false, example: 1)]

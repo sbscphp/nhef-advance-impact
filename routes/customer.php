@@ -66,7 +66,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->prefix('donations')->group(function () {
         Route::get('/', [DonationController::class, 'index']);
         Route::post('/', [DonationController::class, 'store'])->middleware('throttle:customer-donation-create');
-        // Must be registered before /{uuid} — otherwise "payments" would be swallowed as a
+        // Must be registered before /{uuid}; otherwise "payments" would be swallowed as a
         // donation uuid by the wildcard route below.
         Route::get('/payments', [DonationController::class, 'paymentHistory']);
         Route::get('/payments/overview', [DonationController::class, 'paymentHistoryOverview']);
@@ -84,7 +84,7 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::middleware('auth:sanctum')->prefix('events')->group(function () {
-        // Must be registered before /{uuid}/register — otherwise "registrations" would be
+        // Must be registered before /{uuid}/register; otherwise "registrations" would be
         // swallowed as an event uuid by the wildcard route below.
         Route::get('/registrations', [EventRegistrationController::class, 'index']);
         Route::get('/registrations/{uuid}', [EventRegistrationController::class, 'show']);

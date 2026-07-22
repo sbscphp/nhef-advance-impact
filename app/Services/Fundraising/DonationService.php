@@ -45,7 +45,7 @@ class DonationService
     ) {}
 
     /**
-     * @param  ?User  $user  Null for a guest donation (BRD ENT-04) — $validated must then carry
+     * @param  ?User  $user  Null for a guest donation (BRD ENT-04); $validated must then carry
      *                       `full_name` and `email` (see GuestMakeDonationRequest).
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
@@ -120,7 +120,7 @@ class DonationService
 
     /**
      * Charges the next cycle of an active recurring donation (the donor manually triggers each
-     * cycle, or retries a failed one) — the donation equivalent of PledgeService::payInstallment().
+     * cycle, or retries a failed one); the donation equivalent of PledgeService::payInstallment().
      *
      * @return array<string, mixed>
      */
@@ -155,7 +155,7 @@ class DonationService
     }
 
     /**
-     * Pauses an active recurring donation — no further cycles can be charged until resumed.
+     * Pauses an active recurring donation; no further cycles can be charged until resumed.
      */
     public function pauseDonation(User $user, string $donationUuid, Request $request): Donation
     {
@@ -187,7 +187,7 @@ class DonationService
     }
 
     /**
-     * Resumes a paused recurring donation — the donor can charge its next cycle again.
+     * Resumes a paused recurring donation; the donor can charge its next cycle again.
      */
     public function resumeDonation(User $user, string $donationUuid, Request $request): Donation
     {
@@ -219,7 +219,7 @@ class DonationService
     }
 
     /**
-     * Cancels a recurring donation for good — unlike pause, this cannot be undone by resuming.
+     * Cancels a recurring donation for good; unlike pause, this cannot be undone by resuming.
      */
     public function cancelDonation(User $user, string $donationUuid, Request $request): Donation
     {
@@ -252,7 +252,7 @@ class DonationService
 
     /**
      * Changes the amount and/or frequency of an active or paused recurring donation. This
-     * doesn't charge anything — it only changes what the next "Charge next cycle" call will
+     * doesn't charge anything; it only changes what the next "Charge next cycle" call will
      * use. Frequency can only change between recurring cadences (never to one_time; use
      * cancelDonation() to stop recurring altogether).
      *
@@ -275,7 +275,7 @@ class DonationService
         if (array_key_exists('frequency', $validated) && $validated['frequency'] !== $donation->frequency) {
             $newFrequency = DonationFrequencyEnum::from($validated['frequency']);
             $updates['frequency'] = $newFrequency->value;
-            // Charging is donor-triggered, not scheduled — this date is a reminder, not a
+            // Charging is donor-triggered, not scheduled: this date is a reminder, not a
             // deadline, so when the cadence itself changes it should reflect the new cadence
             // rather than a stale date computed under the old one.
             $updates['next_charge_at'] = now()->addMonths($newFrequency->intervalMonths())->toDateString();
@@ -305,9 +305,9 @@ class DonationService
 
     /**
      * The one place that actually confirms money moved. Called from two different entry
-     * points — DonationPaymentController::verify() (customer/frontend, after the Paystack
-     * redirect) and PaystackWebhookController (Paystack calling us directly) — and it doesn't
-     * matter which gets here first: the early-return below makes a second call for an
+     * points: DonationPaymentController::verify() (customer/frontend, after the Paystack
+     * redirect) and PaystackWebhookController (Paystack calling us directly); it doesn't
+     * matter which gets here first, since the early-return below makes a second call for an
      * already-settled payment a harmless no-op.
      *
      * @return array<string, mixed>
@@ -320,7 +320,7 @@ class DonationService
             throw new ApiException('Payment not found.', 404);
         }
 
-        // Already settled by the other entry point (webhook vs frontend verify) — nothing to do.
+        // Already settled by the other entry point (webhook vs frontend verify); nothing to do.
         if ($payment->status === PaymentStatusEnum::SUCCESSFUL->value) {
             return ['payment' => $payment, 'donation' => $payment->donation];
         }
@@ -348,7 +348,7 @@ class DonationService
 
         return DB::transaction(function () use ($payment, $result, $reference, $request): array {
             // Captured before markSuccessful() below so it reflects the total *excluding* this
-            // payment — used to detect a tier crossing (REC-04) once this payment is counted.
+            // payment; used to detect a tier crossing (REC-04) once this payment is counted.
             $previousNgnTotal = ($payment->user !== null && $payment->currency === 'NGN')
                 ? $this->paymentRepository->sumSuccessfulForUser($payment->user->id, null, null)
                 : null;
@@ -449,7 +449,7 @@ class DonationService
     }
 
     /**
-     * Flat, cross-donation transaction log for the "Donation History" screen — every payment
+     * Flat, cross-donation transaction log for the "Donation History" screen: every payment
      * the donor has made, regardless of which donation it belongs to.
      *
      * @param  array<string, mixed>  $filters
@@ -474,7 +474,7 @@ class DonationService
 
     /**
      * "Total Donation Target" is the sum of goal_amount across every campaign this donor has
-     * ever successfully paid into (not time-boxed — a campaign's goal isn't a period-specific
+     * ever successfully paid into (not time-boxed, since a campaign's goal isn't a period-specific
      * figure); "Total Donation Received" is scoped to the given date range, if any.
      *
      * @return array{target: string, received: string}
@@ -493,13 +493,12 @@ class DonationService
     }
 
     /**
-     * @return array{authorization_url: string, access_code: ?string, reference: string}
-     */
-    /**
      * Kicks off payment for one donation cycle: mints our own reference, asks the gateway for a
      * checkout link (PaymentGatewayService::initialize()), and records a *pending*
      * DonationPayment row so verifyPayment() has something to find later by this reference.
-     * Nothing is marked paid here — that only happens once the gateway confirms it.
+     * Nothing is marked paid here; that only happens once the gateway confirms it.
+     *
+     * @return array{authorization_url: string, access_code: ?string, reference: string}
      */
     private function initializePaymentFor(?User $user, Donation $donation, ?string $paymentMethod, ?string $guestEmail = null): array
     {
@@ -578,7 +577,7 @@ class DonationService
      * REC-04: celebration notification when a payment pushes the donor's lifetime NGN total
      * into a new (higher) recognition tier. A no-op if they're still in the same tier (or
      * haven't reached the lowest one), or if $previousTotal is null (guest, or non-NGN
-     * payment — out of the NGN-only Recognition Wall's scope; see RecognitionService).
+     * payment, out of the NGN-only Recognition Wall's scope; see RecognitionService).
      */
     private function notifyTierUpgradeIfAny(?User $user, string $previousTotal, string $newTotal): void
     {

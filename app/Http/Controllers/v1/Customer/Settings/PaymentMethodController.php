@@ -17,8 +17,8 @@ use Knuckles\Scribe\Attributes\UrlParam;
 
 /**
  * Saved cards, populated automatically from successful pledge/donation payments whenever
- * Paystack returns a reusable authorization for a logged-in customer — see
- * PaymentMethodService::saveFromAuthorization(). There is no "add a card" endpoint here; a
+ * Paystack returns a reusable authorization for a logged-in customer (see
+ * PaymentMethodService::saveFromAuthorization()). There is no "add a card" endpoint here; a
  * card is only ever saved as a side effect of paying with it.
  */
 #[Group('Customer Settings / Payment Methods', 'Manage cards saved from previous pledge/donation payments.')]
@@ -26,11 +26,6 @@ class PaymentMethodController extends Controller
 {
     public function __construct(private readonly PaymentMethodService $paymentMethodService) {}
 
-    /**
-     * List saved payment methods
-     *
-     * Returns the authenticated customer's saved cards, default first.
-     */
     #[Endpoint('List saved payment methods')]
     #[Authenticated]
     #[Response(status: 200, content: [
@@ -52,11 +47,6 @@ class PaymentMethodController extends Controller
         }
     }
 
-    /**
-     * Set default payment method
-     *
-     * Marks a saved card as the default, clearing the previous default.
-     */
     #[Endpoint('Set default payment method')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Payment method UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
@@ -82,12 +72,6 @@ class PaymentMethodController extends Controller
         }
     }
 
-    /**
-     * Delete payment method
-     *
-     * Removes a saved card. If it was the default, the most recently saved remaining card
-     * (if any) automatically becomes the new default.
-     */
     #[Endpoint('Delete payment method')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Payment method UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]

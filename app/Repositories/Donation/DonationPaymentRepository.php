@@ -73,7 +73,7 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 
     public function sumSuccessfulForUser(int $userId, ?string $from, ?string $to): string
     {
-        // Summing across currencies isn't meaningful (₦ + $ isn't a real number) — scoped to
+        // Summing across currencies isn't meaningful (₦ + $ isn't a real number); scoped to
         // NGN, same call made for the Recognition Wall leaderboard.
         return (string) DonationPayment::query()
             ->where('user_id', $userId)

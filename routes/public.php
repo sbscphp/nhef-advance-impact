@@ -10,7 +10,6 @@ use App\Http\Controllers\v1\Recognition\LeaderboardController;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 use Illuminate\Support\Facades\Route;
 
-// Public routes; feature branch: public
 Route::prefix('v1')->group(function () {
     Route::get('/health', function () {
         return response()->json([
@@ -23,7 +22,7 @@ Route::prefix('v1')->group(function () {
     Route::post('webhooks/paystack', [PaystackWebhookController::class, 'handle']);
 
     // Campaign browsing and payment verification are shared by the authenticated customer
-    // flow and the guest donor flow (routes/guest.php) — no account needed for either.
+    // flow and the guest donor flow (routes/guest.php); no account needed for either.
     Route::prefix('campaigns')->group(function () {
         Route::get('/', [CampaignController::class, 'index']);
         Route::get('/{uuid}', [CampaignController::class, 'show']);
@@ -33,7 +32,7 @@ Route::prefix('v1')->group(function () {
     Route::post('donations/payments/{reference}/verify', [DonationPaymentController::class, 'verify']);
 
     // Event browsing and payment verification are shared by the authenticated customer flow
-    // and the guest registration flow (routes/guest.php) — no account needed for either.
+    // and the guest registration flow (routes/guest.php); no account needed for either.
     Route::prefix('events')->group(function () {
         Route::get('/', [EventController::class, 'index']);
         Route::get('/{uuid}', [EventController::class, 'show']);
@@ -41,7 +40,7 @@ Route::prefix('v1')->group(function () {
 
     Route::post('events/registrations/payments/{reference}/verify', [EventRegistrationPaymentController::class, 'verify']);
 
-    // Matches the reserved pattern in RequestResponseEncryptionMiddleware::BYPASS_REGEX — this
+    // Matches the reserved pattern in RequestResponseEncryptionMiddleware::BYPASS_REGEX; this
     // is opened directly from an emailed receipt link, so it can't carry an X-ClientKey header;
     // the `signed` middleware's signature is the credential instead.
     Route::get('public/receipts/{uuid}/download', [DonationReceiptController::class, 'download'])

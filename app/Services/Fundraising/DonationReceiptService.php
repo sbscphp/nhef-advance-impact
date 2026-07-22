@@ -17,7 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Renders the "Download Receipt" PDF for a single successful donation payment, using the
- * (previously orphaned) resources/views/pdf/donation-receipt.blade.php template. Follows the
+ * resources/views/pdf/donation-receipt.blade.php template. Follows the
  * same raw-Dompdf rendering pattern as App\Helpers\PDFReportHelper.
  */
 class DonationReceiptService
@@ -80,7 +80,7 @@ class DonationReceiptService
     }
 
     /**
-     * Only meaningful for logged-in NGN donors — guests and non-NGN payments have no tier
+     * Only meaningful for logged-in NGN donors; guests and non-NGN payments have no tier
      * standing on the (NGN-only) Recognition Wall, so the receipt simply omits it.
      */
     private function resolveTierLabel(DonationPayment $payment): ?string

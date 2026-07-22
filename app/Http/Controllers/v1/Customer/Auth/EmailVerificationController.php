@@ -26,12 +26,6 @@ class EmailVerificationController extends Controller
         private readonly AuthService $authService,
     ) {}
 
-    /**
-     * Verify email via OTP
-     *
-     * Confirms the OTP code sent to verify a customer's email address. Returns access/refresh
-     * tokens directly, or a new `challenge_token` if a login OTP is required next.
-     */
     #[Endpoint('Verify email via OTP')]
     #[Unauthenticated]
     #[BodyParam('challenge_token', 'string', 'Challenge token issued when the verification OTP was sent.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
@@ -108,11 +102,6 @@ class EmailVerificationController extends Controller
         }
     }
 
-    /**
-     * Resend email verification OTP
-     *
-     * Resends the email verification code for an active challenge session.
-     */
     #[Endpoint('Resend email verification OTP')]
     #[Unauthenticated]
     #[BodyParam('challenge_token', 'string', 'Challenge token from the original verification OTP send.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]

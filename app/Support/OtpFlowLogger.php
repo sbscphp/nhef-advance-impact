@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Plain-text OTP flow logging for local debugging.
- * Enable with OTP_FLOW_DEBUG=true in .env — never log full tokens, OTP codes, or passwords.
+ * Enable with OTP_FLOW_DEBUG=true in .env. Never log full tokens, OTP codes, or passwords.
  */
 final class OtpFlowLogger
 {

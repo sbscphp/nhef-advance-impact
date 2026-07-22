@@ -12,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Event registration confirmation email (BRD EVT-02/ENT-04). Used for guest registrants, who
- * have no account to receive an in-app {@see \App\Notifications\GenericDatabaseNotification} —
+ * have no account to receive an in-app {@see \App\Notifications\GenericDatabaseNotification};
  * see EventTicketService::notifyRegistrationConfirmed().
  */
 class EventTicketConfirmationMail extends Mailable

@@ -14,19 +14,16 @@ use Knuckles\Scribe\Attributes\Unauthenticated;
 use Knuckles\Scribe\Attributes\UrlParam;
 
 /**
- * Streams a donation receipt PDF from a signed URL — no Bearer token needed, since this is
+ * Streams a donation receipt PDF from a signed URL. No Bearer token needed, since this is
  * meant to be opened directly from an emailed receipt link (or the "Download Receipt" button
  * in the app, which just fetches a fresh signed URL from DonationPaymentResource::receipt_url).
  * The `signed` middleware validates the URL's signature; there's no separate stored token.
  */
-#[Group('Fundraising / Receipts', 'Download a donation receipt PDF via a signed URL. Public — the signature itself is the credential.')]
+#[Group('Fundraising / Receipts', 'Download a donation receipt PDF via a signed URL. Public: the signature itself is the credential.')]
 class DonationReceiptController extends Controller
 {
     public function __construct(private readonly DonationReceiptService $receiptService) {}
 
-    /**
-     * Download donation receipt
-     */
     #[Endpoint('Download donation receipt')]
     #[Unauthenticated]
     #[UrlParam('uuid', 'string', 'Donation payment UUID.', required: true, example: 'd4e5f6a7-b8c9-40d1-92e3-f4a5b6c7d8e9')]

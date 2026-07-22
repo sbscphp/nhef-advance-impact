@@ -19,13 +19,13 @@ use Illuminate\Support\Facades\Log;
  *      Paystack -> gets back an authorization_url (hosted checkout page).
  *   2. Donor pays on that page. Card/bank details never reach our server.
  *   3. Paystack redirects the browser to our callback_url; separately (and more reliably),
- *      Paystack also POSTs a `charge.success` webhook straight to our server — see
+ *      Paystack also POSTs a `charge.success` webhook straight to our server; see
  *      {@see PaystackWebhookController}. Either path ends
  *      up calling verify() here, which is idempotent, so whichever arrives first "wins".
  *
  * Next step for going live: register the webhook URL (`{app_url}/api/v1/webhooks/paystack`)
  * in the Paystack Dashboard under Settings -> API Keys & Webhooks. Paystack's servers need a
- * public HTTPS URL to reach it, so it won't fire against a plain `localhost` — use a tunnel
+ * public HTTPS URL to reach it, so it won't fire against a plain `localhost`; use a tunnel
  * (e.g. ngrok) if you need to test the webhook path locally.
  */
 class PaymentGatewayService
@@ -81,7 +81,7 @@ class PaymentGatewayService
             // Fake reusable authorization so the saved-payment-method flow (see
             // PaymentMethodService) can be exercised end-to-end without live Paystack.
             // authorization_code is unique per call (mirrors Paystack minting a fresh one per
-            // transaction), but signature is fixed — every stub payment "is" the same fake
+            // transaction), but signature is fixed; every stub payment "is" the same fake
             // card, so repeated stub payments should dedupe to one saved payment method.
             'authorization' => [
                 'authorization_code' => 'AUTH_stub_'.$reference,
