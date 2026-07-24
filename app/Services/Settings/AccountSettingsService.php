@@ -4,12 +4,13 @@ namespace App\Services\Settings;
 
 use App\Enums\ModuleEnums;
 use App\Exceptions\ApiException;
+use App\Helpers\FileUploadHelper;
 use App\Http\Resources\UserResource;
 use App\Models\Admin;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
-use App\Support\PasswordRules;
 use App\Services\Notifications\NotificationDispatchService;
+use App\Support\PasswordRules;
 use Illuminate\Support\Facades\Hash;
 
 class AccountSettingsService
@@ -21,6 +22,9 @@ class AccountSettingsService
         'firstname' => 'First name',
         'lastname' => 'Last name',
         'middlename' => 'Middle name',
+        'university' => 'University',
+        'year_of_graduation' => 'Year of graduation',
+        'profile_picture_url' => 'Profile picture',
     ];
 
     public function __construct(
@@ -63,8 +67,12 @@ class AccountSettingsService
         ];
     }
 
-    public function updatePassword(User|Admin $authenticatable, string $newPassword): void
+    public function updatePassword(User|Admin $authenticatable, string $currentPassword, string $newPassword): void
     {
+        if (! Hash::check($currentPassword, (string) $authenticatable->password)) {
+            throw new ApiException('The current password is incorrect.', 422);
+        }
+
         $this->validatePasswordStrength($newPassword);
 
         if (Hash::check($newPassword, (string) $authenticatable->password)) {
@@ -109,10 +117,17 @@ class AccountSettingsService
     {
         $updates = [];
 
-        foreach (['firstname', 'lastname', 'middlename', 'phone_number', 'country_code'] as $field) {
+        foreach (['firstname', 'lastname', 'middlename', 'phone_number', 'country_code', 'university', 'year_of_graduation'] as $field) {
             if (array_key_exists($field, $data)) {
                 $updates[$field] = $data[$field];
             }
+        }
+
+        if (array_key_exists('profile_picture', $data)) {
+            $picture = $data['profile_picture'];
+            $updates['profile_picture_url'] = ($picture === null || $picture === '')
+                ? null
+                : FileUploadHelper::smartSingleFileUpload($picture, 'avatars');
         }
 
         if ($updates === []) {

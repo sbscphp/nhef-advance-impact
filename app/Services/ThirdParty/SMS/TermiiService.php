@@ -78,8 +78,6 @@ class TermiiService implements SmsProviderInterface
     }
 
     /**
-     * Send a request to the Termii API and handle the response.
-     *
      * @param  array<string, mixed>  $data
      * @param  array<int, string>  $headers
      * @return array<string, mixed>
@@ -141,9 +139,6 @@ class TermiiService implements SmsProviderInterface
         }
     }
 
-    /**
-     * Map Termii error codes to human-readable error messages.
-     */
     private function getErrorMessage(string $code): string
     {
         return match ($code) {

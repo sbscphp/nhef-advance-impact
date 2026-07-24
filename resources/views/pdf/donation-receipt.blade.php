@@ -64,7 +64,7 @@
         <table class="info-table">
             <tr>
                 <td class="info-label">Name</td>
-                <td class="info-value">{{ $donorName ?? '—' }}</td>
+                <td class="info-value">{{ $donorName ?? '-' }}</td>
             </tr>
             @if(!empty($donorEmail))
             <tr>

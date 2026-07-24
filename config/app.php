@@ -123,6 +123,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Customer verify-email URL (optional override)
+    |--------------------------------------------------------------------------
+    |
+    | Full URL the sign-up "Verify Email Address" email should link to, where
+    | the customer sets their password. Defaults to {frontend_url}/create-new-password
+    | when not set. The reset token is appended as a query parameter automatically.
+    |
+    */
+    'frontend_verify_email_url' => env('FRONTEND_VERIFY_EMAIL_URL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Encryption Key
     |--------------------------------------------------------------------------
     |

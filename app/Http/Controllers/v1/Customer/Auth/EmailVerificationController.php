@@ -13,13 +13,47 @@ use App\Http\Resources\Auth\AuthResource;
 use App\Responser\JsonResponser;
 use App\Services\Auth\AuthService;
 use App\Support\OtpFlowLogger;
+use Knuckles\Scribe\Attributes\BodyParam;
+use Knuckles\Scribe\Attributes\Endpoint;
+use Knuckles\Scribe\Attributes\Group;
+use Knuckles\Scribe\Attributes\Response;
+use Knuckles\Scribe\Attributes\Unauthenticated;
 
+#[Group('Customer Auth / Email Verification (OTP)', 'Legacy OTP-code email verification. The current sign-up flow verifies email via the link sent by `POST /signup` and completed by `POST /signup/complete` (see the Registration group); these endpoints remain reachable from `POST /login` when an account still has an unverified email with a usable password.')]
 class EmailVerificationController extends Controller
 {
     public function __construct(
         private readonly AuthService $authService,
     ) {}
 
+    #[Endpoint('Verify email via OTP')]
+    #[Unauthenticated]
+    #[BodyParam('challenge_token', 'string', 'Challenge token issued when the verification OTP was sent.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
+    #[BodyParam('otp', 'string', 'The one-time verification code.', required: true, example: '123456')]
+    #[BodyParam('client', 'string', 'Requesting client type.', required: false, example: 'web', enum: eClientType::class)]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Email verified.',
+        'data' => [
+            'access_token' => '1|xVpg1T5eD85DaIpaWHupSR9NyTzcyvmQ6A3HVY1Yc127568e',
+            'refresh_token' => '2|6Wrm65vWMHQPYnbLEN6woWc6hKTzurqXjJAIYS4Ofe83a1e4',
+            'token_type' => 'Bearer',
+            'expires_in' => 3600,
+            'refresh_expires_in' => 86400,
+            'registration_step' => 'completed',
+            'user_type' => 'CUSTOMER',
+        ],
+    ], description: 'Email verified; customer signed in.')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Sign-in code sent. Please verify to complete login.',
+        'data' => ['challenge_token' => 'b2c3d4e5f6g7h8i9j0k1', 'expires_in' => 300, 'registration_step' => 'completed'],
+    ], description: 'Email verified; a login OTP was sent next (two-factor required).')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'Invalid or expired verification code.',
+        'data' => null,
+    ], description: 'Invalid, expired, or already-used OTP/challenge token.')]
     public function verify(VerifyOtpRequest $request)
     {
         $challengeToken = (string) $request->input('challenge_token');
@@ -68,6 +102,20 @@ class EmailVerificationController extends Controller
         }
     }
 
+    #[Endpoint('Resend email verification OTP')]
+    #[Unauthenticated]
+    #[BodyParam('challenge_token', 'string', 'Challenge token from the original verification OTP send.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
+    #[BodyParam('otp_channel', 'string', 'Delivery channel override for the resend.', required: false, example: 'email', enum: OtpChannelEnum::class)]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'A verification code has been sent to your email.',
+        'data' => ['challenge_token' => 'a1b2c3d4e5f6g7h8i9j0', 'expires_in' => 300, 'cooldown_active' => false],
+    ], description: 'Verification code resent.')]
+    #[Response(status: 429, content: [
+        'error' => true,
+        'message' => 'Please wait before requesting another code.',
+        'data' => ['challenge_token' => 'a1b2c3d4e5f6g7h8i9j0', 'expires_in' => 300],
+    ], description: 'Resend requested too soon (cooldown active).')]
     public function resend(ResendOtpRequest $request)
     {
         $challengeToken = (string) $request->input('challenge_token');

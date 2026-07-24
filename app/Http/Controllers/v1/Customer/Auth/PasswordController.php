@@ -14,13 +14,28 @@ use App\Http\Requests\Auth\VerifyResetOtpRequest;
 use App\Responser\JsonResponser;
 use App\Services\Auth\PasswordResetService;
 use App\Support\OtpFlowLogger;
+use Knuckles\Scribe\Attributes\BodyParam;
+use Knuckles\Scribe\Attributes\Endpoint;
+use Knuckles\Scribe\Attributes\Group;
+use Knuckles\Scribe\Attributes\Response;
+use Knuckles\Scribe\Attributes\Unauthenticated;
 
+#[Group('Customer Auth / Forgot Password', 'OTP-based password reset for existing customers: request a reset code, verify it, then set a new password. (For setting a password from a fresh sign-up, see `POST /signup/complete` in the Registration group instead.)')]
 class PasswordController extends Controller
 {
     private const FLOW = 'PASSWORD_RESET';
 
     public function __construct(private readonly PasswordResetService $passwordResetService) {}
 
+    #[Endpoint('Forgot password')]
+    #[Unauthenticated]
+    #[BodyParam('email', 'string', 'Account email address.', required: true, example: 'joy.ene@example.com')]
+    #[BodyParam('otp_channel', 'string', 'Delivery channel for the reset code.', required: false, example: 'email', enum: OtpChannelEnum::class)]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Verification code sent.',
+        'data' => ['challenge_token' => 'a1b2c3d4e5f6g7h8i9j0', 'expires_in' => 300],
+    ], description: 'Reset code sent (or a decoy response, if opaque errors are enabled and no account matches).')]
     public function forgotPassword(ForgotPasswordRequest $request)
     {
         OtpFlowLogger::log(self::FLOW, 'HTTP forgot-password request', OtpFlowLogger::requestMeta($request));
@@ -51,6 +66,20 @@ class PasswordController extends Controller
         }
     }
 
+    #[Endpoint('Resend forgot-password OTP')]
+    #[Unauthenticated]
+    #[BodyParam('challenge_token', 'string', 'Challenge token from the original forgot-password request.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
+    #[BodyParam('otp_channel', 'string', 'Delivery channel override for the resend.', required: false, example: 'email', enum: OtpChannelEnum::class)]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'If the verification session is valid, a new code will be sent.',
+        'data' => ['challenge_token' => 'a1b2c3d4e5f6g7h8i9j0', 'expires_in' => 300, 'cooldown_active' => false],
+    ], description: 'Reset code resent.')]
+    #[Response(status: 429, content: [
+        'error' => true,
+        'message' => 'Please wait before requesting another code.',
+        'data' => ['challenge_token' => 'a1b2c3d4e5f6g7h8i9j0', 'expires_in' => 300],
+    ], description: 'Resend requested too soon (cooldown active).')]
     public function forgotPasswordResend(ResendOtpRequest $request)
     {
         OtpFlowLogger::log(self::FLOW, 'HTTP forgot-password resend request', OtpFlowLogger::requestMeta($request));
@@ -105,6 +134,20 @@ class PasswordController extends Controller
         }
     }
 
+    #[Endpoint('Verify forgot-password OTP')]
+    #[Unauthenticated]
+    #[BodyParam('challenge_token', 'string', 'Challenge token from the forgot-password request.', required: true, example: 'a1b2c3d4e5f6g7h8i9j0')]
+    #[BodyParam('otp', 'string', 'The one-time reset code.', required: true, example: '123456')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Code verified. You may now reset your password.',
+        'data' => ['reset_token' => 'eyJpdiI6IkhxZnZaY01SSkV2UVdqY0F2WnBqV0E9PSIsInZhbHVlIjoi...'],
+    ], description: 'OTP verified; reset token issued.')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'Invalid or expired verification code.',
+        'data' => null,
+    ], description: 'Invalid, expired, or already-used OTP/challenge token.')]
     public function forgotPasswordVerify(VerifyResetOtpRequest $request)
     {
         OtpFlowLogger::log(self::FLOW, 'HTTP forgot-password verify request', OtpFlowLogger::requestMeta($request));
@@ -133,6 +176,21 @@ class PasswordController extends Controller
         }
     }
 
+    #[Endpoint('Reset password')]
+    #[Unauthenticated]
+    #[BodyParam('reset_token', 'string', 'The reset token from the verify-OTP step.', required: true, example: 'eyJpdiI6IkhxZnZaY01SSkV2UVdqY0F2WnBqV0E9PSIsInZhbHVlIjoi...')]
+    #[BodyParam('password', 'string', 'New password: min 8 characters, mixed case, numbers, and symbols.', required: true, example: 'Str0ng!Pass1')]
+    #[BodyParam('password_confirmation', 'string', 'Must match `password`.', required: true, example: 'Str0ng!Pass1')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Password reset successful.',
+        'data' => null,
+    ], description: 'Password updated; all existing tokens revoked.')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'This password reset link has expired. Please restart the forgot password process.',
+        'data' => null,
+    ], description: 'Invalid or expired reset token, or new password matches the current one.')]
     public function resetPassword(ResetPasswordRequest $request)
     {
         OtpFlowLogger::log(self::FLOW, 'HTTP reset-password request', OtpFlowLogger::requestMeta($request));

@@ -478,7 +478,7 @@ class OtpService
         $challenge->increment('attempts');
 
         if (! Hash::check($otpCode, $challenge->code_hash)) {
-            OtpFlowLogger::log($purpose->value, 'verify FAIL wrong OTP (session still valid — retry same token)', [
+            OtpFlowLogger::log($purpose->value, 'verify FAIL wrong OTP (session still valid, retry same token)', [
                 'token_fp' => OtpFlowLogger::tokenFingerprint($challengeToken),
                 'reason' => 'otp_hash_mismatch',
                 'challenge_id' => $challenge->id,
