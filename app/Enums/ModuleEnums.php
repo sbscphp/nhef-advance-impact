@@ -25,6 +25,9 @@ enum ModuleEnums: string
     /** Events, ticket types, and ticket registration/payment events. */
     case events = 'events';
 
+    /** Mentor/mentee applications, matches, and reviews. */
+    case mentorship = 'mentorship';
+
     public function label(): string
     {
         return match ($this) {
@@ -35,6 +38,7 @@ enum ModuleEnums: string
             self::authentication => 'Authentication',
             self::fundraising => 'Fundraising',
             self::events => 'Events',
+            self::mentorship => 'Mentorship',
         };
     }
 

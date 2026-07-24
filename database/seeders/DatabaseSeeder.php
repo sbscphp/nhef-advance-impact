@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             CampaignSeeder::class,
             DonorTierSeeder::class,
             EventSeeder::class,
+            MentorshipSeeder::class,
         ]);
     }
 }

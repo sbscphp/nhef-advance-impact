@@ -7,6 +7,9 @@ use App\Http\Controllers\v1\Customer\Auth\RegisterController;
 use App\Http\Controllers\v1\Customer\Events\EventRegistrationController;
 use App\Http\Controllers\v1\Customer\Fundraising\DonationController;
 use App\Http\Controllers\v1\Customer\Fundraising\PledgeController;
+use App\Http\Controllers\v1\Customer\Mentorship\MenteeController;
+use App\Http\Controllers\v1\Customer\Mentorship\MentorController;
+use App\Http\Controllers\v1\Customer\Mentorship\MentorshipReviewController;
 use App\Http\Controllers\v1\Customer\Notification\NotificationController;
 use App\Http\Controllers\v1\Customer\Recognition\RecognitionController;
 use App\Http\Controllers\v1\Customer\Settings\PaymentMethodController;
@@ -89,5 +92,24 @@ Route::prefix('v1')->group(function () {
         Route::get('/registrations', [EventRegistrationController::class, 'index']);
         Route::get('/registrations/{uuid}', [EventRegistrationController::class, 'show']);
         Route::post('/{uuid}/register', [EventRegistrationController::class, 'store'])->middleware('throttle:customer-event-register');
+    });
+
+    Route::middleware('auth:sanctum')->prefix('mentorship')->group(function () {
+        // Must be registered before /mentors/{uuid}; otherwise "me", "pause", and "resume" would
+        // be swallowed as a mentor uuid by the wildcard route below.
+        Route::post('/mentors/apply', [MentorController::class, 'apply'])->middleware('throttle:customer-mentorship-apply');
+        Route::get('/mentors/me', [MentorController::class, 'me']);
+        Route::post('/mentors/pause', [MentorController::class, 'pause']);
+        Route::post('/mentors/resume', [MentorController::class, 'resume']);
+        Route::get('/mentors', [MentorController::class, 'index']);
+        Route::get('/mentors/{uuid}', [MentorController::class, 'show']);
+        Route::post('/mentors/{uuid}/reviews', [MentorshipReviewController::class, 'store']);
+        Route::get('/mentors/{uuid}/reviews', [MentorshipReviewController::class, 'index']);
+
+        // Same wildcard-ordering reason: /mentees/apply and /mentees/me before /mentees/{uuid}.
+        Route::post('/mentees/apply', [MenteeController::class, 'apply'])->middleware('throttle:customer-mentorship-apply');
+        Route::get('/mentees/me', [MenteeController::class, 'me']);
+        Route::get('/mentees', [MenteeController::class, 'index']);
+        Route::get('/mentees/{uuid}', [MenteeController::class, 'show']);
     });
 });

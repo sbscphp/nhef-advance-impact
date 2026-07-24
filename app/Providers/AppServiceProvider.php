@@ -16,6 +16,10 @@ use App\Repositories\Contracts\Event\EventRegistrationPaymentRepositoryInterface
 use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use App\Repositories\Contracts\Event\EventTicketTypeRepositoryInterface;
+use App\Repositories\Contracts\Mentorship\MenteeProfileRepositoryInterface;
+use App\Repositories\Contracts\Mentorship\MentorProfileRepositoryInterface;
+use App\Repositories\Contracts\Mentorship\MentorshipMatchRepositoryInterface;
+use App\Repositories\Contracts\Mentorship\MentorshipReviewRepositoryInterface;
 use App\Repositories\Contracts\PaymentMethod\PaymentMethodRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgePaymentRepositoryInterface;
@@ -30,6 +34,10 @@ use App\Repositories\Event\EventRegistrationPaymentRepository;
 use App\Repositories\Event\EventRegistrationRepository;
 use App\Repositories\Event\EventRepository;
 use App\Repositories\Event\EventTicketTypeRepository;
+use App\Repositories\Mentorship\MenteeProfileRepository;
+use App\Repositories\Mentorship\MentorProfileRepository;
+use App\Repositories\Mentorship\MentorshipMatchRepository;
+use App\Repositories\Mentorship\MentorshipReviewRepository;
 use App\Repositories\PaymentMethod\PaymentMethodRepository;
 use App\Repositories\Pledge\PledgeInstallmentRepository;
 use App\Repositories\Pledge\PledgePaymentRepository;
@@ -68,6 +76,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EventRegistrationRepositoryInterface::class, EventRegistrationRepository::class);
         $this->app->bind(EventRegistrationItemRepositoryInterface::class, EventRegistrationItemRepository::class);
         $this->app->bind(EventRegistrationPaymentRepositoryInterface::class, EventRegistrationPaymentRepository::class);
+        $this->app->bind(MentorProfileRepositoryInterface::class, MentorProfileRepository::class);
+        $this->app->bind(MenteeProfileRepositoryInterface::class, MenteeProfileRepository::class);
+        $this->app->bind(MentorshipMatchRepositoryInterface::class, MentorshipMatchRepository::class);
+        $this->app->bind(MentorshipReviewRepositoryInterface::class, MentorshipReviewRepository::class);
     }
 
     public function boot(): void
@@ -187,6 +199,12 @@ class AppServiceProvider extends ServiceProvider
         // authenticated limit since it's also the only real abuse guard on this endpoint.
         RateLimiter::for('guest-event-register', function (Request $request) {
             return Limit::perMinute(5)->by((string) $request->ip());
+        });
+
+        RateLimiter::for('customer-mentorship-apply', function (Request $request) {
+            $userId = $request->user()?->id;
+
+            return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
         });
     }
 
