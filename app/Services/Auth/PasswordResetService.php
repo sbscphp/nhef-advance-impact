@@ -190,7 +190,7 @@ class PasswordResetService
         return $payload;
     }
 
-    public function resetPassword(string $resetToken, string $password, Request $request): void
+    public function resetPassword(string $resetToken, string $password, Request $request): User|Admin
     {
         $payload = $this->decodeResetToken($resetToken);
         $subject = $this->resolveSubject($payload);
@@ -225,6 +225,8 @@ class PasswordResetService
             ModuleEnums::authentication,
             200,
         );
+
+        return $subject;
     }
 
     public function issueResetTokenFor(User|Admin $subject): string
@@ -251,6 +253,20 @@ class PasswordResetService
                 $adminFrontend = rtrim((string) config('app.frontend_url'), '/');
             }
             $base = $adminFrontend !== '' ? $adminFrontend.'/create-new-password' : url('/');
+        }
+
+        $sep = str_contains($base, '?') ? '&' : '?';
+
+        return $base.$sep.'token='.urlencode($resetToken);
+    }
+
+    public function customerVerifyEmailUrl(string $resetToken, ?string $frontendUrl = null): string
+    {
+        $override = config('app.frontend_verify_email_url');
+        if (is_string($override) && $override !== '') {
+            $base = $override;
+        } else {
+            $base = rtrim((string) ($frontendUrl ?? config('app.frontend_url')), '/').'/create-new-password';
         }
 
         $sep = str_contains($base, '?') ? '&' : '?';

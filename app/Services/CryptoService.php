@@ -7,8 +7,8 @@ use RuntimeException;
 /**
  * AES-256-CBC encryption / decryption service.
  *
- * All failures throw \RuntimeException directly — no custom exception
- * wrapper needed since the only meaningful response is "crypto failed".
+ * All failures throw \RuntimeException directly; no custom exception
+ * wrapper is needed since the only meaningful response is "crypto failed".
  */
 final class CryptoService
 {

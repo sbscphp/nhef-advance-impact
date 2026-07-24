@@ -6,9 +6,6 @@ use Illuminate\Support\Str;
 
 trait HasUuid
 {
-    /**
-     * Boot function from Laravel.
-     */
     protected static function boot()
     {
         parent::boot();

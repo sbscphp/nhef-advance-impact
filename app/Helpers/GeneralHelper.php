@@ -196,24 +196,21 @@ class GeneralHelper
 
     public static function maskPhone(string $phoneNumber, string $countryCode = '+234'): string
     {
-        // Remove any non-numeric characters (except the leading '+')
         $cleanedNumber = preg_replace('/[^0-9+]/', '', $phoneNumber);
 
-        // If it starts with the country code, mask digits after it
         if (str_starts_with($cleanedNumber, $countryCode)) {
             $digitsToMask = strlen($cleanedNumber) - strlen($countryCode) - 2;
             if ($digitsToMask > 0) {
                 return $countryCode.Str::mask(substr($cleanedNumber, strlen($countryCode)), '*', 0, $digitsToMask);
             } else {
-                return $countryCode.substr($cleanedNumber, strlen($countryCode)); // Not enough digits to mask
+                return $countryCode.substr($cleanedNumber, strlen($countryCode));
             }
         } else {
-            // If it doesn't start with the country code, mask digits from the beginning
             $digitsToMask = strlen($cleanedNumber) - 2;
             if ($digitsToMask > 0) {
                 return Str::mask($cleanedNumber, '*', 0, $digitsToMask);
             } else {
-                return $cleanedNumber; // Not enough digits to mask
+                return $cleanedNumber;
             }
         }
     }

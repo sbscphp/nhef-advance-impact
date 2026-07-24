@@ -3,7 +3,7 @@
 @php
     $subject = 'Welcome to the '.$theme->brand_name.' portal';
     $headline = "Welcome, {$recipientName},";
-    $lead = 'Your email address is now verified. Thank you for registering with '.$theme->brand_name.'—you can explore fundraising initiatives, track your impact, and manage your donations from your account.';
+    $lead = 'Your email address is now verified. Thank you for registering with '.$theme->brand_name.'. You can explore fundraising initiatives, track your impact, and manage your donations from your account.';
     $supportEmail = $theme->support_email ?? 'support@icoba.com';
 @endphp
 

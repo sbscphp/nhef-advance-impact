@@ -14,7 +14,7 @@ enum ePermission: string
     case ADMINS_UPDATE = 'admins.update';
     case ADMINS_DELETE = 'admins.delete';
 
-    // Audit trail (read API — feature/audit-trail)
+    // Audit trail (read API)
     case AUDIT_TRAIL_READ = 'audit_trail.read';
 
     public static function values(): array
