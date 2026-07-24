@@ -61,7 +61,7 @@ final class OpaqueMessageHelper
         return max(0, $ts - time());
     }
 
-    /** e.g. "3 minutes 43 seconds" — for OTP cooldown responses. */
+    /** e.g. "3 minutes 43 seconds", for OTP cooldown responses. */
     public static function humanizeSecondsRemaining(int $seconds): string
     {
         $seconds = max(0, $seconds);
@@ -98,7 +98,7 @@ final class OpaqueMessageHelper
     }
 
     /**
-     * Random token when no cache entry must exist — same length/entropy as a real reset_flow_id.
+     * Random token when no cache entry must exist, with the same length/entropy as a real reset_flow_id.
      */
     public static function decoyResetFlowId(): string
     {
@@ -120,7 +120,7 @@ final class OpaqueMessageHelper
     /**
      * Invite-link flows have no email in the body; we still return a masked "email-shaped" hint so the JSON
      * matches username-based sends. Domain is chosen from common public hosts (not a reserved/synthetic TLD)
-     * so responses do not scream "placeholder" — it is not the user's real address, only display noise.
+     * so responses do not scream "placeholder"; it is not the user's real address, only display noise.
      */
     private static function syntheticMailboxDomainForInvite(string $namespace, string $inviteUuid): string
     {

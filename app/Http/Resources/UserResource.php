@@ -17,6 +17,7 @@ class UserResource extends JsonResource
             'firstname' => $this->firstname,
             'lastname' => $this->lastname,
             'middlename' => $this->middlename,
+            'profile_picture_url' => $this->profile_picture_url,
             'email' => $this->email,
             'email_verified_at' => $this->email_verified_at,
             'registration_step' => $this->email_verified_at
@@ -24,6 +25,8 @@ class UserResource extends JsonResource
                 : CustomerRegistrationStepEnum::AWAITING_OTP->value,
             'phone_number' => $this->phone_number,
             'country_code' => $this->country_code,
+            'university' => $this->university,
+            'year_of_graduation' => $this->year_of_graduation,
             '2fa' => $this->{'2fa'},
             'email_notifications_enabled' => (bool) $this->email_notifications_enabled,
             'push_notifications_enabled' => (bool) $this->push_notifications_enabled,

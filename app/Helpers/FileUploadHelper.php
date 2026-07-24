@@ -10,9 +10,6 @@ use Symfony\Component\HttpFoundation\File\File;
 
 class FileUploadHelper
 {
-    /**
-     * Allowed MIME types for uploads (images, PDF, documents)
-     */
     private static array $allowedMimeTypes = [
         'image/jpeg',
         'image/jpg',

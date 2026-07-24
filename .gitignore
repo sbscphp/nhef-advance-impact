@@ -26,3 +26,20 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# ===================
+# Scribe
+# ===================
+
+# Scribe: keep .scribe/endpoints/*.yaml, intro.md, auth.md (source of truth for docs edits);
+# ignore its caches and the generated Postman/OpenAPI output (regenerate with `php artisan scribe:generate`).
+/.scribe/.filehashes
+/.scribe/endpoints.cache
+/storage/app/private/scribe
+
+/.scribe
+/public/docs
+/public/vendor/scribe
+
+.claude/skills
+CLAUDE.md

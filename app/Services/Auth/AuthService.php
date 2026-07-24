@@ -17,6 +17,7 @@ use App\Mail\WelcomeToPortalMail;
 use App\Models\Admin;
 use App\Models\Country;
 use App\Models\User;
+use App\Notifications\Auth\CustomerVerifyEmailMail;
 use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
@@ -41,6 +42,7 @@ class AuthService
         private readonly OtpService $otpService,
         private readonly ChallengeTokenService $challengeTokenService,
         private readonly NotificationDispatchService $notificationDispatchService,
+        private readonly PasswordResetService $passwordResetService,
     ) {}
 
     public function register(array $data)
@@ -51,7 +53,9 @@ class AuthService
     }
 
     /**
-     * Register a customer and send an email verification OTP. Tokens are issued after email is verified.
+     * Register a customer and email a "Verify Email Address" link. The customer sets their
+     * password after clicking the link (see completeCustomerRegistration()); no password is
+     * collected at sign-up time.
      *
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
@@ -63,9 +67,16 @@ class AuthService
                 'firstname' => $validated['firstname'],
                 'lastname' => $validated['lastname'],
                 'email' => $validated['email'],
-                'password' => $validated['password'],
+                'password' => Hash::make(Str::random(40)),
                 'phone_number' => $validated['phone_number'],
                 'country_code' => $validated['country_code'] ?? Country::defaultDialCode(),
+                'matric_no' => $validated['matric_no'] ?? null,
+                'department' => $validated['department'],
+                'year_of_graduation' => $validated['year_of_graduation'],
+                'degree_earned' => $validated['degree_earned'],
+                'employment_status' => $validated['employment_status'],
+                'organisation_name' => $validated['organisation_name'] ?? null,
+                'position' => $validated['position'] ?? null,
             ]);
             $user->assignRole(eRole::CUSTOMER->value);
             $user->load('roles');
@@ -83,15 +94,96 @@ class AuthService
                 201,
             );
 
-            $channel = OtpChannelEnum::tryFromRequest($validated['otp_channel'] ?? null);
-            $otpPayload = $this->otpService->sendEmailVerificationOtp($user, $channel);
-            GeneralHelper::storeAuditLog(UserTypeEnum::CUSTOMER, AuditActionEnum::OTP_SENT, $request, $user->uuid, [
-                'purpose' => 'EMAIL_VERIFICATION',
-                'otp_channel' => $channel->value,
-                'reuse_active_challenge' => (bool) ($otpPayload['cooldown_active'] ?? false),
-            ], $this->displayName($user).' was sent a verification code.', User::class, $user->uuid, ModuleEnums::authentication, 200);
+            $resetToken = $this->passwordResetService->issueResetTokenFor($user);
+            $user->notify(new CustomerVerifyEmailMail(
+                token: $resetToken,
+                verifyUrl: $this->passwordResetService->customerVerifyEmailUrl($resetToken),
+            ));
 
-            return $this->withRegistrationStep($otpPayload, CustomerRegistrationStepEnum::AWAITING_OTP);
+            GeneralHelper::storeAuditLog(
+                UserTypeEnum::CUSTOMER,
+                AuditActionEnum::VERIFICATION_EMAIL_SENT,
+                $request,
+                $user->uuid,
+                [],
+                $this->displayName($user).' was sent a verification email.',
+                User::class,
+                $user->uuid,
+                ModuleEnums::authentication,
+                200,
+            );
+
+            return $this->withRegistrationStep([], CustomerRegistrationStepEnum::AWAITING_EMAIL_VERIFICATION);
+        });
+    }
+
+    /**
+     * Complete customer registration from the "Verify Email Address" link: sets the customer's
+     * password, marks their email verified, and signs them in (or issues a login OTP if required).
+     *
+     * @return array<string, mixed>
+     */
+    public function completeCustomerRegistration(string $resetToken, string $password, Request $request, string $client = eClientType::MOBILE->value): array
+    {
+        return DB::transaction(function () use ($resetToken, $password, $request, $client): array {
+            $subject = $this->passwordResetService->resetPassword($resetToken, $password, $request);
+
+            if (! $subject instanceof User) {
+                throw new ApiException('Invalid or expired verification link.', 422);
+            }
+
+            $user = $subject;
+            $wasUnverified = $user->email_verified_at === null;
+
+            if ($wasUnverified) {
+                $user->forceFill(['email_verified_at' => now()])->save();
+                GeneralHelper::storeAuditLog(
+                    UserTypeEnum::CUSTOMER,
+                    AuditActionEnum::EMAIL_VERIFIED,
+                    $request,
+                    $user->uuid,
+                    [],
+                    $this->displayName($user).' verified their email.',
+                    User::class,
+                    $user->uuid,
+                    ModuleEnums::authentication,
+                    200,
+                );
+                $this->sendWelcomeMail($user);
+            }
+
+            if ($this->customerRequiresLoginOtp($user)) {
+                $payload = $this->otpService->sendLoginOtp($user);
+                GeneralHelper::storeAuditLog(UserTypeEnum::CUSTOMER, AuditActionEnum::OTP_SENT, $request, $user->uuid, [
+                    'purpose' => 'LOGIN',
+                    'reuse_active_challenge' => (bool) ($payload['cooldown_active'] ?? false),
+                ], $this->displayName($user).' was sent a login OTP after completing registration.', User::class, $user->uuid, ModuleEnums::authentication, 200);
+
+                return $this->withLoginTwoFactor(
+                    $this->withRegistrationStep($payload, CustomerRegistrationStepEnum::COMPLETED)
+                );
+            }
+
+            $payload = $this->withRegistrationStep(
+                $this->issueToken($user, $client, ['customer'], $this->customerInvalidateTokensOnLogin()),
+                CustomerRegistrationStepEnum::COMPLETED
+            );
+            $user->forceFill(['last_login_at' => now()])->save();
+            $this->sendLoginSuccessNotification($user, $request, $client, false);
+            GeneralHelper::storeAuditLog(
+                UserTypeEnum::CUSTOMER,
+                AuditActionEnum::LOGIN_SUCCESS,
+                $request,
+                $user->uuid,
+                ['after_registration' => true],
+                $this->displayName($user).' logged in after completing registration.',
+                User::class,
+                $user->uuid,
+                ModuleEnums::authentication,
+                200,
+            );
+
+            return $payload;
         });
     }
 

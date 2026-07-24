@@ -13,6 +13,7 @@ class ChangeSettingsPasswordRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
+            'current_password' => ['required', 'string'],
             'password' => ['required', 'string', PasswordRules::make(), 'confirmed'],
         ];
     }

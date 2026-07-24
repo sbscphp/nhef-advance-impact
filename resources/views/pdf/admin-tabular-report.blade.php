@@ -130,7 +130,7 @@
         <table class="meta-table">
             <tr>
                 <td class="meta-key">Period</td>
-                <td class="meta-value">{{ $periodStart }} — {{ $periodEnd }}</td>
+                <td class="meta-value">{{ $periodStart }} to {{ $periodEnd }}</td>
             </tr>
             <tr>
                 <td class="meta-key">Rows</td>

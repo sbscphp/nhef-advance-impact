@@ -16,7 +16,6 @@ enum ApiEncryptionMode: string
     /** Inbound payloads are treated as plaintext JSON / query; outbound bodies are encrypted. */
     case ResponseOnly = 'response_only';
 
-    // Returns true if the current mode requires decrypting the incoming request payload.
     public function decryptsInbound(): bool
     {
         return match ($this) {
@@ -25,7 +24,6 @@ enum ApiEncryptionMode: string
         };
     }
 
-    // Returns true if the current mode requires encrypting the outgoing response payload.
     public function encryptsOutbound(): bool
     {
         return match ($this) {
