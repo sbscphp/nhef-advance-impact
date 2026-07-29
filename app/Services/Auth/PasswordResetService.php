@@ -12,6 +12,7 @@ use App\Helpers\GeneralHelper;
 use App\Helpers\OpaqueMessageHelper;
 use App\Models\Admin;
 use App\Models\User;
+use App\Notifications\Auth\AdminResetPasswordLinkMail;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -121,6 +122,55 @@ class PasswordResetService
         return $payload;
     }
 
+    /**
+     * Alternative to {@see requestAdminReset()}: emails a one-click reset link (like the admin
+     * invite flow) instead of an OTP code, so the frontend can offer either flow without the
+     * admin ever going through login/verify-otp. Sent synchronously (not queued) so it doesn't
+     * depend on a queue worker running, matching how OTP emails are already dispatched.
+     */
+    public function requestAdminResetLink(string $email, Request $request): void
+    {
+        $admin = Admin::query()->where('email', $email)->first();
+
+        if (! $admin) {
+            if (! OpaqueMessageHelper::authOpaqueEnabled('forgot_password')) {
+                throw new ApiException('No account found for this email address.', 404);
+            }
+
+            Hash::check(Str::random(16), self::DUMMY_BCRYPT_FOR_TIMING);
+            GeneralHelper::storeAuditLog(
+                UserTypeEnum::ADMIN,
+                AuditActionEnum::PASSWORD_RESET_REQUESTED,
+                $request,
+                null,
+                ['identifier_hash' => hash('sha256', $email), 'delivery' => 'link'],
+                'Password reset link was requested for an admin identifier.',
+                Admin::class,
+                null,
+                ModuleEnums::authentication,
+                200
+            );
+
+            return;
+        }
+
+        $token = $this->issueResetTokenFor($admin);
+        $admin->notify(new AdminResetPasswordLinkMail($token, $this->adminSetPasswordUrl($token)));
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::PASSWORD_RESET_REQUESTED,
+            $request,
+            $admin->uuid,
+            ['delivery' => 'link'],
+            $this->displayName($admin).' requested a password reset link.',
+            Admin::class,
+            $admin->uuid,
+            ModuleEnums::authentication,
+            200
+        );
+    }
+
     public function resendResetOtp(string $challengeToken, ?OtpChannelEnum $channel, Request $request): array
     {
         $target = $this->challengeTokenService->auditTarget($challengeToken, OtpPurposeEnum::PASSWORD_RESET);
@@ -227,6 +277,21 @@ class PasswordResetService
         );
 
         return $subject;
+    }
+
+    /**
+     * @return array{email: string, name: string, is_invite: bool}
+     */
+    public function resetPasswordContext(string $resetToken): array
+    {
+        $payload = $this->decodeResetToken($resetToken);
+        $subject = $this->resolveSubject($payload);
+
+        return [
+            'email' => $subject->email,
+            'name' => $this->displayName($subject),
+            'is_invite' => $subject instanceof Admin && (bool) $subject->must_reset_password,
+        ];
     }
 
     public function issueResetTokenFor(User|Admin $subject): string

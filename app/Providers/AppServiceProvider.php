@@ -157,6 +157,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinutes($window, $max)->by($this->otpThrottleKey($request));
         });
 
+        RateLimiter::for('admin-reset-token-context', function (Request $request) {
+            return Limit::perMinute(20)->by($this->resetTokenThrottleKey($request));
+        });
+
         RateLimiter::for('api-user-dev-registration', function (Request $request) {
             return Limit::perMinute(5)->by((string) $request->ip());
         });
@@ -298,6 +302,14 @@ class AppServiceProvider extends ServiceProvider
     {
         $ip = (string) $request->ip();
         $token = (string) $request->input('refresh_token');
+
+        return $token !== '' ? $ip.'|'.hash('sha256', $token) : $ip;
+    }
+
+    private function resetTokenThrottleKey(Request $request): string
+    {
+        $ip = (string) $request->ip();
+        $token = (string) $request->input('token');
 
         return $token !== '' ? $ip.'|'.hash('sha256', $token) : $ip;
     }

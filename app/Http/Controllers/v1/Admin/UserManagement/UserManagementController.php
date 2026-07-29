@@ -24,8 +24,15 @@ use App\Services\Admin\UserManagement\AdminUserService;
 use App\Services\Admin\UserManagement\RoleService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Knuckles\Scribe\Attributes\Authenticated;
+use Knuckles\Scribe\Attributes\BodyParam;
+use Knuckles\Scribe\Attributes\Endpoint;
+use Knuckles\Scribe\Attributes\Group;
+use Knuckles\Scribe\Attributes\Response;
+use Knuckles\Scribe\Attributes\UrlParam;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
+#[Group('Admin User Management', "Create, invite, list, and manage admin accounts and roles. Creating an admin (below) IS how an invite is sent: it creates the account with a placeholder password and `must_reset_password: true`, then emails a `Create Your Password` link. There's no separate send-invite call; see `POST /reset-password/context` and `POST /reset-password` in the Admin Auth / Forgot Password group for what the invitee does with that link.")]
 class UserManagementController extends Controller
 {
     public function __construct(
@@ -120,6 +127,17 @@ class UserManagementController extends Controller
         }
     }
 
+    #[Endpoint('Role dropdown', 'Lists roles for populating a role picker. The returned `role_id` values are what you pass to `POST /admin-users` when inviting an admin.')]
+    #[Authenticated]
+    #[UrlParam('status', 'string', 'Filter by role status.', required: false, example: 'active')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Role dropdown retrieved.',
+        'data' => [
+            ['role_id' => 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e', 'name' => 'Fundraising Officer', 'is_active' => true],
+            ['role_id' => 'c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f', 'name' => 'Super Admin', 'is_active' => true],
+        ],
+    ], description: 'Roles matching the requested status.')]
     public function roleDropdown(?string $status = null)
     {
         try {
@@ -153,6 +171,39 @@ class UserManagementController extends Controller
         }
     }
 
+    #[Endpoint('Invite a new admin', 'Creates the admin account and emails them a `Create Your Password` link (see Admin Auth / Forgot Password: `reset-password/context` and `reset-password`). Requires the `admins.create` permission; only a Super Admin may assign the Super Admin role.')]
+    #[Authenticated]
+    #[BodyParam('name', 'string', "The invitee's full name.", required: true, example: 'Kelechi Ibrahim')]
+    #[BodyParam('email', 'string', 'Work email address; must be unique.', required: true, example: 'kibrahim@sbsc.com')]
+    #[BodyParam('role_id', 'string', 'Role UUID from `GET /roles/dropdown`.', required: true, example: 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e')]
+    #[BodyParam('is_active', 'boolean', 'Whether the account is active. Defaults to true.', required: false, example: true)]
+    #[BodyParam('can_login', 'boolean', 'Whether the account may log in. Defaults to true.', required: false, example: true)]
+    #[BodyParam('frontend_url', 'string', 'Override base URL the invite link points to; defaults to `ADMIN_FRONTEND_URL`.', required: false, example: 'https://admin.nhef.org')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Admin user created successfully.',
+        'data' => [
+            'admin_id' => 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
+            'name' => 'Kelechi Ibrahim',
+            'email' => 'kibrahim@sbsc.com',
+            'role_name' => 'Fundraising Officer',
+            'permissions' => ['campaigns.read', 'campaigns.create'],
+            'status' => 'active',
+            'can_login' => true,
+            'must_reset_password' => true,
+            'last_active' => null,
+        ],
+    ], description: 'Admin created; invite email queued.')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'An admin with this email already exists.',
+        'data' => null,
+    ], description: 'Validation error.')]
+    #[Response(status: 403, content: [
+        'error' => true,
+        'message' => 'Only a Super Admin can assign the Super Admin role.',
+        'data' => null,
+    ], description: 'Attempted to assign the Super Admin role without being one.')]
     public function createAdmin(CreateAdminRequest $request)
     {
         try {
@@ -211,6 +262,24 @@ class UserManagementController extends Controller
         }
     }
 
+    #[Endpoint('Resend invite / password-setup link', 'Mints a fresh reset token and re-sends the "Create Your Password" email. Only valid for admins still pending first-time password setup (i.e. `must_reset_password: true`); use this if the original invite link expired.')]
+    #[Authenticated]
+    #[UrlParam('adminId', 'string', "The admin's UUID.", required: true, example: 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Password setup link resent successfully.',
+        'data' => [
+            'admin_id' => 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7',
+            'name' => 'Kelechi Ibrahim',
+            'email' => 'kibrahim@sbsc.com',
+            'must_reset_password' => true,
+        ],
+    ], description: 'New invite link queued for delivery.')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'Reset link can only be resent for admins pending first-time password setup.',
+        'data' => null,
+    ], description: 'Admin has already set their password.')]
     public function resendAdminInviteLink(Request $request, string $adminId)
     {
         try {
