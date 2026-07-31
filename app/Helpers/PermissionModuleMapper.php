@@ -13,8 +13,21 @@ final class PermissionModuleMapper
     public static function orderedModuleKeys(): array
     {
         return [
+            'dashboard',
+            'alumni',
+            'constituent_management',
+            'fundraising',
+            'donation',
+            'communications',
+            'crm',
+            'events',
+            'reporting',
             'user_management',
+            'mentorship',
+            'networking',
+            'custom_field',
             'audit_trail',
+            'system_configuration',
         ];
     }
 
@@ -23,8 +36,21 @@ final class PermissionModuleMapper
         $prefix = explode('.', $name, 2)[0] ?? '';
 
         return match ($prefix) {
+            'dashboard' => 'dashboard',
+            'alumni' => 'alumni',
+            'constituents' => 'constituent_management',
+            'campaigns' => 'fundraising',
+            'donations' => 'donation',
+            'communications' => 'communications',
+            'crm' => 'crm',
+            'events' => 'events',
+            'reports' => 'reporting',
             'roles', 'admins' => 'user_management',
+            'mentorship' => 'mentorship',
+            'networking' => 'networking',
+            'custom_fields' => 'custom_field',
             'audit_trail' => 'audit_trail',
+            'system_configuration' => 'system_configuration',
             default => 'other',
         };
     }

@@ -10,6 +10,9 @@ enum ModuleEnums: string
     /** Default when audit context has no module. */
     case guest = 'guest';
 
+    case dashboard = 'dashboard';
+    case alumni = 'alumni';
+    case constituent_management = 'constituent_management';
     case user_management = 'user_management';
     case audit_trail = 'audit_trail';
 
@@ -22,23 +25,47 @@ enum ModuleEnums: string
     /** Campaigns, pledges, donations, and payment gateway events. */
     case fundraising = 'fundraising';
 
+    /** Donation records and receipts, as a permission-matrix module distinct from campaign management. */
+    case donation = 'donation';
+
+    case communications = 'communications';
+
+    /** Donor/partner recognition and relationship records. */
+    case crm = 'crm';
+
     /** Events, ticket types, and ticket registration/payment events. */
     case events = 'events';
 
+    case reporting = 'reporting';
+
     /** Mentor/mentee applications, matches, and reviews. */
     case mentorship = 'mentorship';
+
+    case networking = 'networking';
+    case custom_field = 'custom_field';
+    case system_configuration = 'system_configuration';
 
     public function label(): string
     {
         return match ($this) {
             self::guest => 'Guest',
+            self::dashboard => 'Dashboard',
+            self::alumni => 'Alumni',
+            self::constituent_management => 'Constituent management',
             self::user_management => 'User management',
             self::audit_trail => 'Audit trail',
             self::settings => 'Settings',
             self::authentication => 'Authentication',
             self::fundraising => 'Fundraising',
+            self::donation => 'Donation',
+            self::communications => 'Communications',
+            self::crm => 'CRM',
             self::events => 'Events',
+            self::reporting => 'Reporting',
             self::mentorship => 'Mentorship',
+            self::networking => 'Networking',
+            self::custom_field => 'Custom field',
+            self::system_configuration => 'System configuration',
         };
     }
 
