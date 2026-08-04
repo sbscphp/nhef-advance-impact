@@ -3,6 +3,7 @@
 namespace App\Repositories\Donation;
 
 use App\Enums\DonationFrequencyEnum;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Donation;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -30,12 +31,13 @@ class DonationRepository implements DonationRepositoryInterface
 
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator
     {
-        return Donation::query()
+        $query = Donation::query()
+            ->select('donations.*')
             ->with(['user', 'campaign'])
-            ->where('user_id', $userId)
+            ->where('donations.user_id', $userId)
             ->when(
                 filled($filters['status'] ?? null),
-                fn ($query) => $query->where('status', $filters['status'])
+                fn ($query) => $query->where('donations.status', $filters['status'])
             )
             ->when(
                 filled($filters['search'] ?? null),
@@ -47,11 +49,20 @@ class DonationRepository implements DonationRepositoryInterface
                 // when the filter is genuinely absent (null/not provided).
                 filled($filters['is_recurring'] ?? null),
                 fn ($query) => $filters['is_recurring']
-                    ? $query->where('frequency', '!=', DonationFrequencyEnum::ONE_TIME->value)
-                    : $query->where('frequency', '=', DonationFrequencyEnum::ONE_TIME->value)
-            )
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+                    ? $query->where('donations.frequency', '!=', DonationFrequencyEnum::ONE_TIME->value)
+                    : $query->where('donations.frequency', '=', DonationFrequencyEnum::ONE_TIME->value)
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'donations.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+                ->orderBy('campaigns.title', $direction),
+            'value' => fn ($query, string $direction) => $query->orderBy('donations.amount', $direction),
+        ], 'donations.created_at');
+
+        return $query->paginate($perPage);
     }
 
     public function update(Donation $donation, array $data): Donation

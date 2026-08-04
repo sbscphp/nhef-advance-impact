@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Event;
 
+use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\EventRegistration;
 use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -29,15 +30,25 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
 
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator
     {
-        return EventRegistration::query()
+        $query = EventRegistration::query()
+            ->select('event_registrations.*')
             ->with(['event', 'items.ticketType'])
-            ->where('user_id', $userId)
+            ->where('event_registrations.user_id', $userId)
             ->when(
                 filled($filters['status'] ?? null),
-                fn ($query) => $query->where('status', $filters['status'])
-            )
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+                fn ($query) => $query->where('event_registrations.status', $filters['status'])
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'event_registrations.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('events', 'events.id', '=', 'event_registrations.event_id')
+                ->orderBy('events.title', $direction),
+            'value' => fn ($query, string $direction) => $query->orderBy('event_registrations.amount', $direction),
+        ], 'event_registrations.created_at');
+
+        return $query->paginate($perPage);
     }
 
     public function update(EventRegistration $registration, array $data): EventRegistration

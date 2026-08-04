@@ -32,6 +32,10 @@ class CampaignController extends Controller
     #[Unauthenticated]
     #[QueryParam('category', 'string', 'Filter by campaign category.', required: false, example: 'scholarship', enum: CampaignCategoryEnum::class)]
     #[QueryParam('search', 'string', 'Filter by title (partial match).', required: false, example: 'Coding Education')]
+    #[QueryParam('start_date', 'date', 'Only campaigns created on/after this date.', required: false, example: '2026-01-01')]
+    #[QueryParam('end_date', 'date', 'Only campaigns created on/before this date.', required: false, example: '2026-01-31')]
+    #[QueryParam('sort_by', 'string', 'Order arrangement field: "name" (title) or "value" (goal amount).', required: false, example: 'value')]
+    #[QueryParam('sort_direction', 'string', 'Order arrangement direction: asc or desc.', required: false, example: 'desc')]
     #[QueryParam('page', 'int', 'Page number.', required: false, example: 1)]
     #[QueryParam('per_page', 'int', 'Results per page (max 100).', required: false, example: 15)]
     #[Response(status: 200, content: [

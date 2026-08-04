@@ -45,12 +45,40 @@ final class ListingFilterRules
             'period' => ['sometimes', 'nullable', Rule::in(self::periodValues())],
             'start_date' => ['sometimes', 'nullable', 'date', 'required_if:period,custom'],
             'end_date' => ['sometimes', 'nullable', 'date', 'required_if:period,custom', 'after_or_equal:start_date'],
-            'sort_by' => ['sometimes', 'string', Rule::in($sortableColumns)],
-            'sort_direction' => ['sometimes', 'string', Rule::in(['asc', 'desc', 'ASC', 'DESC'])],
+            'sort_by' => ['sometimes', 'nullable', 'string', Rule::in($sortableColumns)],
+            'sort_direction' => ['sometimes', 'nullable', 'string', Rule::in(['asc', 'desc', 'ASC', 'DESC'])],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:'.$maxPerPage],
             'filters' => ['sometimes', 'array'],
         ];
+    }
+
+    /**
+     * Applies the "Order Arrangement" sort filter to a query.
+     *
+     * `$sortMap` maps each logical sortable key (e.g. 'name', 'value') to a closure that applies
+     * the actual ordering, since the underlying column often lives on a related table (e.g. a
+     * Pledge's "name" is its campaign's title, requiring a join). Falls back to `$defaultColumn`
+     * in `$defaultDirection` when sort_by is absent or unmapped, matching prior hardcoded
+     * behavior (most listings defaulted to newest-first; Events defaulted to soonest-first).
+     *
+     * @param  array<string, mixed>  $validated
+     * @param  array<string, \Closure(Builder|Relation, string): void>  $sortMap
+     */
+    public static function applySort(Builder|Relation $query, array $validated, array $sortMap, string $defaultColumn = 'created_at', string $defaultDirection = 'desc'): void
+    {
+        $direction = isset($validated['sort_direction'])
+            ? (strtolower((string) $validated['sort_direction']) === 'asc' ? 'asc' : 'desc')
+            : $defaultDirection;
+        $sortBy = $validated['sort_by'] ?? null;
+
+        if (is_string($sortBy) && isset($sortMap[$sortBy])) {
+            $sortMap[$sortBy]($query, $direction);
+
+            return;
+        }
+
+        $query->orderBy($defaultColumn, $direction);
     }
 
     /**

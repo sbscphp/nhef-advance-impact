@@ -14,5 +14,8 @@ interface MentorshipReviewRepositoryInterface
 
     public function findForMatch(int $mentorshipMatchId): ?MentorshipReview;
 
-    public function paginateForMentor(int $mentorProfileId, int $perPage): LengthAwarePaginator;
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForMentor(int $mentorProfileId, array $filters, int $perPage): LengthAwarePaginator;
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Customer\Mentorship;
 
 use App\Http\Requests\ApiFormRequest;
+use App\Http\Requests\Concerns\ListingFilterRules;
 
 class MenteeListRequest extends ApiFormRequest
 {
@@ -11,10 +12,11 @@ class MenteeListRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return [
-            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-        ];
+        return ListingFilterRules::rules(['name']);
+    }
+
+    public function messages(): array
+    {
+        return array_merge(parent::messages(), ListingFilterRules::listingMessages());
     }
 }

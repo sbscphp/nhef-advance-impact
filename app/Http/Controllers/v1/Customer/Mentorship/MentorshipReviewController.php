@@ -58,6 +58,10 @@ class MentorshipReviewController extends Controller
     #[Endpoint('List reviews for a mentor')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Mentor profile UUID.', required: true, example: 'a1b2c3d4-e5f6-47a8-89b0-c1d2e3f4a5b6')]
+    #[QueryParam('start_date', 'date', 'Only reviews created on/after this date.', required: false, example: '2026-01-01')]
+    #[QueryParam('end_date', 'date', 'Only reviews created on/before this date.', required: false, example: '2026-01-31')]
+    #[QueryParam('sort_by', 'string', 'Order arrangement field: "name" (reviewing mentee\'s name).', required: false, example: 'name')]
+    #[QueryParam('sort_direction', 'string', 'Order arrangement direction: asc or desc.', required: false, example: 'asc')]
     #[QueryParam('page', 'int', 'Page number.', required: false, example: 1)]
     #[QueryParam('per_page', 'int', 'Results per page (max 100).', required: false, example: 15)]
     #[Response(status: 200, content: [

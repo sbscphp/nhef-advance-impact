@@ -4,6 +4,7 @@ namespace App\Repositories\Mentorship;
 
 use App\Enums\MentorListingStatusEnum;
 use App\Enums\MentorReviewStatusEnum;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\MentorProfile;
 use App\Repositories\Contracts\Mentorship\MentorProfileRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -28,17 +29,27 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
 
     public function paginateApproved(array $filters, int $perPage): LengthAwarePaginator
     {
-        return MentorProfile::query()
+        $query = MentorProfile::query()
+            ->select('mentor_profiles.*')
             ->with(['user'])
-            ->where('review_status', MentorReviewStatusEnum::APPROVED->value)
+            ->where('mentor_profiles.review_status', MentorReviewStatusEnum::APPROVED->value)
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery
                     ->where('firstname', 'like', '%'.$filters['search'].'%')
                     ->orWhere('lastname', 'like', '%'.$filters['search'].'%'))
-            )
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'mentor_profiles.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('users', 'users.id', '=', 'mentor_profiles.user_id')
+                ->orderBy('users.firstname', $direction)
+                ->orderBy('users.lastname', $direction),
+        ], 'mentor_profiles.created_at');
+
+        return $query->paginate($perPage);
     }
 
     public function candidatesForMatching(): Collection

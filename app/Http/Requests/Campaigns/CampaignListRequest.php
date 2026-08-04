@@ -4,6 +4,7 @@ namespace App\Http\Requests\Campaigns;
 
 use App\Enums\CampaignCategoryEnum;
 use App\Http\Requests\ApiFormRequest;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use Illuminate\Validation\Rule;
 
 class CampaignListRequest extends ApiFormRequest
@@ -13,11 +14,16 @@ class CampaignListRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return [
-            'category' => ['sometimes', 'nullable', Rule::in(CampaignCategoryEnum::values())],
-            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-        ];
+        return array_merge(
+            ListingFilterRules::rules(['name', 'value']),
+            [
+                'category' => ['sometimes', 'nullable', Rule::in(CampaignCategoryEnum::values())],
+            ]
+        );
+    }
+
+    public function messages(): array
+    {
+        return array_merge(parent::messages(), ListingFilterRules::listingMessages());
     }
 }

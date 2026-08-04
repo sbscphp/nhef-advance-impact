@@ -3,6 +3,7 @@
 namespace App\Repositories\Event;
 
 use App\Enums\EventStatusEnum;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Event;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -11,15 +12,21 @@ class EventRepository implements EventRepositoryInterface
 {
     public function paginatePublished(array $filters, int $perPage): LengthAwarePaginator
     {
-        return Event::query()
+        $query = Event::query()
             ->published()
             ->with(['ticketTypes'])
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
-            )
-            ->orderBy('starts_at')
-            ->paginate($perPage);
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query->orderBy('title', $direction),
+        ], 'starts_at', 'asc');
+
+        return $query->paginate($perPage);
     }
 
     public function findPublishedByUuid(string $uuid): ?Event

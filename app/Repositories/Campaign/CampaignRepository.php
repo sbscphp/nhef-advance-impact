@@ -3,6 +3,7 @@
 namespace App\Repositories\Campaign;
 
 use App\Enums\CampaignStatusEnum;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Campaign;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -11,7 +12,7 @@ class CampaignRepository implements CampaignRepositoryInterface
 {
     public function paginateActive(array $filters, int $perPage): LengthAwarePaginator
     {
-        return Campaign::query()
+        $query = Campaign::query()
             ->active()
             ->when(
                 filled($filters['category'] ?? null),
@@ -20,9 +21,16 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
-            )
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query->orderBy('title', $direction),
+            'value' => fn ($query, string $direction) => $query->orderBy('goal_amount', $direction),
+        ], 'created_at');
+
+        return $query->paginate($perPage);
     }
 
     public function findActiveByUuid(string $uuid): ?Campaign

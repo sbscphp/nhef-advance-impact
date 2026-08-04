@@ -317,7 +317,7 @@ class MentorshipService
         $mentor = $this->findMentorByUuid($mentorUuid);
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
-        return $this->reviewRepository->paginateForMentor($mentor->id, $perPage);
+        return $this->reviewRepository->paginateForMentor($mentor->id, $filters, $perPage);
     }
 
     private function notifyAdminsOfNewMentorApplication(MentorProfile $mentor, User $user): void

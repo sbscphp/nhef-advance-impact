@@ -4,6 +4,7 @@ namespace App\Http\Requests\Customer\Events;
 
 use App\Enums\EventRegistrationStatusEnum;
 use App\Http\Requests\ApiFormRequest;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use Illuminate\Validation\Rule;
 
 class EventRegistrationListRequest extends ApiFormRequest
@@ -13,10 +14,16 @@ class EventRegistrationListRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return [
-            'status' => ['sometimes', 'nullable', Rule::in(EventRegistrationStatusEnum::values())],
-            'page' => ['sometimes', 'integer', 'min:1'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-        ];
+        return array_merge(
+            ListingFilterRules::rules(['name', 'value']),
+            [
+                'status' => ['sometimes', 'nullable', Rule::in(EventRegistrationStatusEnum::values())],
+            ]
+        );
+    }
+
+    public function messages(): array
+    {
+        return array_merge(parent::messages(), ListingFilterRules::listingMessages());
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Customer\Donations;
 
 use App\Enums\DonationStatusEnum;
 use App\Http\Requests\ApiFormRequest;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use Illuminate\Validation\Rule;
 
 class DonationListRequest extends ApiFormRequest
@@ -33,14 +34,19 @@ class DonationListRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return [
-            'status' => ['sometimes', 'nullable', Rule::in(DonationStatusEnum::values())],
-            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            // True for the "Recurring Donations" view (monthly/quarterly/annually only); false
-            // for one-time donations only. Omit to see both.
-            'is_recurring' => ['sometimes', 'nullable', 'boolean'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-        ];
+        return array_merge(
+            ListingFilterRules::rules(['name', 'value']),
+            [
+                'status' => ['sometimes', 'nullable', Rule::in(DonationStatusEnum::values())],
+                // True for the "Recurring Donations" view (monthly/quarterly/annually only); false
+                // for one-time donations only. Omit to see both.
+                'is_recurring' => ['sometimes', 'nullable', 'boolean'],
+            ]
+        );
+    }
+
+    public function messages(): array
+    {
+        return array_merge(parent::messages(), ListingFilterRules::listingMessages());
     }
 }

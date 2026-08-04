@@ -72,6 +72,10 @@ class PledgeController extends Controller
     #[Endpoint('List my pledges')]
     #[Authenticated]
     #[QueryParam('status', 'string', 'Filter by pledge status.', required: false, example: 'on_track', enum: PledgeStatusEnum::class)]
+    #[QueryParam('start_date', 'date', 'Only pledges created on/after this date.', required: false, example: '2026-01-01')]
+    #[QueryParam('end_date', 'date', 'Only pledges created on/before this date.', required: false, example: '2026-01-31')]
+    #[QueryParam('sort_by', 'string', 'Order arrangement field: "name" (campaign title) or "value" (pledge amount).', required: false, example: 'value')]
+    #[QueryParam('sort_direction', 'string', 'Order arrangement direction: asc or desc.', required: false, example: 'desc')]
     #[QueryParam('page', 'int', 'Page number.', required: false, example: 1)]
     #[QueryParam('per_page', 'int', 'Results per page (max 100).', required: false, example: 15)]
     #[Response(status: 200, content: [
