@@ -29,4 +29,11 @@ interface PaymentGatewayInterface
      * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
      */
     public function verify(string $reference): array;
+
+    /**
+     * Each gateway signs its webhooks differently (Paystack: HMAC-SHA512 header; Stripe: its
+     * own signed-timestamp scheme), so verification is owned by the concrete gateway rather
+     * than shared here.
+     */
+    public function verifyWebhookSignature(string $rawBody, ?string $signature): bool;
 }

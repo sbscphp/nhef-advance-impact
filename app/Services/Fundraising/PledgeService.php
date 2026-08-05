@@ -210,7 +210,7 @@ class PledgeService
             return ['payment' => $payment, 'pledge' => $payment->pledge];
         }
 
-        $result = $this->paymentGatewayService->verify($reference);
+        $result = $this->paymentGatewayService->verify($reference, $payment->gateway);
 
         if ($result['status'] !== 'successful') {
             $payment = $this->paymentRepository->markFailed($payment);
@@ -243,7 +243,7 @@ class PledgeService
             ]);
 
             if ($payment->user !== null) {
-                $this->paymentMethodService->saveFromAuthorization($payment->user, $result['authorization']);
+                $this->paymentMethodService->saveFromAuthorization($payment->user, $result['authorization'], $payment->gateway);
             }
 
             $installment = $payment->installment;
@@ -376,7 +376,7 @@ class PledgeService
      * PledgePayment row so verifyPayment() has something to find later by this reference.
      * Nothing is marked paid here; that only happens once the gateway confirms it.
      *
-     * @return array{authorization_url: string, access_code: ?string, reference: string}
+     * @return array{authorization_url: string, access_code: ?string, reference: string, gateway: string}
      */
     private function initializePaymentFor(?User $user, Pledge $pledge, PledgeInstallment $installment, ?string $paymentMethod, ?string $guestEmail = null): array
     {
@@ -398,7 +398,7 @@ class PledgeService
             'amount' => $installment->amount,
             'currency' => $pledge->currency,
             'method' => $paymentMethod,
-            'gateway' => 'paystack',
+            'gateway' => $initialization['gateway'],
             'gateway_reference' => $initialization['reference'],
             'status' => PaymentStatusEnum::PENDING->value,
         ]);

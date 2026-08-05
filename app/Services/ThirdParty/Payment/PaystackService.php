@@ -95,6 +95,22 @@ class PaystackService implements PaymentGatewayInterface
         ];
     }
 
+    /**
+     * Paystack signs the raw request body with our secret key (HMAC-SHA512) and sends it in
+     * the `x-paystack-signature` header, so we can trust the request actually came from
+     * Paystack and wasn't forged by someone POSTing straight to the webhook URL.
+     */
+    public function verifyWebhookSignature(string $rawBody, ?string $signature): bool
+    {
+        if ($signature === null || $signature === '') {
+            return false;
+        }
+
+        $expected = hash_hmac('sha512', $rawBody, (string) config('services.paystack.secret_key'));
+
+        return hash_equals($expected, $signature);
+    }
+
     private function client()
     {
         return Http::baseUrl((string) config('services.paystack.base_url'))

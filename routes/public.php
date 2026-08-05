@@ -8,6 +8,7 @@ use App\Http\Controllers\v1\Fundraising\DonationReceiptController;
 use App\Http\Controllers\v1\Fundraising\PaymentController;
 use App\Http\Controllers\v1\Recognition\LeaderboardController;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
+use App\Http\Controllers\v1\Webhooks\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -20,6 +21,7 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::post('webhooks/paystack', [PaystackWebhookController::class, 'handle']);
+    Route::post('webhooks/stripe', [StripeWebhookController::class, 'handle']);
 
     // Campaign browsing and payment verification are shared by the authenticated customer
     // flow and the guest donor flow (routes/guest.php); no account needed for either.

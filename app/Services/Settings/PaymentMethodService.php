@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Saved cards ("My Payment Methods" settings screen). Populated by {@see saveFromAuthorization},
- * called from PledgeService/DonationService::verifyPayment() whenever Paystack returns a
+ * called from PledgeService/DonationService/EventTicketService::verifyPayment() whenever the
+ * gateway a payment was made through (see PaymentGatewayInterface::verify()) returns a
  * reusable authorization for a logged-in customer's successful payment. Guests never get a
  * saved method since they have no account to attach one to.
  */
@@ -30,7 +31,7 @@ class PaymentMethodService
     /**
      * @param  array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}  $authorization
      */
-    public function saveFromAuthorization(User $user, array $authorization, string $gateway = 'paystack'): void
+    public function saveFromAuthorization(User $user, array $authorization, string $gateway): void
     {
         $code = $authorization['authorization_code'] ?? null;
         $signature = $authorization['signature'] ?? null;
@@ -40,7 +41,7 @@ class PaymentMethodService
         }
 
         try {
-            // Paystack mints a new authorization_code per transaction even for the same card;
+            // Gateways mint a new authorization_code per transaction even for the same card;
             // `signature` is the actual same-card identifier, so that's what we dedupe on.
             // authorization_code is only a fallback match for the rare case signature is absent.
             $existing = $signature !== null && $signature !== ''

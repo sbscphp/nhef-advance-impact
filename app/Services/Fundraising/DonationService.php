@@ -325,7 +325,7 @@ class DonationService
             return ['payment' => $payment, 'donation' => $payment->donation];
         }
 
-        $result = $this->paymentGatewayService->verify($reference);
+        $result = $this->paymentGatewayService->verify($reference, $payment->gateway);
 
         if ($result['status'] !== 'successful') {
             $payment = $this->paymentRepository->markFailed($payment);
@@ -364,7 +364,7 @@ class DonationService
             ]);
 
             if ($payment->user !== null) {
-                $this->paymentMethodService->saveFromAuthorization($payment->user, $result['authorization']);
+                $this->paymentMethodService->saveFromAuthorization($payment->user, $result['authorization'], $payment->gateway);
             }
 
             if ($previousNgnTotal !== null) {
@@ -498,7 +498,7 @@ class DonationService
      * DonationPayment row so verifyPayment() has something to find later by this reference.
      * Nothing is marked paid here; that only happens once the gateway confirms it.
      *
-     * @return array{authorization_url: string, access_code: ?string, reference: string}
+     * @return array{authorization_url: string, access_code: ?string, reference: string, gateway: string}
      */
     private function initializePaymentFor(?User $user, Donation $donation, ?string $paymentMethod, ?string $guestEmail = null): array
     {
@@ -519,7 +519,7 @@ class DonationService
             'amount' => $donation->amount,
             'currency' => $donation->currency,
             'method' => $paymentMethod,
-            'gateway' => 'paystack',
+            'gateway' => $initialization['gateway'],
             'gateway_reference' => $initialization['reference'],
             'status' => PaymentStatusEnum::PENDING->value,
         ]);

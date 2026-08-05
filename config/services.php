@@ -62,12 +62,26 @@ return [
     | PAYMENT_MODE controls gateway dispatch for pledges/donations:
     | stub: no gateway call; verify() reports immediate success (local/Postman testing)
     | log: same as stub, plus logs what would have been sent
-    | live: sent via Paystack
+    | live: sent via the gateway configured below (payment.default)
     */
+    'payment' => [
+        // Which gateway new payments are initialized with; see PaymentGatewayResolver.
+        // Existing pending payments keep verifying against whichever gateway they were
+        // created with, so changing this doesn't affect payments already in flight.
+        'default' => env('PAYMENT_GATEWAY', 'stripe'),
+    ],
+
     'paystack' => [
         'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
         'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+    ],
+
+    'stripe' => [
+        'base_url' => env('STRIPE_BASE_URL', 'https://api.stripe.com'),
+        'secret_key' => env('STRIPE_SECRET'),
+        'publishable_key' => env('STRIPE_PUBLISHABLE_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
 ];
