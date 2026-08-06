@@ -113,6 +113,9 @@ class DonationService
             return [
                 'donation' => $this->donationRepository->loadFresh($donation, ['user', 'campaign', 'payments']),
                 'authorization_url' => $initialization['authorization_url'],
+                'access_code' => $initialization['access_code'],
+                'client_secret' => $initialization['client_secret'],
+                'publishable_key' => $initialization['publishable_key'],
                 'reference' => $initialization['reference'],
             ];
         });
@@ -498,7 +501,7 @@ class DonationService
      * DonationPayment row so verifyPayment() has something to find later by this reference.
      * Nothing is marked paid here; that only happens once the gateway confirms it.
      *
-     * @return array{authorization_url: string, access_code: ?string, reference: string, gateway: string}
+     * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */
     private function initializePaymentFor(?User $user, Donation $donation, ?string $paymentMethod, ?string $guestEmail = null): array
     {

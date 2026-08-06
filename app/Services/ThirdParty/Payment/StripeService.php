@@ -11,26 +11,76 @@ use Stripe\StripeClient;
 use Stripe\Webhook;
 
 /**
- * Stripe Checkout integration (https://stripe.com/docs/api/checkout/sessions).
+ * Stripe integration. Which of Stripe's two donor-facing flows is used is controlled by
+ * `services.stripe.checkout_mode` (env `STRIPE_CHECKOUT_MODE`, defaults to `embedded`):
  *
- * Stripe Checkout Sessions don't accept a caller-supplied ID the way Paystack accepts a
- * caller-supplied `reference`, and the Checkout Session resource has no search endpoint. So
- * our reference is stamped onto the underlying PaymentIntent's metadata instead (via
- * `payment_intent_data.metadata`, see initialize()), and `verify()` looks it up there with the
- * PaymentIntent Search API. Search is eventually consistent (typically near-instant,
- * occasionally a few seconds behind), so the browser-redirect verify path can race a very
- * fresh payment; the webhook (server-to-server, carries the object directly, no search
- * involved) is the reliable settlement path regardless, matching the dual-path lifecycle
- * described on {@see PaymentGatewayService}.
+ *   - embedded (default): PaymentIntent + Stripe Elements
+ *     (https://stripe.com/docs/payments/payment-intents). The donor pays inline, inside our
+ *     own UI, via the returned `client_secret`/`publishable_key`; nothing redirects them away
+ *     from the app.
+ *   - hosted: Checkout Sessions (https://stripe.com/docs/api/checkout/sessions). The donor is
+ *     redirected to a Stripe-hosted page, same shape as Paystack's flow, via the returned
+ *     `authorization_url`.
+ *
+ * Either way, `verify()` looks the underlying PaymentIntent up by our own `reference` (stamped
+ * into its metadata at creation, see below) via the PaymentIntent Search API, since Stripe
+ * doesn't let us pick our own PaymentIntent ID and Checkout Sessions aren't searchable at all.
+ * Search is eventually consistent (typically near-instant, occasionally a few seconds behind),
+ * so the browser-side verify path can race a very fresh payment; the webhook (server-to-server,
+ * carries the object directly, no search involved) is the reliable settlement path regardless,
+ * matching the dual-path lifecycle described on {@see PaymentGatewayService}.
  */
 class StripeService implements PaymentGatewayInterface
 {
     /**
-     * Step 1 of 3 (see {@see PaymentGatewayInterface}). `setup_future_usage: off_session` plus
-     * `customer_creation: always` lets a returning donor's card be reused later (see
-     * PaymentMethodService::saveFromAuthorization()), mirroring what Paystack does by default.
+     * Step 1 of 3 (see {@see PaymentGatewayInterface}). Dispatches to the embedded or hosted
+     * flow per `services.stripe.checkout_mode`; card data never touches our server either way.
      */
     public function initialize(string $reference, string $amount, string $currency, string $email, array $meta = []): array
+    {
+        return $this->isEmbedded()
+            ? $this->initializeEmbedded($reference, $amount, $currency, $email, $meta)
+            : $this->initializeHosted($reference, $amount, $currency, $email, $meta);
+    }
+
+    /**
+     * Creates the Customer up front (rather than relying on Checkout's `customer_creation:
+     * always`) so `setup_future_usage: off_session` actually has a Customer to attach the card
+     * to, letting a returning donor's card be reused later (see
+     * PaymentMethodService::saveFromAuthorization()), mirroring what Paystack does by default.
+     */
+    private function initializeEmbedded(string $reference, string $amount, string $currency, string $email, array $meta): array
+    {
+        try {
+            $customer = $this->client()->customers->create(['email' => $email]);
+
+            $paymentIntent = $this->client()->paymentIntents->create([
+                'amount' => $this->toSubunit($amount),
+                'currency' => strtolower($currency),
+                'customer' => $customer->id,
+                'receipt_email' => $email,
+                'automatic_payment_methods' => ['enabled' => true],
+                'setup_future_usage' => 'off_session',
+                // Only field the PaymentIntent Search API can find this by later; Stripe
+                // doesn't accept a caller-supplied PaymentIntent ID.
+                'metadata' => [...$meta, 'reference' => $reference],
+            ], ['idempotency_key' => $reference]);
+        } catch (ApiErrorException $exception) {
+            Log::error('Stripe initialize failed', ['reference' => $reference, 'message' => $exception->getMessage()]);
+
+            throw new ApiException('Unable to initialize payment with the gateway. Please try again.', 502);
+        }
+
+        return [
+            'authorization_url' => null,
+            'access_code' => null,
+            'client_secret' => (string) $paymentIntent->client_secret,
+            'publishable_key' => (string) config('services.stripe.publishable_key'),
+            'reference' => $reference,
+        ];
+    }
+
+    private function initializeHosted(string $reference, string $amount, string $currency, string $email, array $meta): array
     {
         try {
             $session = $this->client()->checkout->sessions->create([
@@ -67,8 +117,15 @@ class StripeService implements PaymentGatewayInterface
         return [
             'authorization_url' => (string) $session->url,
             'access_code' => $session->id,
+            'client_secret' => null,
+            'publishable_key' => null,
             'reference' => $reference,
         ];
+    }
+
+    private function isEmbedded(): bool
+    {
+        return (string) config('services.stripe.checkout_mode', 'embedded') !== 'hosted';
     }
 
     /**

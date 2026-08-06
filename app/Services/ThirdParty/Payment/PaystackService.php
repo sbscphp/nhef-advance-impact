@@ -10,6 +10,16 @@ use Illuminate\Support\Facades\Log;
  * Paystack REST integration (https://paystack.com/docs/api/transaction/).
  * Settles NGN and USD; GBP/EUR pledges should route through a different gateway once one
  * is added behind {@see PaymentGatewayInterface}.
+ *
+ * `/transaction/initialize` always returns both `authorization_url` and `access_code` in the
+ * same response; which one we hand to the frontend is controlled by
+ * `services.paystack.checkout_mode` (env `PAYSTACK_CHECKOUT_MODE`, defaults to `embedded`):
+ *
+ *   - embedded (default): the frontend hands `access_code`/`publishable_key` to Paystack
+ *     Inline (https://paystack.com/docs/payments/accept-payments/#popup) via
+ *     `resumeTransaction(access_code)`, which pops up in-app; the donor never leaves the page.
+ *   - hosted: the frontend redirects the donor's browser to `authorization_url`, a
+ *     Paystack-hosted checkout page, same shape as Stripe's `hosted` mode.
  */
 class PaystackService implements PaymentGatewayInterface
 {
@@ -17,8 +27,8 @@ class PaystackService implements PaymentGatewayInterface
      * Step 1 of 3 (see {@see PaymentGatewayInterface}). Paystack's docs: POST /transaction/initialize
      * (https://paystack.com/docs/api/transaction/#initialize).
      *
-     * `callback_url` only controls where Paystack redirects the donor's *browser* after
-     * checkout (`{callback_url}?reference=...&trxref=...`); it's a UX nicety, not how we
+     * `callback_url` only controls where Paystack redirects the donor's *browser* after a
+     * hosted checkout (`{callback_url}?reference=...&trxref=...`); it's a UX nicety, not how we
      * confirm payment. That redirect can be lost (closed tab, network blip), so it's not
      * trusted on its own; the frontend still has to call our verify endpoint, and the
      * webhook (see PaystackWebhookController) is the reliable backup for that same check.
@@ -41,12 +51,20 @@ class PaystackService implements PaymentGatewayInterface
         }
 
         $data = $response->json('data', []);
+        $isEmbedded = $this->isEmbedded();
 
         return [
-            'authorization_url' => (string) ($data['authorization_url'] ?? ''),
-            'access_code' => $data['access_code'] ?? null,
+            'authorization_url' => $isEmbedded ? null : (string) ($data['authorization_url'] ?? ''),
+            'access_code' => $isEmbedded ? ($data['access_code'] ?? null) : null,
+            'client_secret' => null,
+            'publishable_key' => $isEmbedded ? (string) config('services.paystack.public_key') : null,
             'reference' => (string) ($data['reference'] ?? $reference),
         ];
+    }
+
+    private function isEmbedded(): bool
+    {
+        return (string) config('services.paystack.checkout_mode', 'embedded') !== 'hosted';
     }
 
     /**

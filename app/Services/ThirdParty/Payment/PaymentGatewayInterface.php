@@ -5,11 +5,18 @@ namespace App\Services\ThirdParty\Payment;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 
 /**
- * Contract for a hosted-checkout payment gateway. The flow behind every implementation:
+ * Contract for a payment gateway. The flow behind every implementation:
  *
- *   1. initialize(): call the gateway, get back a checkout page (authorization_url) the
- *      donor is sent to. No card data ever touches our server.
- *   2. Donor pays on the gateway's hosted page.
+ *   1. initialize(): call the gateway to start a payment. Each gateway supports both a hosted
+ *      and an in-app flow, chosen per-gateway via its own `checkout_mode` config
+ *      (STRIPE_CHECKOUT_MODE / PAYSTACK_CHECKOUT_MODE, both default `embedded`):
+ *        - hosted: authorization_url is set; the donor is redirected to the gateway's own
+ *          checkout page.
+ *        - embedded: the donor pays inline, without leaving our app. For Stripe that's
+ *          client_secret + publishable_key (Stripe.js/Elements); for Paystack that's
+ *          access_code + publishable_key (Paystack Inline's resumeTransaction()).
+ *      No card data ever touches our server in either mode.
+ *   2. Donor pays, either on the gateway's hosted page or inline in our own UI.
  *   3. verify(): call the gateway back with the reference to get the *authoritative*
  *      status. This is the only step that should ever mark a payment as successful; a
  *      browser redirect back to our app is not proof of payment on its own.
@@ -21,7 +28,7 @@ use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 interface PaymentGatewayInterface
 {
     /**
-     * @return array{authorization_url: string, access_code: ?string, reference: string}
+     * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string}
      */
     public function initialize(string $reference, string $amount, string $currency, string $email, array $meta = []): array;
 

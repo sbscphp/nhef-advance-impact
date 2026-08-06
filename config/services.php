@@ -75,6 +75,9 @@ return [
         'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
         'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+        // embedded: donor pays in-app via Paystack Inline (access_code/public_key).
+        // hosted: donor is redirected to a Paystack Checkout page (authorization_url).
+        'checkout_mode' => env('PAYSTACK_CHECKOUT_MODE', 'embedded'),
     ],
 
     'stripe' => [
@@ -82,6 +85,9 @@ return [
         'secret_key' => env('STRIPE_SECRET'),
         'publishable_key' => env('STRIPE_PUBLISHABLE_KEY'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        // embedded: donor pays in-app via Stripe Elements (client_secret/publishable_key).
+        // hosted: donor is redirected to a Stripe Checkout page (authorization_url), same as Paystack.
+        'checkout_mode' => env('STRIPE_CHECKOUT_MODE', 'embedded'),
     ],
 
 ];

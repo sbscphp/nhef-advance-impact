@@ -46,10 +46,13 @@ class GuestPledgeController extends Controller
         'message' => 'Pledge created.',
         'data' => [
             'pledge' => ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'status' => 'pending'],
-            'authorization_url' => 'https://checkout.paystack.com/abc123',
+            'authorization_url' => null,
+            'access_code' => null,
+            'client_secret' => 'pi_3P.._secret_abc123',
+            'publishable_key' => 'pk_test_abc123',
             'reference' => 'PLG_ABCDEFGHIJKLMNOPQRST',
         ],
-    ], description: 'Pledge created; complete payment at authorization_url.')]
+    ], description: 'Pledge created. Default (embedded) mode: Stripe returns client_secret (confirm in-app with Stripe.js/Elements + publishable_key), Paystack returns access_code/publishable_key (pass to Paystack Inline). In hosted mode, the active gateway returns authorization_url instead and the other fields are null. See STRIPE_CHECKOUT_MODE / PAYSTACK_CHECKOUT_MODE.')]
     #[Response(status: 422, content: [
         'error' => true,
         'message' => 'This campaign does not accept recurring pledges.',
@@ -63,6 +66,9 @@ class GuestPledgeController extends Controller
             return JsonResponser::send(false, 'Pledge created.', [
                 'pledge' => PledgeResource::make($result['pledge']),
                 'authorization_url' => $result['authorization_url'],
+                'access_code' => $result['access_code'],
+                'client_secret' => $result['client_secret'],
+                'publishable_key' => $result['publishable_key'],
                 'reference' => $result['reference'],
             ], 201);
         } catch (\Throwable $th) {

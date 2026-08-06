@@ -20,11 +20,15 @@ use Illuminate\Support\Facades\Log;
  *
  * Full payment lifecycle (PAYMENT_MODE=live):
  *   1. PledgeService creates a pending PledgePayment row and calls initialize() here ->
- *      the configured gateway -> gets back an authorization_url (hosted checkout page). The
- *      gateway that served the request is returned alongside so the caller can persist it on
- *      the payment row; verify() later needs to be told that same gateway back, since the
- *      configured default may have changed in the meantime.
- *   2. Donor pays on that page. Card/bank details never reach our server.
+ *      the configured gateway -> gets back either an authorization_url (hosted checkout page)
+ *      or an in-app payload (client_secret + publishable_key for Stripe, access_code +
+ *      publishable_key for Paystack), per that gateway's own checkout_mode config (see
+ *      {@see PaymentGatewayInterface}). The gateway that served the request is returned
+ *      alongside so the caller can persist it on the payment row; verify() later needs to be
+ *      told that same gateway back, since the configured default may have changed in the
+ *      meantime.
+ *   2. Donor pays, either on that hosted page or inline in our own UI. Card/bank details never
+ *      reach our server either way.
  *   3. The gateway redirects the browser to our callback_url; separately (and more reliably),
  *      it also POSTs a webhook straight to our server (see PaystackWebhookController /
  *      StripeWebhookController). Either path ends up calling verify() here, which is
@@ -40,7 +44,7 @@ class PaymentGatewayService
 
     /**
      * @param  array<string, mixed>  $meta
-     * @return array{authorization_url: string, access_code: ?string, reference: string, gateway: string}
+     * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */
     public function initialize(string $reference, string $amount, string $currency, string $email, array $meta = []): array
     {
@@ -65,6 +69,8 @@ class PaymentGatewayService
         return [
             'authorization_url' => rtrim((string) config('app.frontend_url'), '/').'/stub-checkout/'.$reference,
             'access_code' => null,
+            'client_secret' => null,
+            'publishable_key' => null,
             'reference' => $reference,
             'gateway' => $gateway,
         ];

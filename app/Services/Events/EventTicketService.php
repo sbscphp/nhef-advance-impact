@@ -167,6 +167,9 @@ class EventTicketService
                 return [
                     'registration' => $this->registrationRepository->loadFresh($registration, ['user', 'event', 'items.ticketType', 'payments']),
                     'authorization_url' => null,
+                    'access_code' => null,
+                    'client_secret' => null,
+                    'publishable_key' => null,
                     'reference' => null,
                 ];
             }
@@ -176,6 +179,9 @@ class EventTicketService
             return [
                 'registration' => $this->registrationRepository->loadFresh($registration, ['user', 'event', 'items.ticketType', 'payments']),
                 'authorization_url' => $initialization['authorization_url'],
+                'access_code' => $initialization['access_code'],
+                'client_secret' => $initialization['client_secret'],
+                'publishable_key' => $initialization['publishable_key'],
                 'reference' => $initialization['reference'],
             ];
         });
@@ -332,7 +338,7 @@ class EventTicketService
     }
 
     /**
-     * @return array{authorization_url: string, access_code: ?string, reference: string, gateway: string}
+     * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */
     private function initializePaymentFor(?User $user, EventRegistration $registration, ?string $paymentMethod, ?string $guestEmail = null): array
     {

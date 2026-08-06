@@ -44,10 +44,13 @@ class GuestEventRegistrationController extends Controller
         'message' => 'Registration created.',
         'data' => [
             'registration' => ['uuid' => 'a1b2c3d4-e5f6-47a8-89b0-c1d2e3f4a5b6', 'status' => 'pending'],
-            'authorization_url' => 'https://checkout.paystack.com/abc123',
+            'authorization_url' => null,
+            'access_code' => null,
+            'client_secret' => 'pi_3P.._secret_abc123',
+            'publishable_key' => 'pk_test_abc123',
             'reference' => 'TIX_ABCDEFGHIJKLMNOPQRST',
         ],
-    ], description: 'Registration created; complete payment at authorization_url (or already completed, for free tickets).')]
+    ], description: 'Registration created. Default (embedded) mode: Stripe returns client_secret (confirm in-app with Stripe.js/Elements + publishable_key), Paystack returns access_code/publishable_key (pass to Paystack Inline). In hosted mode, the active gateway returns authorization_url instead; for free tickets, all payment fields are null (already completed). See STRIPE_CHECKOUT_MODE / PAYSTACK_CHECKOUT_MODE.')]
     #[Response(status: 422, content: [
         'error' => true,
         'message' => 'Registration is closed for this event.',
@@ -61,6 +64,9 @@ class GuestEventRegistrationController extends Controller
             return JsonResponser::send(false, 'Registration created.', [
                 'registration' => EventRegistrationResource::make($result['registration']),
                 'authorization_url' => $result['authorization_url'],
+                'access_code' => $result['access_code'],
+                'client_secret' => $result['client_secret'],
+                'publishable_key' => $result['publishable_key'],
                 'reference' => $result['reference'],
             ], 201);
         } catch (\Throwable $th) {
