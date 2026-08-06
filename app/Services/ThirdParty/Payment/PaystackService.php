@@ -114,6 +114,37 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
+     * Paystack's docs: GET /bank (https://paystack.com/docs/api/miscellaneous/#bank). Used to
+     * populate the local `banks` table with the canonical, CBN-recognized list of Nigerian
+     * banks (see the `banks:sync` console command); Stripe has no equivalent lookup for NG.
+     * Filtered to `type: nuban` and `active: true`, i.e. the standard banks a NUBAN account
+     * number can belong to, excluding mobile money/other non-bank gateway entries Paystack
+     * also lists here.
+     *
+     * @return list<array{name: string, code: string}>
+     */
+    public function listBanks(): array
+    {
+        $response = $this->client()->get('/bank', [
+            'country' => 'nigeria',
+            'currency' => 'NGN',
+            'perPage' => 100,
+        ]);
+
+        if ($response->failed() || ! $response->json('status')) {
+            Log::error('Paystack list banks failed', ['body' => $response->body()]);
+
+            throw new ApiException('Unable to fetch the bank list from the gateway. Please try again.', 502);
+        }
+
+        return collect($response->json('data', []))
+            ->filter(fn (array $bank) => ($bank['type'] ?? null) === 'nuban' && ($bank['active'] ?? false) === true)
+            ->map(fn (array $bank) => ['name' => (string) $bank['name'], 'code' => (string) $bank['code']])
+            ->values()
+            ->all();
+    }
+
+    /**
      * Paystack signs the raw request body with our secret key (HMAC-SHA512) and sends it in
      * the `x-paystack-signature` header, so we can trust the request actually came from
      * Paystack and wasn't forged by someone POSTing straight to the webhook URL.

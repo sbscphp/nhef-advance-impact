@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Resources\Fundraising;
+namespace App\Http\Resources\Admin;
 
 use App\Models\Campaign;
 use App\Support\Money;
@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /** @mixin Campaign */
-class CampaignResource extends JsonResource
+class CampaignAdminResource extends JsonResource
 {
     /**
      * @return array<string, mixed>
@@ -25,14 +25,20 @@ class CampaignResource extends JsonResource
             'goal_amount' => (string) $this->goal_amount,
             'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
             'raised_amount' => (string) $this->raised_amount,
-            'raised_amount_formatted' => Money::format($this->raised_amount, $this->currency),
-            'progress_percentage' => $this->progressPercentage(),
-            'allow_one_time' => (bool) $this->allow_one_time,
-            'allow_recurring' => (bool) $this->allow_recurring,
-            'allow_anonymous' => (bool) $this->allow_anonymous,
             'status' => $this->status,
             'starts_at' => $this->starts_at?->toDateString(),
             'ends_at' => $this->ends_at?->toDateString(),
+            'allocated_admin' => $this->whenLoaded('allocatedAdmin', fn () => [
+                'admin_id' => $this->allocatedAdmin->uuid,
+                'name' => $this->allocatedAdmin->displayName(),
+            ]),
+            'bank_account' => $this->whenLoaded('bankAccount', fn () => [
+                'bank_account_id' => $this->bankAccount->uuid,
+                'account_number' => $this->bankAccount->account_number,
+                'account_name' => $this->bankAccount->account_name,
+                'bank_name' => $this->bankAccount->relationLoaded('bank') ? $this->bankAccount->bank->name : null,
+            ]),
+            'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

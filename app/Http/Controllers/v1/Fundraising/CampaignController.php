@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\v1\Fundraising;
 
-use App\Enums\CampaignCategoryEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Campaigns\CampaignListRequest;
@@ -30,7 +29,6 @@ class CampaignController extends Controller
 
     #[Endpoint('List campaigns')]
     #[Unauthenticated]
-    #[QueryParam('category', 'string', 'Filter by campaign category.', required: false, example: 'scholarship', enum: CampaignCategoryEnum::class)]
     #[QueryParam('search', 'string', 'Filter by title (partial match).', required: false, example: 'Coding Education')]
     #[QueryParam('start_date', 'date', 'Only campaigns created on/after this date.', required: false, example: '2026-01-01')]
     #[QueryParam('end_date', 'date', 'Only campaigns created on/before this date.', required: false, example: '2026-01-31')]

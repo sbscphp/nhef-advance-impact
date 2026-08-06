@@ -2,11 +2,17 @@
 
 namespace App\Providers;
 
+use App\Repositories\Admin\AdminRepository;
 use App\Repositories\ApiUser\ApiUserRepository;
 use App\Repositories\Auth\OtpRepository;
+use App\Repositories\Bank\BankRepository;
+use App\Repositories\BankAccount\BankAccountRepository;
 use App\Repositories\Campaign\CampaignRepository;
+use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\ApiUser\ApiUserRepositoryInterface;
 use App\Repositories\Contracts\Auth\OtpRepositoryInterface;
+use App\Repositories\Contracts\Bank\BankRepositoryInterface;
+use App\Repositories\Contracts\BankAccount\BankAccountRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
@@ -64,6 +70,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ApiUserRepositoryInterface::class, ApiUserRepository::class);
         $this->app->bind(ThemeRepositoryInterface::class, ThemeRepository::class);
         $this->app->bind(CampaignRepositoryInterface::class, CampaignRepository::class);
+        $this->app->bind(BankRepositoryInterface::class, BankRepository::class);
+        $this->app->bind(BankAccountRepositoryInterface::class, BankAccountRepository::class);
+        $this->app->bind(AdminRepositoryInterface::class, AdminRepository::class);
         $this->app->bind(PledgeRepositoryInterface::class, PledgeRepository::class);
         $this->app->bind(PledgeInstallmentRepositoryInterface::class, PledgeInstallmentRepository::class);
         $this->app->bind(PledgePaymentRepositoryInterface::class, PledgePaymentRepository::class);

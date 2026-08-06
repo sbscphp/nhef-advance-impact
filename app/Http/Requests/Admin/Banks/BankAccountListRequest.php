@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Http\Requests\Campaigns;
+namespace App\Http\Requests\Admin\Banks;
 
 use App\Http\Requests\ApiFormRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
 
-class CampaignListRequest extends ApiFormRequest
+class BankAccountListRequest extends ApiFormRequest
 {
     /**
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
     {
-        return ListingFilterRules::rules(['name', 'value']);
+        return ListingFilterRules::rules(['name', 'bank']);
     }
 
     public function messages(): array

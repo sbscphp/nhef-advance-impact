@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             ThemeSeeder::class,
             ApiUserSeeder::class,
+            BankSeeder::class,
             CampaignSeeder::class,
             DonorTierSeeder::class,
             EventSeeder::class,

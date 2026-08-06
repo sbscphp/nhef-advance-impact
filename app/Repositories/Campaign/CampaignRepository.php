@@ -15,10 +15,6 @@ class CampaignRepository implements CampaignRepositoryInterface
         $query = Campaign::query()
             ->active()
             ->when(
-                filled($filters['category'] ?? null),
-                fn ($query) => $query->where('category', $filters['category'])
-            )
-            ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
             );
@@ -46,5 +42,15 @@ class CampaignRepository implements CampaignRepositoryInterface
         $campaign->forceFill(['raised_amount' => (float) $campaign->raised_amount + (float) $amount])->save();
 
         return $campaign;
+    }
+
+    public function slugExists(string $slug): bool
+    {
+        return Campaign::query()->where('slug', $slug)->exists();
+    }
+
+    public function create(array $data): Campaign
+    {
+        return Campaign::query()->create($data);
     }
 }

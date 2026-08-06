@@ -3,6 +3,8 @@
 use App\Http\Controllers\v1\Admin\AuditTrail\AuditTrailController;
 use App\Http\Controllers\v1\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\v1\Admin\Auth\PasswordController as AdminPasswordController;
+use App\Http\Controllers\v1\Admin\Fundraising\BankController;
+use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
 use App\Http\Controllers\v1\Admin\UserManagement\UserManagementController;
@@ -90,6 +92,20 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:admins.update']);
             Route::delete('/{adminId}', [UserManagementController::class, 'deleteAdmin'])
                 ->middleware(['permission:admins.delete']);
+        });
+
+        Route::prefix('banks')->group(function () {
+            Route::get('/dropdown', [BankController::class, 'dropdown'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/accounts', [BankController::class, 'accountList'])
+                ->middleware(['permission:campaigns.read']);
+            Route::post('/accounts', [BankController::class, 'createAccount'])
+                ->middleware(['permission:campaigns.create']);
+        });
+
+        Route::prefix('campaigns')->group(function () {
+            Route::post('/', [AdminCampaignController::class, 'store'])
+                ->middleware(['permission:campaigns.create']);
         });
     });
 });

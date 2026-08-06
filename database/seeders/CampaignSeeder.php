@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\CampaignCategoryEnum;
 use App\Enums\CampaignStatusEnum;
 use App\Enums\CurrencyEnum;
 use App\Models\Campaign;
@@ -21,7 +20,6 @@ class CampaignSeeder extends Seeder
         $campaigns = [
             [
                 'title' => 'Stellar Tech Coding Scholarship',
-                'category' => CampaignCategoryEnum::SCHOLARSHIP->value,
                 'description' => 'Fund coding bootcamp scholarships for underserved alumni and their dependents.',
                 'currency' => CurrencyEnum::NGN->value,
                 'goal_amount' => 5000000,
@@ -29,7 +27,6 @@ class CampaignSeeder extends Seeder
             ],
             [
                 'title' => 'National Giving Day',
-                'category' => CampaignCategoryEnum::GENERAL->value,
                 'description' => 'Our annual day of giving supporting every active fund across the network.',
                 'currency' => CurrencyEnum::NGN->value,
                 'goal_amount' => 50000000,
@@ -37,7 +34,6 @@ class CampaignSeeder extends Seeder
             ],
             [
                 'title' => 'Diaspora Research Endowment',
-                'category' => CampaignCategoryEnum::RESEARCH->value,
                 'description' => 'A permanent endowment funding faculty research grants.',
                 'currency' => CurrencyEnum::USD->value,
                 'goal_amount' => 100000,
@@ -45,7 +41,6 @@ class CampaignSeeder extends Seeder
             ],
             [
                 'title' => 'Campus Library Infrastructure Fund',
-                'category' => CampaignCategoryEnum::INFRASTRUCTURE->value,
                 'description' => 'Renovate and re-equip the main library across partner universities.',
                 'currency' => CurrencyEnum::NGN->value,
                 'goal_amount' => 20000000,
@@ -59,7 +54,6 @@ class CampaignSeeder extends Seeder
                 [
                     'title' => $row['title'],
                     'description' => $row['description'],
-                    'category' => $row['category'],
                     'currency' => $row['currency'],
                     'goal_amount' => $row['goal_amount'],
                     'raised_amount' => $row['raised_amount'],

@@ -6,6 +6,7 @@ use App\Enums\CampaignStatusEnum;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaign extends Model
@@ -35,6 +36,16 @@ class Campaign extends Model
     public function donations(): HasMany
     {
         return $this->hasMany(Donation::class);
+    }
+
+    public function allocatedAdmin(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'allocated_admin_id');
+    }
+
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
     }
 
     public function scopeActive(Builder $query): Builder
