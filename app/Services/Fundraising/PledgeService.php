@@ -115,7 +115,7 @@ class PledgeService
                 throw new ApiException('Unable to schedule the first installment.', 500);
             }
 
-            $initialization = $this->initializePaymentFor($user, $pledge, $firstInstallment, $validated['payment_method'] ?? null, $validated['email'] ?? null);
+            $initialization = $this->initializePaymentFor($user, $pledge, $firstInstallment, $validated['email'] ?? null);
 
             $donorName = $user?->displayName() ?? $validated['full_name'];
 
@@ -155,7 +155,7 @@ class PledgeService
      *
      * @return array<string, mixed>
      */
-    public function payInstallment(User $user, string $pledgeUuid, string $installmentUuid, Request $request, ?string $paymentMethod = null): array
+    public function payInstallment(User $user, string $pledgeUuid, string $installmentUuid, Request $request): array
     {
         $pledge = $this->findForUser($user, $pledgeUuid);
 
@@ -173,7 +173,7 @@ class PledgeService
             throw new ApiException('This installment has already been paid.', 422);
         }
 
-        $initialization = $this->initializePaymentFor($user, $pledge, $installment, $paymentMethod);
+        $initialization = $this->initializePaymentFor($user, $pledge, $installment);
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::CUSTOMER,
@@ -381,7 +381,7 @@ class PledgeService
      *
      * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */
-    private function initializePaymentFor(?User $user, Pledge $pledge, PledgeInstallment $installment, ?string $paymentMethod, ?string $guestEmail = null): array
+    private function initializePaymentFor(?User $user, Pledge $pledge, PledgeInstallment $installment, ?string $guestEmail = null): array
     {
         $reference = 'PLG_'.strtoupper(Str::random(20));
         $email = $user->email ?? $guestEmail;
@@ -400,7 +400,6 @@ class PledgeService
             'user_id' => $user?->id,
             'amount' => $installment->amount,
             'currency' => $pledge->currency,
-            'method' => $paymentMethod,
             'gateway' => $initialization['gateway'],
             'gateway_reference' => $initialization['reference'],
             'status' => PaymentStatusEnum::PENDING->value,

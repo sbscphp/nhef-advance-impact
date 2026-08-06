@@ -87,7 +87,7 @@ class DonationService
                 'next_charge_at' => null,
             ]);
 
-            $initialization = $this->initializePaymentFor($user, $donation, $validated['payment_method'] ?? null, $validated['email'] ?? null);
+            $initialization = $this->initializePaymentFor($user, $donation, $validated['email'] ?? null);
 
             $donorName = $user?->displayName() ?? $validated['full_name'];
 
@@ -127,7 +127,7 @@ class DonationService
      *
      * @return array<string, mixed>
      */
-    public function chargeNextCycle(User $user, string $donationUuid, Request $request, ?string $paymentMethod = null): array
+    public function chargeNextCycle(User $user, string $donationUuid, Request $request): array
     {
         $donation = $this->findForUser($user, $donationUuid);
 
@@ -139,7 +139,7 @@ class DonationService
             throw new ApiException('This donation is no longer accepting payments.', 422);
         }
 
-        $initialization = $this->initializePaymentFor($user, $donation, $paymentMethod);
+        $initialization = $this->initializePaymentFor($user, $donation);
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::CUSTOMER,
@@ -503,7 +503,7 @@ class DonationService
      *
      * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */
-    private function initializePaymentFor(?User $user, Donation $donation, ?string $paymentMethod, ?string $guestEmail = null): array
+    private function initializePaymentFor(?User $user, Donation $donation, ?string $guestEmail = null): array
     {
         $reference = 'DON_'.strtoupper(Str::random(20));
         $email = $user->email ?? $guestEmail;
@@ -521,7 +521,6 @@ class DonationService
             'user_id' => $user?->id,
             'amount' => $donation->amount,
             'currency' => $donation->currency,
-            'method' => $paymentMethod,
             'gateway' => $initialization['gateway'],
             'gateway_reference' => $initialization['reference'],
             'status' => PaymentStatusEnum::PENDING->value,

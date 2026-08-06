@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\v1\Customer\Events;
 
-use App\Enums\PaymentMethodEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Events\EventRegistrationListRequest;
@@ -32,7 +31,6 @@ class EventRegistrationController extends Controller
     #[BodyParam('tickets', 'object[]', 'Ticket types and quantities to purchase.', required: true)]
     #[BodyParam('tickets[].ticket_type_uuid', 'string', 'UUID of the ticket type.', required: true, example: 'f2a3b4c5-d6e7-48f9-a9b0-c1d2e3f4a5b6')]
     #[BodyParam('tickets[].quantity', 'int', 'Number of this ticket type to buy.', required: true, example: 2)]
-    #[BodyParam('payment_method', 'string', 'Payment method for this charge (ignored for fully free registrations).', required: true, example: 'card', enum: PaymentMethodEnum::class)]
     #[Response(status: 201, content: [
         'error' => false,
         'message' => 'Registration created.',

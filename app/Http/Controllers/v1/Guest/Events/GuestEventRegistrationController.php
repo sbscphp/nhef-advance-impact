@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\v1\Guest\Events;
 
-use App\Enums\PaymentMethodEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guest\Events\GuestRegisterForEventRequest;
@@ -36,7 +35,6 @@ class GuestEventRegistrationController extends Controller
     #[BodyParam('tickets', 'object[]', 'Ticket types and quantities to purchase.', required: true)]
     #[BodyParam('tickets[].ticket_type_uuid', 'string', 'UUID of the ticket type.', required: true, example: 'f2a3b4c5-d6e7-48f9-a9b0-c1d2e3f4a5b6')]
     #[BodyParam('tickets[].quantity', 'int', 'Number of this ticket type to buy.', required: true, example: 1)]
-    #[BodyParam('payment_method', 'string', 'Payment method for this charge (ignored for fully free registrations).', required: true, example: 'card', enum: PaymentMethodEnum::class)]
     #[BodyParam('full_name', 'string', 'Attendee\'s full name.', required: true, example: 'Jane Attendee')]
     #[BodyParam('email', 'string', 'Attendee\'s email (used for the payment gateway and the emailed confirmation).', required: true, example: 'jane.attendee@example.com')]
     #[Response(status: 201, content: [

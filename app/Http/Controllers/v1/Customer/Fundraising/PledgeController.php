@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\v1\Customer\Fundraising;
 
-use App\Enums\PaymentMethodEnum;
 use App\Enums\PledgeFrequencyEnum;
 use App\Enums\PledgeStatusEnum;
 use App\Helpers\GeneralHelper;
@@ -38,7 +37,6 @@ class PledgeController extends Controller
     #[BodyParam('end_date', 'date', 'End of the installment schedule; installment count is derived from the start_date-end_date range at the chosen frequency. Required unless frequency is `one_time`; prohibited when it is.', required: false, example: '2026-09-15')]
     #[BodyParam('expected_payment_date', 'date', 'Due date for the single payment. Required only when frequency is `one_time`; prohibited otherwise.', required: false, example: '2026-07-15')]
     #[BodyParam('is_anonymous', 'boolean', 'Hide donor identity on the recognition wall.', required: false, example: false)]
-    #[BodyParam('payment_method', 'string', 'Payment method for this installment.', required: true, example: 'card', enum: PaymentMethodEnum::class)]
     #[Response(status: 201, content: [
         'error' => false,
         'message' => 'Pledge created.',
@@ -130,7 +128,6 @@ class PledgeController extends Controller
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Pledge UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
     #[UrlParam('installmentUuid', 'string', 'Installment UUID.', required: true, example: 'd4e5f6a7-b8c9-40d1-92e3-f4a5b6c7d8e9')]
-    #[BodyParam('payment_method', 'string', 'Payment method for this installment.', required: true, example: 'bank_transfer', enum: PaymentMethodEnum::class)]
     #[Response(status: 200, content: [
         'error' => false,
         'message' => 'Payment initialized.',
@@ -145,7 +142,7 @@ class PledgeController extends Controller
     {
         try {
             $user = $this->requireCustomer($request);
-            $result = $this->pledgeService->payInstallment($user, $uuid, $installmentUuid, $request, $request->validated('payment_method'));
+            $result = $this->pledgeService->payInstallment($user, $uuid, $installmentUuid, $request);
 
             return JsonResponser::send(false, 'Payment initialized.', $result, 200);
         } catch (\Throwable $th) {

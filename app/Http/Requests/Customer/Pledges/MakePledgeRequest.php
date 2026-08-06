@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Customer\Pledges;
 
-use App\Enums\PaymentMethodEnum;
 use App\Enums\PledgeFrequencyEnum;
 use App\Http\Requests\ApiFormRequest;
 use Illuminate\Validation\Rule;
@@ -40,7 +39,6 @@ class MakePledgeRequest extends ApiFormRequest
                 'after_or_equal:today',
             ],
             'is_anonymous' => ['sometimes', 'boolean'],
-            'payment_method' => ['required', Rule::in(PaymentMethodEnum::values())],
         ];
     }
 }

@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests\Customer\Pledges;
 
-use App\Enums\PaymentMethodEnum;
 use App\Http\Requests\ApiFormRequest;
-use Illuminate\Validation\Rule;
 
 class PayInstallmentRequest extends ApiFormRequest
 {
@@ -13,8 +11,6 @@ class PayInstallmentRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return [
-            'payment_method' => ['required', Rule::in(PaymentMethodEnum::values())],
-        ];
+        return [];
     }
 }

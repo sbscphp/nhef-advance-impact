@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\v1\Guest\Fundraising;
 
 use App\Enums\DonationFrequencyEnum;
-use App\Enums\PaymentMethodEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guest\Donations\GuestMakeDonationRequest;
@@ -35,7 +34,6 @@ class GuestDonationController extends Controller
     #[BodyParam('frequency', 'string', 'Donation frequency.', required: true, example: 'one_time', enum: DonationFrequencyEnum::class)]
     #[BodyParam('amount', 'number', 'Amount charged per cycle, in the campaign\'s currency.', required: true, example: 1000)]
     #[BodyParam('is_anonymous', 'boolean', 'Hide donor identity on the recognition wall.', required: false, example: false)]
-    #[BodyParam('payment_method', 'string', 'Payment method for this charge.', required: true, example: 'card', enum: PaymentMethodEnum::class)]
     #[BodyParam('full_name', 'string', 'Donor\'s full name.', required: true, example: 'Jane Donor')]
     #[BodyParam('email', 'string', 'Donor\'s email (used for the payment gateway and the emailed receipt).', required: true, example: 'jane.donor@example.com')]
     #[Response(status: 201, content: [

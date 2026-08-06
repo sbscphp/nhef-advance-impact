@@ -174,7 +174,7 @@ class EventTicketService
                 ];
             }
 
-            $initialization = $this->initializePaymentFor($user, $registration, $validated['payment_method'] ?? null, $validated['email'] ?? null);
+            $initialization = $this->initializePaymentFor($user, $registration, $validated['email'] ?? null);
 
             return [
                 'registration' => $this->registrationRepository->loadFresh($registration, ['user', 'event', 'items.ticketType', 'payments']),
@@ -340,7 +340,7 @@ class EventTicketService
     /**
      * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */
-    private function initializePaymentFor(?User $user, EventRegistration $registration, ?string $paymentMethod, ?string $guestEmail = null): array
+    private function initializePaymentFor(?User $user, EventRegistration $registration, ?string $guestEmail = null): array
     {
         $reference = 'TIX_'.strtoupper(Str::random(20));
         $email = $user->email ?? $guestEmail;
@@ -358,7 +358,6 @@ class EventTicketService
             'user_id' => $user?->id,
             'amount' => $registration->amount,
             'currency' => $registration->currency,
-            'method' => $paymentMethod,
             'gateway' => $initialization['gateway'],
             'gateway_reference' => $initialization['reference'],
             'status' => PaymentStatusEnum::PENDING->value,

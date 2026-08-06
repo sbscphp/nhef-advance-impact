@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\v1\Guest\Fundraising;
 
-use App\Enums\PaymentMethodEnum;
 use App\Enums\PledgeFrequencyEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
@@ -38,7 +37,6 @@ class GuestPledgeController extends Controller
     #[BodyParam('end_date', 'date', 'End of the installment schedule; installment count is derived from the start_date-end_date range at the chosen frequency. Required unless frequency is `one_time`; prohibited when it is.', required: false, example: '2026-10-01')]
     #[BodyParam('expected_payment_date', 'date', 'Due date for the single payment. Required only when frequency is `one_time`; prohibited otherwise.', required: false, example: '2026-07-16')]
     #[BodyParam('is_anonymous', 'boolean', 'Hide donor identity on the recognition wall.', required: false, example: false)]
-    #[BodyParam('payment_method', 'string', 'Payment method for this installment.', required: true, example: 'card', enum: PaymentMethodEnum::class)]
     #[BodyParam('full_name', 'string', 'Donor\'s full name.', required: true, example: 'Jane Donor')]
     #[BodyParam('email', 'string', 'Donor\'s email (used for the payment gateway and the emailed receipt).', required: true, example: 'jane.donor@example.com')]
     #[Response(status: 201, content: [

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\v1\Customer\Fundraising;
 
 use App\Enums\DonationFrequencyEnum;
 use App\Enums\DonationStatusEnum;
-use App\Enums\PaymentMethodEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Donations\ChargeDonationRequest;
@@ -39,7 +38,6 @@ class DonationController extends Controller
     #[BodyParam('frequency', 'string', 'Donation frequency.', required: true, example: 'one_time', enum: DonationFrequencyEnum::class)]
     #[BodyParam('amount', 'number', 'Amount charged per cycle, in the campaign\'s currency.', required: true, example: 50000)]
     #[BodyParam('is_anonymous', 'boolean', 'Hide donor identity on the recognition wall.', required: false, example: false)]
-    #[BodyParam('payment_method', 'string', 'Payment method for this charge.', required: true, example: 'card', enum: PaymentMethodEnum::class)]
     #[Response(status: 201, content: [
         'error' => false,
         'message' => 'Donation created.',
@@ -213,7 +211,6 @@ class DonationController extends Controller
     #[Endpoint('Charge next cycle')]
     #[Authenticated]
     #[UrlParam('uuid', 'string', 'Donation UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
-    #[BodyParam('payment_method', 'string', 'Payment method for this charge.', required: true, example: 'bank_transfer', enum: PaymentMethodEnum::class)]
     #[Response(status: 200, content: [
         'error' => false,
         'message' => 'Payment initialized.',
@@ -228,7 +225,7 @@ class DonationController extends Controller
     {
         try {
             $user = $this->requireCustomer($request);
-            $result = $this->donationService->chargeNextCycle($user, $uuid, $request, $request->validated('payment_method'));
+            $result = $this->donationService->chargeNextCycle($user, $uuid, $request);
 
             return JsonResponser::send(false, 'Payment initialized.', $result, 200);
         } catch (\Throwable $th) {
