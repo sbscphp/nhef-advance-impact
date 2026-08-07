@@ -145,6 +145,39 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
+     * Paystack's docs: GET /bank/resolve (https://paystack.com/docs/api/verification/#resolve-account).
+     * Confirms an account number actually belongs to the named bank and returns the account
+     * holder's registered name, so the admin can't remit to a mistyped account. Stripe has no
+     * equivalent lookup for NG NUBAN accounts.
+     *
+     * @return array{account_number: string, account_name: string}
+     */
+    public function resolveAccountName(string $accountNumber, string $bankCode): array
+    {
+        $response = $this->client()->get('/bank/resolve', [
+            'account_number' => $accountNumber,
+            'bank_code' => $bankCode,
+        ]);
+
+        if ($response->failed() || ! $response->json('status')) {
+            Log::error('Paystack resolve account failed', [
+                'account_number' => $accountNumber,
+                'bank_code' => $bankCode,
+                'body' => $response->body(),
+            ]);
+
+            throw new ApiException('Unable to verify this account number with the selected bank.', 422);
+        }
+
+        $data = $response->json('data', []);
+
+        return [
+            'account_number' => (string) ($data['account_number'] ?? $accountNumber),
+            'account_name' => (string) ($data['account_name'] ?? ''),
+        ];
+    }
+
+    /**
      * Paystack signs the raw request body with our secret key (HMAC-SHA512) and sends it in
      * the `x-paystack-signature` header, so we can trust the request actually came from
      * Paystack and wasn't forged by someone POSTing straight to the webhook URL.

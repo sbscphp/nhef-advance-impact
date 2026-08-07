@@ -99,6 +99,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.read']);
             Route::get('/accounts', [BankController::class, 'accountList'])
                 ->middleware(['permission:campaigns.read']);
+            Route::get('/resolve-account', [BankController::class, 'resolveAccount'])
+                ->middleware(['permission:campaigns.create']);
             Route::post('/accounts', [BankController::class, 'createAccount'])
                 ->middleware(['permission:campaigns.create']);
         });

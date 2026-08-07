@@ -6,6 +6,7 @@ use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Banks\BankAccountListRequest;
 use App\Http\Requests\Admin\Banks\CreateBankAccountRequest;
+use App\Http\Requests\Admin\Banks\ResolveBankAccountRequest;
 use App\Http\Resources\Admin\BankAccountResource;
 use App\Http\Resources\Admin\BankResource;
 use App\Models\Admin;
@@ -74,6 +75,35 @@ class BankController extends Controller
             return JsonResponser::send(false, 'Bank accounts retrieved.', $this->paginatedPayload($paginator));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\BankController@accountList');
+        }
+    }
+
+    #[Endpoint('Verify a bank account', 'Backs the live "verify account" step on the "Add New Bank" modal: once both Account Number and Bank are filled in, confirms the account exists and returns the registered account holder name, so the admin can\'t remit to a mistyped account. Calls Paystack\'s account resolution API.')]
+    #[Authenticated]
+    #[QueryParam('bank_id', 'string', 'Bank UUID from `GET /banks/dropdown`.', required: true, example: 'c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f')]
+    #[QueryParam('account_number', 'string', 'Account number to verify.', required: true, example: '234567890')]
+    #[Response(status: 200, content: [
+        'error' => false,
+        'message' => 'Account verified.',
+        'data' => [
+            'account_number' => '234567890',
+            'account_name' => 'University of Lagos',
+            'bank' => ['bank_id' => 'c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f', 'name' => 'United Bank for Africa'],
+        ],
+    ], description: 'Account resolved with the gateway.')]
+    #[Response(status: 422, content: [
+        'error' => true,
+        'message' => 'Unable to verify this account number with the selected bank.',
+        'data' => null,
+    ], description: 'Account number does not belong to the selected bank, or the gateway could not resolve it.')]
+    public function resolveAccount(ResolveBankAccountRequest $request)
+    {
+        try {
+            $resolved = $this->bankService->resolveAccountName($request->validated());
+
+            return JsonResponser::send(false, 'Account verified.', $resolved);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\BankController@resolveAccount');
         }
     }
 
