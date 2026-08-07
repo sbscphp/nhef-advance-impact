@@ -5,25 +5,13 @@ namespace App\Services\ThirdParty\Payment;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 
 /**
- * Contract for a payment gateway. The flow behind every implementation:
- *
- *   1. initialize(): call the gateway to start a payment. Each gateway supports both a hosted
- *      and an in-app flow, chosen per-gateway via its own `checkout_mode` config
- *      (STRIPE_CHECKOUT_MODE / PAYSTACK_CHECKOUT_MODE, both default `embedded`):
- *        - hosted: authorization_url is set; the donor is redirected to the gateway's own
- *          checkout page.
- *        - embedded: the donor pays inline, without leaving our app. For Stripe that's
- *          client_secret + publishable_key (Stripe.js/Elements); for Paystack that's
- *          access_code + publishable_key (Paystack Inline's resumeTransaction()).
- *      No card data ever touches our server in either mode.
- *   2. Donor pays, either on the gateway's hosted page or inline in our own UI.
- *   3. verify(): call the gateway back with the reference to get the *authoritative*
- *      status. This is the only step that should ever mark a payment as successful; a
- *      browser redirect back to our app is not proof of payment on its own.
- *
- * See {@see PaystackService} for the concrete Paystack
- * implementation and {@see PaystackWebhookController} for
- * the other (server-to-server) way verify() gets triggered.
+ * Contract for a payment gateway: 1) initialize() starts a payment, returning either a hosted
+ * `authorization_url` to redirect the donor to, or an embedded in-app payload (client_secret
+ * for Stripe, access_code for Paystack), per that gateway's own `checkout_mode` config; card
+ * data never touches our server either way. 2) The donor pays. 3) verify() calls the gateway
+ * back with the reference for the *authoritative* status; only this step may mark a payment
+ * successful, a browser redirect alone is not proof (see {@see PaystackWebhookController} for
+ * the other, server-to-server, way verify() gets triggered).
  */
 interface PaymentGatewayInterface
 {
@@ -38,9 +26,8 @@ interface PaymentGatewayInterface
     public function verify(string $reference): array;
 
     /**
-     * Each gateway signs its webhooks differently (Paystack: HMAC-SHA512 header; Stripe: its
-     * own signed-timestamp scheme), so verification is owned by the concrete gateway rather
-     * than shared here.
+     * Each gateway signs webhooks differently (Paystack: HMAC-SHA512 header; Stripe: a
+     * signed-timestamp scheme), so verification is owned by the concrete gateway, not shared here.
      */
     public function verifyWebhookSignature(string $rawBody, ?string $signature): bool;
 }

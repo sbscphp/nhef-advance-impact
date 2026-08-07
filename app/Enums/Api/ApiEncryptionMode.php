@@ -32,7 +32,6 @@ enum ApiEncryptionMode: string
         };
     }
 
-    // returning null if the value is invalid or null. Meaning no encryption or decryption is required.
     public static function tryFromConfig(?string $value): ?self
     {
         if ($value === null || $value === '') {

@@ -38,9 +38,8 @@ interface DonationPaymentRepositoryInterface
     public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator;
 
     /**
-     * Registered donors (user_id not null) with a successful payment to this campaign, optionally
-     * scoped to a date window; feeds the "Donor Breakdown" tier chart (tiers are lifetime, so the
-     * window only decides which donors are counted, not which of their payments).
+     * Registered donors with a successful payment to this campaign, optionally date-scoped;
+     * feeds the "Donor Breakdown" chart (tiers are lifetime, the window only decides who's counted).
      *
      * @return list<int>
      */

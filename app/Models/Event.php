@@ -79,9 +79,8 @@ class Event extends Model
     }
 
     /**
-     * Lowest ticket price among loaded ticketTypes, or null if none exist. Used to render
-     * "Free" vs a "Starting from" price on the event listing/detail without persisting a
-     * redundant price on the event itself.
+     * Lowest ticket price among loaded ticketTypes (null if none), for rendering "Free" vs
+     * "Starting from" without persisting a redundant price on the event itself.
      */
     public function lowestTicketPrice(): ?string
     {

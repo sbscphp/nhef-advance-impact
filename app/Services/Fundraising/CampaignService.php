@@ -287,9 +287,8 @@ class CampaignService
     }
 
     /**
-     * Backs the "Donation" tab's Overview cards (Total Donation Target / Total Donation
-     * Received). The target is the campaign's fixed goal; the received total is scoped to the
-     * requested date window (all-time if none given), same window semantics as donorBreakdown.
+     * Backs the "Donation" tab's Overview cards. The target is the campaign's fixed goal; the
+     * received total is scoped to the requested date window (all-time if none given).
      *
      * @param  array<string, mixed>  $filters
      * @return array{period: ?string, start_date: ?string, end_date: ?string, target_amount: string, target_amount_formatted: string, received_amount: string, received_amount_formatted: string}
@@ -314,10 +313,9 @@ class CampaignService
     }
 
     /**
-     * Donor counts per recognition tier (reuses the same tiers driving the public Recognition
-     * Wall; BRD REC-01/REC-02). `$filters` only decides which of this campaign's donors are
-     * counted (did they give within the window); each counted donor's tier is still their
-     * lifetime, cross-campaign total, matching how the Recognition Wall itself works.
+     * Donor counts per recognition tier (BRD REC-01/REC-02). `$filters` only decides which
+     * donors are counted (did they give within the window); each counted donor's tier is
+     * still their lifetime, cross-campaign total, matching the Recognition Wall itself.
      *
      * @param  array<string, mixed>  $filters
      * @return array{period: ?string, start_date: ?string, end_date: ?string, tiers: list<array{tier: string, donors: int}>}

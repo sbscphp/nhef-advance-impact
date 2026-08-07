@@ -4,11 +4,11 @@ namespace App\Services\Auth;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\CustomerRegistrationStepEnum;
-use App\Enums\OtpChannelEnum;
-use App\Enums\OtpPurposeEnum;
 use App\Enums\eClientType;
 use App\Enums\eRole;
 use App\Enums\ModuleEnums;
+use App\Enums\OtpChannelEnum;
+use App\Enums\OtpPurposeEnum;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
 use App\Helpers\GeneralHelper;
@@ -23,10 +23,10 @@ use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Theme\ThemeResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -53,9 +53,8 @@ class AuthService
     }
 
     /**
-     * Register a customer and email a "Verify Email Address" link. The customer sets their
-     * password after clicking the link (see completeCustomerRegistration()); no password is
-     * collected at sign-up time.
+     * Register a customer and email a "Verify Email Address" link; the password is set after
+     * clicking it (see completeCustomerRegistration()), not collected at sign-up time.
      *
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>

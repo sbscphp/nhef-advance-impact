@@ -11,21 +11,14 @@ use App\Services\ThirdParty\Payment\PaymentGatewayService;
 use App\Support\PaymentMode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Knuckles\Scribe\Attributes\Endpoint;
-use Knuckles\Scribe\Attributes\Group;
-use Knuckles\Scribe\Attributes\Response;
-use Knuckles\Scribe\Attributes\Unauthenticated;
 
 /**
- * Stripe calls this URL directly (server-to-server) when a payment succeeds. It's the
- * reliable counterpart to the browser-redirect verify flow (see PaymentGatewayService's class
- * docblock for the full lifecycle). Not wired up by any code here: register
- * `{app_url}/api/v1/webhooks/stripe` in the Stripe Dashboard under Developers -> Webhooks,
- * listening for `payment_intent.succeeded`, then copy the signing secret into
- * STRIPE_WEBHOOK_SECRET. That's a one-time manual step, separate per environment (Stripe won't
- * reach a local `localhost` URL, so tunnel it with ngrok or similar to test this locally).
+ * Stripe calls this URL directly (server-to-server) when a payment succeeds; the reliable
+ * counterpart to the browser-redirect verify flow (see {@see PaymentGatewayService}). Not wired
+ * up by code: register `{app_url}/api/v1/webhooks/stripe` in the Stripe Dashboard under
+ * Developers -> Webhooks (listening for `payment_intent.succeeded`), copy the signing secret
+ * into STRIPE_WEBHOOK_SECRET (one-time, per environment; tunnel with ngrok to test locally).
  */
-#[Group('Webhooks', 'Inbound gateway webhooks. Not called by clients directly.')]
 class StripeWebhookController extends Controller
 {
     public function __construct(
@@ -36,15 +29,11 @@ class StripeWebhookController extends Controller
     ) {}
 
     /**
-     * Confirms `payment_intent.succeeded` events and settles the matching pledge, donation, or
-     * event-ticket payment (dispatched by the `PLG_`/`DON_`/`TIX_` prefix we mint the reference
-     * with; stamped onto `metadata.reference` by StripeService::initialize()). Verified with
-     * the `Stripe-Signature` header when `PAYMENT_MODE=live`; requests are ignored otherwise
-     * since no real gateway sends them.
+     * Confirms `payment_intent.succeeded` and settles the matching pledge, donation, or
+     * event-ticket payment (by the `PLG_`/`DON_`/`TIX_` reference prefix, stamped onto
+     * `metadata.reference` by StripeService::initialize()). Signature-verified only when
+     * `PAYMENT_MODE=live`; ignored otherwise since no real gateway sends these.
      */
-    #[Endpoint('Stripe webhook')]
-    #[Unauthenticated]
-    #[Response(status: 200, content: ['error' => false, 'message' => 'Acknowledged.', 'data' => null], description: 'Event acknowledged (processed, ignored, or unverifiable).')]
     public function handle(Request $request)
     {
         if (! PaymentMode::isLive()) {
@@ -53,9 +42,8 @@ class StripeWebhookController extends Controller
             return response()->json(['error' => false, 'message' => 'Acknowledged.', 'data' => null], 200);
         }
 
-        // Stripe signs the raw request body with a timestamped HMAC (the signing secret from
-        // the webhook's dashboard settings), so we can trust the request actually came from
-        // Stripe and wasn't forged by someone POSTing straight to this public URL.
+        // Stripe signs the raw body with a timestamped HMAC (the webhook's dashboard signing
+        // secret), proving the request wasn't forged by someone POSTing straight to this URL.
         $signature = $request->header('Stripe-Signature');
 
         if (! $this->paymentGatewayService->verifyWebhookSignature(PaymentGatewayEnum::STRIPE->value, $request->getContent(), $signature)) {

@@ -11,10 +11,9 @@ use App\Repositories\Contracts\Mentorship\MentorProfileRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorshipMatchRepositoryInterface;
 
 /**
- * The auto-pairing algorithm behind mentee applications. Scores each eligible mentor by tag
- * overlap between the mentee's interest_areas and the mentor's guidance_areas, and picks the
- * best fit. Kept separate from MentorshipService the same way PaymentGatewayService is split out
- * from DonationService: a distinct, independently testable piece of logic.
+ * The auto-pairing algorithm behind mentee applications: scores each eligible mentor by tag
+ * overlap between interest_areas and guidance_areas and picks the best fit. Kept separate from
+ * MentorshipService as a distinct, independently testable piece of logic.
  */
 class MentorMatchingService
 {

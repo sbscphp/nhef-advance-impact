@@ -9,10 +9,8 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * Dev/support accounts that use plaintext API payloads when OVERRIDE_USERS is enabled.
- *
- * Override applies only after login: the request must carry a valid Bearer token
- * for one of the configured override users. Auth routes (login, register, etc.)
- * are always encrypted.
+ * Applies only after login (a valid Bearer token for a configured user); auth routes
+ * (login, register, etc.) are always encrypted.
  */
 final class EncryptionOverrideUsers
 {

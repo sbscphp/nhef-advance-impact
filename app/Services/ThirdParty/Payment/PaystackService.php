@@ -7,31 +7,22 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Paystack REST integration (https://paystack.com/docs/api/transaction/).
- * Settles NGN and USD; GBP/EUR pledges should route through a different gateway once one
- * is added behind {@see PaymentGatewayInterface}.
+ * Paystack REST integration (https://paystack.com/docs/api/transaction/). Settles NGN and
+ * USD; GBP/EUR pledges need a different gateway behind {@see PaymentGatewayInterface}.
  *
- * `/transaction/initialize` always returns both `authorization_url` and `access_code` in the
- * same response; which one we hand to the frontend is controlled by
- * `services.paystack.checkout_mode` (env `PAYSTACK_CHECKOUT_MODE`, defaults to `embedded`):
- *
- *   - embedded (default): the frontend hands `access_code`/`publishable_key` to Paystack
- *     Inline (https://paystack.com/docs/payments/accept-payments/#popup) via
- *     `resumeTransaction(access_code)`, which pops up in-app; the donor never leaves the page.
- *   - hosted: the frontend redirects the donor's browser to `authorization_url`, a
- *     Paystack-hosted checkout page, same shape as Stripe's `hosted` mode.
+ * `/transaction/initialize` always returns both `authorization_url` and `access_code`; which
+ * one we hand the frontend is controlled by `services.paystack.checkout_mode` (env
+ * `PAYSTACK_CHECKOUT_MODE`, default `embedded`): embedded hands `access_code`/`publishable_key`
+ * to Paystack Inline's `resumeTransaction()` (in-app popup); hosted redirects the browser to
+ * `authorization_url`, a Paystack-hosted page, same shape as Stripe's `hosted` mode.
  */
 class PaystackService implements PaymentGatewayInterface
 {
     /**
-     * Step 1 of 3 (see {@see PaymentGatewayInterface}). Paystack's docs: POST /transaction/initialize
-     * (https://paystack.com/docs/api/transaction/#initialize).
-     *
-     * `callback_url` only controls where Paystack redirects the donor's *browser* after a
-     * hosted checkout (`{callback_url}?reference=...&trxref=...`); it's a UX nicety, not how we
-     * confirm payment. That redirect can be lost (closed tab, network blip), so it's not
-     * trusted on its own; the frontend still has to call our verify endpoint, and the
-     * webhook (see PaystackWebhookController) is the reliable backup for that same check.
+     * Step 1 of 3 (see {@see PaymentGatewayInterface}). Paystack's docs: POST
+     * /transaction/initialize. `callback_url` only controls where Paystack redirects the
+     * donor's *browser* after hosted checkout, a UX nicety that can be lost (closed tab,
+     * network blip); the frontend's verify call and the webhook are the reliable confirmation.
      */
     public function initialize(string $reference, string $amount, string $currency, string $email, array $meta = []): array
     {
@@ -68,11 +59,10 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
-     * Step 3 of 3. Paystack's docs: GET /transaction/verify/:reference
-     * (https://paystack.com/docs/api/transaction/#verify). Called from two places, whichever
-     * fires first: the customer-facing "Verify payment" endpoint (after the browser redirect)
-     * and PaystackWebhookController (server-to-server, independent of the browser). Both call
-     * PledgeService::verifyPayment(), which is idempotent; a second call is a harmless no-op.
+     * Step 3 of 3. Paystack's docs: GET /transaction/verify/:reference. Called from whichever
+     * of two places fires first: the customer-facing "Verify payment" endpoint (after the
+     * browser redirect) or PaystackWebhookController; both funnel into the idempotent
+     * PledgeService::verifyPayment(), so a second call is a harmless no-op.
      */
     public function verify(string $reference): array
     {
@@ -95,10 +85,9 @@ class PaystackService implements PaymentGatewayInterface
             'paid_at' => $data['paid_at'] ?? null,
             'channel' => $data['channel'] ?? null,
             'card_last_four' => $authorization['last4'] ?? null,
-            // Only present (and only reusable: true) when Paystack allows this card to be
-            // charged again later; see PaymentMethodService::saveFromAuthorization().
-            // `authorization_code` is minted fresh per transaction even for the same card;
-            // `signature` is Paystack's actual same-card identifier and what dedup keys off.
+            // Only present (reusable: true) when Paystack allows this card to be charged again;
+            // `signature`, not `authorization_code` (minted fresh per transaction), is the
+            // real same-card identifier and what PaymentMethodService dedupes on.
             'authorization' => [
                 'authorization_code' => $authorization['authorization_code'] ?? null,
                 'signature' => $authorization['signature'] ?? null,
@@ -114,12 +103,10 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
-     * Paystack's docs: GET /bank (https://paystack.com/docs/api/miscellaneous/#bank). Used to
-     * populate the local `banks` table with the canonical, CBN-recognized list of Nigerian
-     * banks (see the `banks:sync` console command); Stripe has no equivalent lookup for NG.
-     * Filtered to `type: nuban` and `active: true`, i.e. the standard banks a NUBAN account
-     * number can belong to, excluding mobile money/other non-bank gateway entries Paystack
-     * also lists here.
+     * Paystack's docs: GET /bank. Populates the local `banks` table with the canonical,
+     * CBN-recognized list of Nigerian banks (see the `banks:sync` command). Filtered to
+     * `type: nuban` and `active: true`, excluding the mobile money/other non-bank entries
+     * Paystack also lists here.
      *
      * @return list<array{name: string, code: string}>
      */
@@ -178,9 +165,8 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
-     * Paystack signs the raw request body with our secret key (HMAC-SHA512) and sends it in
-     * the `x-paystack-signature` header, so we can trust the request actually came from
-     * Paystack and wasn't forged by someone POSTing straight to the webhook URL.
+     * Paystack signs the raw body with our secret key (HMAC-SHA512) in the
+     * `x-paystack-signature` header, proving the request wasn't forged.
      */
     public function verifyWebhookSignature(string $rawBody, ?string $signature): bool
     {

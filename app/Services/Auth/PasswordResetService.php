@@ -124,9 +124,8 @@ class PasswordResetService
 
     /**
      * Alternative to {@see requestAdminReset()}: emails a one-click reset link (like the admin
-     * invite flow) instead of an OTP code, so the frontend can offer either flow without the
-     * admin ever going through login/verify-otp. Sent synchronously (not queued) so it doesn't
-     * depend on a queue worker running, matching how OTP emails are already dispatched.
+     * invite flow) instead of an OTP code, so the admin never has to go through login/verify-otp.
+     * Sent synchronously (not queued), matching how OTP emails are already dispatched.
      */
     public function requestAdminResetLink(string $email, Request $request): void
     {

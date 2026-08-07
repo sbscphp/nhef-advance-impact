@@ -13,12 +13,9 @@ class SmsBalanceAlertService
     private const CACHE_KEY_PREFIX = 'sms_balance:last_budget_percentage_used:';
 
     /**
-     * Email when budget usage crosses a warn_at threshold.
-     *
-     * Scheduled checks only notify the first time each threshold is crossed.
-     * Manual command runs notify whenever usage is still at or above a threshold.
-     *
-     * percentageUsed = (monthly_budget - balance) / monthly_budget * 100
+     * Email when budget usage crosses a warn_at threshold (percentageUsed = (monthly_budget -
+     * balance) / monthly_budget * 100). Scheduled checks only notify the first time a threshold
+     * is crossed; manual command runs notify whenever usage is still at or above one.
      *
      * @param  array<string, mixed>  $response
      * @return array{notified: bool, percentage_used: ?float, threshold_percent: ?float, reason: ?string}

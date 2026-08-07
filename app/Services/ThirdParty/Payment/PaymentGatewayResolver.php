@@ -6,10 +6,8 @@ use App\Enums\PaymentGatewayEnum;
 use App\Exceptions\ApiException;
 
 /**
- * Maps a gateway name to its {@see PaymentGatewayInterface} implementation. This is the one
- * place that knows every concrete gateway; everything else (PaymentGatewayService, the domain
- * services, the webhook controllers) only ever depends on the interface. Adding a gateway means
- * a new implementation class plus one line here, not touching any of those call sites.
+ * Maps a gateway name to its {@see PaymentGatewayInterface} implementation; the one place
+ * that knows every concrete gateway, so adding one means a new class plus one line here.
  */
 class PaymentGatewayResolver
 {

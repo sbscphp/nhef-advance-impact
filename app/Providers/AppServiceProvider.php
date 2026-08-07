@@ -222,10 +222,9 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * Postman convenience: on `scribe:generate`, patch the generated Postman collection so the
-     * "Login" request stores its `access_token` into an `accessToken` collection variable, which
-     * every protected request then reads via the {{accessToken}} auth placeholder (config/scribe.php).
-     * Guarded by class_exists() since knuckleswtf/scribe is a require-dev package.
+     * Postman convenience: on `scribe:generate`, patches the generated collection so "Login"
+     * stores its `access_token` into an `accessToken` variable every protected request reads
+     * via {{accessToken}}. Guarded by class_exists() since scribe is a require-dev package.
      */
     protected function configureScribePostmanEnhancements(): void
     {

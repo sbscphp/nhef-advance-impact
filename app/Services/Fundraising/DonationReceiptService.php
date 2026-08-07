@@ -16,9 +16,8 @@ use Illuminate\Support\Facades\File;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Renders the "Download Receipt" PDF for a single successful donation payment, using the
- * resources/views/pdf/donation-receipt.blade.php template. Follows the
- * same raw-Dompdf rendering pattern as App\Helpers\PDFReportHelper.
+ * Renders the "Download Receipt" PDF for a single successful donation payment, using
+ * resources/views/pdf/donation-receipt.blade.php and the same raw-Dompdf pattern as PDFReportHelper.
  */
 class DonationReceiptService
 {

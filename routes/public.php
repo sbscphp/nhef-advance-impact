@@ -42,9 +42,8 @@ Route::prefix('v1')->group(function () {
 
     Route::post('events/registrations/payments/{reference}/verify', [EventRegistrationPaymentController::class, 'verify']);
 
-    // Matches the reserved pattern in RequestResponseEncryptionMiddleware::BYPASS_REGEX; this
-    // is opened directly from an emailed receipt link, so it can't carry an X-ClientKey header;
-    // the `signed` middleware's signature is the credential instead.
+    // Matches RequestResponseEncryptionMiddleware::BYPASS_REGEX: opened from an emailed link
+    // with no X-ClientKey header, so the `signed` middleware's signature is the credential.
     Route::get('public/receipts/{uuid}/download', [DonationReceiptController::class, 'download'])
         ->middleware('signed')
         ->name('receipts.download');

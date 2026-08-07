@@ -2,11 +2,12 @@
 
 namespace App\Enums;
 
+use App\Services\ThirdParty\Payment\PaymentGatewayInterface;
+
 /**
- * Supported donation currencies (BRD FEM-01). Live gateway dispatch currently targets
- * Paystack, which settles NGN and USD; GBP/EUR pledges are accepted but will need a
- * different gateway wired into {@see \App\Services\ThirdParty\Payment\PaymentGatewayInterface}
- * before `live` mode can process them.
+ * Supported donation currencies (BRD FEM-01). Paystack (the current gateway) settles NGN
+ * and USD; GBP/EUR pledges are accepted but need a different gateway wired into
+ * {@see PaymentGatewayInterface} before `live` mode can process them.
  */
 enum CurrencyEnum: string
 {

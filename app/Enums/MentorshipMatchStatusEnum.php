@@ -3,9 +3,8 @@
 namespace App\Enums;
 
 /**
- * Every match is created ACTIVE (see MentorMatchingService::match); reviews can only be
- * submitted against an active match. COMPLETED/CANCELLED are reserved for a future
- * "end mentorship" feature, nothing in the codebase sets them yet.
+ * Every match is created ACTIVE (see MentorMatchingService::match) and reviews can only be
+ * submitted against one; COMPLETED/CANCELLED are reserved for a future "end mentorship" feature.
  */
 enum MentorshipMatchStatusEnum: string
 {

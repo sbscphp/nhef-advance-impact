@@ -54,13 +54,10 @@ final class ListingFilterRules
     }
 
     /**
-     * Applies the "Order Arrangement" sort filter to a query.
-     *
-     * `$sortMap` maps each logical sortable key (e.g. 'name', 'value') to a closure that applies
-     * the actual ordering, since the underlying column often lives on a related table (e.g. a
-     * Pledge's "name" is its campaign's title, requiring a join). Falls back to `$defaultColumn`
-     * in `$defaultDirection` when sort_by is absent or unmapped, matching prior hardcoded
-     * behavior (most listings defaulted to newest-first; Events defaulted to soonest-first).
+     * Applies the "Order Arrangement" sort filter. `$sortMap` maps each logical sortable key
+     * (e.g. 'name', 'value') to a closure applying the actual ordering, since the underlying
+     * column often lives on a related table (e.g. a Pledge's "name" is its campaign's title).
+     * Falls back to `$defaultColumn`/`$defaultDirection` when sort_by is absent or unmapped.
      *
      * @param  array<string, mixed>  $validated
      * @param  array<string, \Closure(Builder|Relation, string): void>  $sortMap

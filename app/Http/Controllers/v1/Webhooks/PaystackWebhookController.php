@@ -10,20 +10,13 @@ use App\Services\ThirdParty\Payment\PaymentGatewayService;
 use App\Support\PaymentMode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Knuckles\Scribe\Attributes\Endpoint;
-use Knuckles\Scribe\Attributes\Group;
-use Knuckles\Scribe\Attributes\Response;
-use Knuckles\Scribe\Attributes\Unauthenticated;
 
 /**
- * Paystack calls this URL directly (server-to-server) when a charge succeeds. It's the
- * reliable counterpart to the browser-redirect verify flow (see PaymentGatewayService's
- * class docblock for the full lifecycle). Not wired up by any code here: register
- * `{app_url}/api/v1/webhooks/paystack` in the Paystack Dashboard under Settings -> API Keys
- * & Webhooks. That's a one-time manual step, separate per environment (Paystack won't reach
- * a local `localhost` URL, so tunnel it with ngrok or similar to test this locally).
+ * Paystack calls this URL directly (server-to-server) when a charge succeeds; the reliable
+ * counterpart to the browser-redirect verify flow (see {@see PaymentGatewayService}). Not wired
+ * up by code: register `{app_url}/api/v1/webhooks/paystack` in the Paystack Dashboard under
+ * Settings -> API Keys & Webhooks (one-time, per environment; tunnel with ngrok to test locally).
  */
-#[Group('Webhooks', 'Inbound gateway webhooks. Not called by clients directly.')]
 class PaystackWebhookController extends Controller
 {
     public function __construct(
@@ -34,14 +27,10 @@ class PaystackWebhookController extends Controller
     ) {}
 
     /**
-     * Confirms `charge.success` events against the gateway and settles the matching pledge,
-     * donation, or event-ticket payment (dispatched by the `PLG_`/`DON_`/`TIX_` prefix we mint
-     * the reference with). Verified with the `x-paystack-signature` header (HMAC-SHA512) when
-     * `PAYMENT_MODE=live`; requests are ignored otherwise since no real gateway sends them.
+     * Confirms `charge.success` against the gateway and settles the matching pledge, donation,
+     * or event-ticket payment (by the `PLG_`/`DON_`/`TIX_` reference prefix). Signature-verified
+     * only when `PAYMENT_MODE=live`; ignored otherwise since no real gateway sends these.
      */
-    #[Endpoint('Paystack webhook')]
-    #[Unauthenticated]
-    #[Response(status: 200, content: ['error' => false, 'message' => 'Acknowledged.', 'data' => null], description: 'Event acknowledged (processed, ignored, or unverifiable).')]
     public function handle(Request $request)
     {
         if (! PaymentMode::isLive()) {
@@ -50,9 +39,8 @@ class PaystackWebhookController extends Controller
             return response()->json(['error' => false, 'message' => 'Acknowledged.', 'data' => null], 200);
         }
 
-        // Paystack signs the raw request body with our secret key (HMAC-SHA512) and sends it
-        // in this header, so we can trust the request actually came from Paystack and wasn't
-        // forged by someone POSTing straight to this public URL.
+        // Paystack signs the raw body with our secret key (HMAC-SHA512), proving the request
+        // wasn't forged by someone POSTing straight to this public URL.
         $signature = $request->header('x-paystack-signature');
 
         if (! $this->paymentGatewayService->verifyWebhookSignature($request->getContent(), $signature)) {

@@ -106,10 +106,8 @@ class NotificationDispatchService
     }
 
     /**
-     * Notify a donor by resolving the recipient from either an explicit user uuid or by donor email.
-     *
-     * When $userUuid is provided it takes precedence; otherwise the active User whose lowercased,
-     * trimmed email matches $donorEmail is used. Returns 0 if no recipient could be resolved.
+     * Notify a donor via $userUuid if given, else the active User whose lowercased, trimmed
+     * email matches $donorEmail. Returns 0 if no recipient could be resolved.
      */
     public function notifyDonor(?string $userUuid, ?string $donorEmail, Notification $notification, bool $queue = false): int
     {

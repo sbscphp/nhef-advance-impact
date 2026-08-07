@@ -192,11 +192,10 @@ class PledgeService
     }
 
     /**
-     * The one place that actually confirms money moved. Called from two different entry
-     * points: PledgeController::verifyPayment() (customer/frontend, after the Paystack
-     * redirect) and PaystackWebhookController (Paystack calling us directly); it doesn't
-     * matter which gets here first, since the early-return below makes a second call for an
-     * already-settled payment a harmless no-op.
+     * The one place that actually confirms money moved. Called from either
+     * PledgeController::verifyPayment() (frontend, after the Paystack redirect) or
+     * PaystackWebhookController; whichever gets here first, the early-return below makes a
+     * second call for an already-settled payment a harmless no-op.
      *
      * @return array<string, mixed>
      */
@@ -375,9 +374,8 @@ class PledgeService
 
     /**
      * Kicks off payment for one installment: mints our own reference, asks the gateway for a
-     * checkout link (PaymentGatewayService::initialize()), and records a *pending*
-     * PledgePayment row so verifyPayment() has something to find later by this reference.
-     * Nothing is marked paid here; that only happens once the gateway confirms it.
+     * checkout link, and records a *pending* PledgePayment row for verifyPayment() to find
+     * later; nothing is marked paid until the gateway confirms it.
      *
      * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */

@@ -16,11 +16,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Saved cards ("My Payment Methods" settings screen). Populated by {@see saveFromAuthorization},
- * called from PledgeService/DonationService/EventTicketService::verifyPayment() whenever the
- * gateway a payment was made through (see PaymentGatewayInterface::verify()) returns a
- * reusable authorization for a logged-in customer's successful payment. Guests never get a
- * saved method since they have no account to attach one to.
+ * Saved cards ("My Payment Methods" settings screen). Populated by {@see saveFromAuthorization}
+ * whenever a payment's gateway returns a reusable authorization for a logged-in customer;
+ * guests never get a saved method since they have no account to attach one to.
  */
 class PaymentMethodService
 {
@@ -41,9 +39,8 @@ class PaymentMethodService
         }
 
         try {
-            // Gateways mint a new authorization_code per transaction even for the same card;
-            // `signature` is the actual same-card identifier, so that's what we dedupe on.
-            // authorization_code is only a fallback match for the rare case signature is absent.
+            // Gateways mint a new authorization_code per transaction even for the same card, so
+            // `signature` (the real same-card identifier) is what we dedupe on when present.
             $existing = $signature !== null && $signature !== ''
                 ? $this->paymentMethodRepository->findBySignatureForUser($user->id, $signature)
                 : $this->paymentMethodRepository->findByAuthorizationCode($code);

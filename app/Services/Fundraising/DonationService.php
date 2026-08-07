@@ -254,10 +254,9 @@ class DonationService
     }
 
     /**
-     * Changes the amount and/or frequency of an active or paused recurring donation. This
-     * doesn't charge anything; it only changes what the next "Charge next cycle" call will
-     * use. Frequency can only change between recurring cadences (never to one_time; use
-     * cancelDonation() to stop recurring altogether).
+     * Changes the amount and/or frequency of an active or paused recurring donation; doesn't
+     * charge anything, only what the next "Charge next cycle" call will use. Frequency can
+     * only change between recurring cadences (use cancelDonation() to stop recurring).
      *
      * @param  array{amount?: numeric-string|float, frequency?: string}  $validated
      */
@@ -278,9 +277,8 @@ class DonationService
         if (array_key_exists('frequency', $validated) && $validated['frequency'] !== $donation->frequency) {
             $newFrequency = DonationFrequencyEnum::from($validated['frequency']);
             $updates['frequency'] = $newFrequency->value;
-            // Charging is donor-triggered, not scheduled: this date is a reminder, not a
-            // deadline, so when the cadence itself changes it should reflect the new cadence
-            // rather than a stale date computed under the old one.
+            // Charging is donor-triggered, not scheduled, so this is a reminder date; it must
+            // reflect the new cadence rather than one computed under the old cadence.
             $updates['next_charge_at'] = now()->addMonths($newFrequency->intervalMonths())->toDateString();
         }
 
@@ -307,11 +305,10 @@ class DonationService
     }
 
     /**
-     * The one place that actually confirms money moved. Called from two different entry
-     * points: DonationPaymentController::verify() (customer/frontend, after the Paystack
-     * redirect) and PaystackWebhookController (Paystack calling us directly); it doesn't
-     * matter which gets here first, since the early-return below makes a second call for an
-     * already-settled payment a harmless no-op.
+     * The one place that actually confirms money moved. Called from either
+     * DonationPaymentController::verify() (frontend, after the Paystack redirect) or
+     * PaystackWebhookController; whichever gets here first, the early-return below makes a
+     * second call for an already-settled payment a harmless no-op.
      *
      * @return array<string, mixed>
      */
@@ -476,9 +473,8 @@ class DonationService
     }
 
     /**
-     * "Total Donation Target" is the sum of goal_amount across every campaign this donor has
-     * ever successfully paid into (not time-boxed, since a campaign's goal isn't a period-specific
-     * figure); "Total Donation Received" is scoped to the given date range, if any.
+     * "Target" sums goal_amount across every campaign this donor has ever paid into (not
+     * time-boxed, since a goal isn't a period-specific figure); "received" is date-scoped.
      *
      * @return array{target: string, received: string}
      */
@@ -496,10 +492,9 @@ class DonationService
     }
 
     /**
-     * Kicks off payment for one donation cycle: mints our own reference, asks the gateway for a
-     * checkout link (PaymentGatewayService::initialize()), and records a *pending*
-     * DonationPayment row so verifyPayment() has something to find later by this reference.
-     * Nothing is marked paid here; that only happens once the gateway confirms it.
+     * Kicks off payment for one donation cycle: mints our own reference, asks the gateway for
+     * a checkout link, and records a *pending* DonationPayment row for verifyPayment() to
+     * find later; nothing is marked paid until the gateway confirms it.
      *
      * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */
@@ -577,9 +572,8 @@ class DonationService
 
     /**
      * REC-04: celebration notification when a payment pushes the donor's lifetime NGN total
-     * into a new (higher) recognition tier. A no-op if they're still in the same tier (or
-     * haven't reached the lowest one), or if $previousTotal is null (guest, or non-NGN
-     * payment, out of the NGN-only Recognition Wall's scope; see RecognitionService).
+     * into a new, higher recognition tier. A no-op if still in the same tier, or out of the
+     * NGN-only Recognition Wall's scope (guest, non-NGN payment; see RecognitionService).
      */
     private function notifyTierUpgradeIfAny(?User $user, string $previousTotal, string $newTotal): void
     {

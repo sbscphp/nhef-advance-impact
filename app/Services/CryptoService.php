@@ -5,10 +5,8 @@ namespace App\Services;
 use RuntimeException;
 
 /**
- * AES-256-CBC encryption / decryption service.
- *
- * All failures throw \RuntimeException directly; no custom exception
- * wrapper is needed since the only meaningful response is "crypto failed".
+ * AES-256-CBC encryption / decryption service. All failures throw \RuntimeException
+ * directly; no custom exception wrapper is needed since "crypto failed" is the only response.
  */
 final class CryptoService
 {

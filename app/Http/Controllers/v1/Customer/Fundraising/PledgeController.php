@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers\v1\Customer\Fundraising;
 
-use App\Enums\PledgeFrequencyEnum;
-use App\Enums\PledgeStatusEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Customer\Pledges\MakePledgeRequest;
@@ -15,45 +13,11 @@ use App\Responser\JsonResponser;
 use App\Services\Fundraising\PledgeService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Knuckles\Scribe\Attributes\Authenticated;
-use Knuckles\Scribe\Attributes\BodyParam;
-use Knuckles\Scribe\Attributes\Endpoint;
-use Knuckles\Scribe\Attributes\Group;
-use Knuckles\Scribe\Attributes\QueryParam;
-use Knuckles\Scribe\Attributes\Response;
-use Knuckles\Scribe\Attributes\UrlParam;
 
-#[Group('Customer Fundraising / Pledges', 'Make one-time or recurring pledges against a campaign and manage their installment payments (BRD FEM-01, FEM-04, FEM-06).')]
 class PledgeController extends Controller
 {
     public function __construct(private readonly PledgeService $pledgeService) {}
 
-    #[Endpoint('Make a pledge')]
-    #[Authenticated]
-    #[BodyParam('campaign_uuid', 'string', 'UUID of the campaign to donate to.', required: true, example: 'b2c3d4e5-f6a7-48b9-90c1-d2e3f4a5b6c7')]
-    #[BodyParam('frequency', 'string', 'Pledge frequency.', required: true, example: 'monthly', enum: PledgeFrequencyEnum::class)]
-    #[BodyParam('total_amount', 'number', 'Total pledge amount, in the campaign\'s currency.', required: true, example: 10000000)]
-    #[BodyParam('start_date', 'date', 'Anchor date the installment schedule is calculated from; also determines installment count together with end_date. Required unless frequency is `one_time`; prohibited when it is.', required: false, example: '2026-07-15')]
-    #[BodyParam('end_date', 'date', 'End of the installment schedule; installment count is derived from the start_date-end_date range at the chosen frequency. Required unless frequency is `one_time`; prohibited when it is.', required: false, example: '2026-09-15')]
-    #[BodyParam('expected_payment_date', 'date', 'Due date for the single payment. Required only when frequency is `one_time`; prohibited otherwise.', required: false, example: '2026-07-15')]
-    #[BodyParam('is_anonymous', 'boolean', 'Hide donor identity on the recognition wall.', required: false, example: false)]
-    #[Response(status: 201, content: [
-        'error' => false,
-        'message' => 'Pledge created.',
-        'data' => [
-            'pledge' => ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'status' => 'pending'],
-            'authorization_url' => null,
-            'access_code' => null,
-            'client_secret' => 'pi_3P.._secret_abc123',
-            'publishable_key' => 'pk_test_abc123',
-            'reference' => 'PLG_ABCDEFGHIJKLMNOPQRST',
-        ],
-    ], description: 'Pledge created. Default (embedded) mode: Stripe returns client_secret (confirm in-app with Stripe.js/Elements + publishable_key), Paystack returns access_code/publishable_key (pass to Paystack Inline). In hosted mode, the active gateway returns authorization_url instead and the other fields are null. See STRIPE_CHECKOUT_MODE / PAYSTACK_CHECKOUT_MODE.')]
-    #[Response(status: 422, content: [
-        'error' => true,
-        'message' => 'This campaign does not accept recurring pledges.',
-        'data' => null,
-    ], description: 'Campaign does not allow the requested frequency, or is not accepting donations.')]
     public function store(MakePledgeRequest $request)
     {
         try {
@@ -73,20 +37,6 @@ class PledgeController extends Controller
         }
     }
 
-    #[Endpoint('List my pledges')]
-    #[Authenticated]
-    #[QueryParam('status', 'string', 'Filter by pledge status.', required: false, example: 'on_track', enum: PledgeStatusEnum::class)]
-    #[QueryParam('start_date', 'date', 'Only pledges created on/after this date.', required: false, example: '2026-01-01')]
-    #[QueryParam('end_date', 'date', 'Only pledges created on/before this date.', required: false, example: '2026-01-31')]
-    #[QueryParam('sort_by', 'string', 'Order arrangement field: "name" (campaign title) or "value" (pledge amount).', required: false, example: 'value')]
-    #[QueryParam('sort_direction', 'string', 'Order arrangement direction: asc or desc.', required: false, example: 'desc')]
-    #[QueryParam('page', 'int', 'Page number.', required: false, example: 1)]
-    #[QueryParam('per_page', 'int', 'Results per page (max 100).', required: false, example: 15)]
-    #[Response(status: 200, content: [
-        'error' => false,
-        'message' => 'Pledges retrieved.',
-        'data' => ['current_page' => 1, 'data' => [], 'per_page' => 15, 'total' => 0],
-    ], description: 'Paginated list of the customer\'s pledges.')]
     public function index(PledgeListRequest $request)
     {
         try {
@@ -99,19 +49,6 @@ class PledgeController extends Controller
         }
     }
 
-    #[Endpoint('View pledge')]
-    #[Authenticated]
-    #[UrlParam('uuid', 'string', 'Pledge UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
-    #[Response(status: 200, content: [
-        'error' => false,
-        'message' => 'Pledge retrieved.',
-        'data' => ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'status' => 'on_track', 'installments' => []],
-    ], description: 'Pledge found and belongs to the authenticated customer.')]
-    #[Response(status: 404, content: [
-        'error' => true,
-        'message' => 'Pledge not found.',
-        'data' => null,
-    ], description: 'No pledge with that UUID belongs to the authenticated customer.')]
     public function show(Request $request, string $uuid)
     {
         try {
@@ -124,20 +61,6 @@ class PledgeController extends Controller
         }
     }
 
-    #[Endpoint('Pay an installment')]
-    #[Authenticated]
-    #[UrlParam('uuid', 'string', 'Pledge UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
-    #[UrlParam('installmentUuid', 'string', 'Installment UUID.', required: true, example: 'd4e5f6a7-b8c9-40d1-92e3-f4a5b6c7d8e9')]
-    #[Response(status: 200, content: [
-        'error' => false,
-        'message' => 'Payment initialized.',
-        'data' => ['authorization_url' => 'https://checkout.paystack.com/abc123', 'reference' => 'PLG_ABCDEFGHIJKLMNOPQRST'],
-    ], description: 'Payment initialized; complete at authorization_url.')]
-    #[Response(status: 422, content: [
-        'error' => true,
-        'message' => 'This installment has already been paid.',
-        'data' => null,
-    ], description: 'Installment already paid, or pledge is cancelled/completed.')]
     public function payInstallment(PayInstallmentRequest $request, string $uuid, string $installmentUuid)
     {
         try {

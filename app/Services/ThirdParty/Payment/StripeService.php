@@ -11,24 +11,16 @@ use Stripe\StripeClient;
 use Stripe\Webhook;
 
 /**
- * Stripe integration. Which of Stripe's two donor-facing flows is used is controlled by
- * `services.stripe.checkout_mode` (env `STRIPE_CHECKOUT_MODE`, defaults to `embedded`):
+ * Stripe integration. `services.stripe.checkout_mode` (env `STRIPE_CHECKOUT_MODE`, default
+ * `embedded`) picks the donor flow: embedded uses PaymentIntent + Stripe Elements (donor pays
+ * inline via `client_secret`/`publishable_key`, no redirect); hosted uses a Checkout Session
+ * (donor redirected via `authorization_url`, same shape as Paystack's flow).
  *
- *   - embedded (default): PaymentIntent + Stripe Elements
- *     (https://stripe.com/docs/payments/payment-intents). The donor pays inline, inside our
- *     own UI, via the returned `client_secret`/`publishable_key`; nothing redirects them away
- *     from the app.
- *   - hosted: Checkout Sessions (https://stripe.com/docs/api/checkout/sessions). The donor is
- *     redirected to a Stripe-hosted page, same shape as Paystack's flow, via the returned
- *     `authorization_url`.
- *
- * Either way, `verify()` looks the underlying PaymentIntent up by our own `reference` (stamped
- * into its metadata at creation, see below) via the PaymentIntent Search API, since Stripe
- * doesn't let us pick our own PaymentIntent ID and Checkout Sessions aren't searchable at all.
- * Search is eventually consistent (typically near-instant, occasionally a few seconds behind),
- * so the browser-side verify path can race a very fresh payment; the webhook (server-to-server,
- * carries the object directly, no search involved) is the reliable settlement path regardless,
- * matching the dual-path lifecycle described on {@see PaymentGatewayService}.
+ * Either way, `verify()` looks the PaymentIntent up by our own `reference` (stamped into its
+ * metadata at creation) via the Search API, since Stripe won't let us pick our own PaymentIntent
+ * ID and Sessions aren't searchable. Search is only eventually consistent, so the webhook
+ * (server-to-server, no search) is the reliable settlement path regardless, matching the
+ * dual-path lifecycle on {@see PaymentGatewayService}.
  */
 class StripeService implements PaymentGatewayInterface
 {
@@ -44,10 +36,9 @@ class StripeService implements PaymentGatewayInterface
     }
 
     /**
-     * Creates the Customer up front (rather than relying on Checkout's `customer_creation:
-     * always`) so `setup_future_usage: off_session` actually has a Customer to attach the card
-     * to, letting a returning donor's card be reused later (see
-     * PaymentMethodService::saveFromAuthorization()), mirroring what Paystack does by default.
+     * Creates the Customer up front (not via Checkout's `customer_creation: always`) so
+     * `setup_future_usage: off_session` has a Customer to attach the card to for reuse later
+     * (see PaymentMethodService::saveFromAuthorization()), mirroring Paystack's default.
      */
     private function initializeEmbedded(string $reference, string $amount, string $currency, string $email, array $meta): array
     {
@@ -199,12 +190,9 @@ class StripeService implements PaymentGatewayInterface
     }
 
     /**
-     * `max_network_retries` also makes the SDK auto-attach an idempotency key to any POST that
-     * doesn't already carry one (see stripe-php's CurlClient::specsForRequest), so the
-     * un-keyed `customers->create` call below becomes safely retryable too, not just
-     * `paymentIntents->create`. Without this, a single transient blip (timeout, connection
-     * reset, or Stripe-side lock conflict, i.e. HTTP 409) surfaces straight to the donor as a
-     * hard failure instead of being absorbed by the SDK's built-in exponential backoff.
+     * `max_network_retries` also makes the SDK auto-attach an idempotency key to any un-keyed
+     * POST (so `customers->create` is safely retryable too, not just `paymentIntents->create`),
+     * so a transient blip is absorbed by the SDK's backoff instead of failing the donor outright.
      */
     private function client(): StripeClient
     {

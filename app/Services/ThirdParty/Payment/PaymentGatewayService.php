@@ -3,40 +3,24 @@
 namespace App\Services\ThirdParty\Payment;
 
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
-use App\Services\ThirdParty\SMS\SmsService;
 use App\Support\PaymentMode;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Mode-aware facade over the payment gateway ({@see PaymentMode}), mirroring how
- * {@see SmsService} gates provider dispatch. In `stub`/`log`
- * mode no real gateway is called: initialize() returns a fake checkout URL and verify()
- * reports an immediate success, so the pledge/donation flow can be exercised end-to-end
- * (e.g. via Postman) without live gateway credentials.
+ * Mode-aware facade over the payment gateway ({@see PaymentMode}). In `stub`/`log` mode no
+ * real gateway is called: initialize() fakes a checkout URL and verify() reports immediate
+ * success, so the pledge/donation flow can be exercised end-to-end without live credentials.
+ * The live gateway itself is resolved by {@see PaymentGatewayResolver} from `PAYMENT_GATEWAY`;
+ * this class never names a concrete gateway.
  *
- * Which live gateway is used is resolved by {@see PaymentGatewayResolver} from
- * `PAYMENT_GATEWAY` (config `services.payment.default`); this class never names a concrete
- * gateway, so switching the default (or adding a new one) doesn't touch this class.
- *
- * Full payment lifecycle (PAYMENT_MODE=live):
- *   1. PledgeService creates a pending PledgePayment row and calls initialize() here ->
- *      the configured gateway -> gets back either an authorization_url (hosted checkout page)
- *      or an in-app payload (client_secret + publishable_key for Stripe, access_code +
- *      publishable_key for Paystack), per that gateway's own checkout_mode config (see
- *      {@see PaymentGatewayInterface}). The gateway that served the request is returned
- *      alongside so the caller can persist it on the payment row; verify() later needs to be
- *      told that same gateway back, since the configured default may have changed in the
- *      meantime.
- *   2. Donor pays, either on that hosted page or inline in our own UI. Card/bank details never
- *      reach our server either way.
- *   3. The gateway redirects the browser to our callback_url; separately (and more reliably),
- *      it also POSTs a webhook straight to our server (see PaystackWebhookController /
- *      StripeWebhookController). Either path ends up calling verify() here, which is
- *      idempotent, so whichever arrives first "wins".
- *
- * Next step for going live: register each gateway's webhook URL
- * (`{app_url}/api/v1/webhooks/{paystack|stripe}`) in that gateway's dashboard. Neither gateway
- * can reach a plain `localhost`, so use a tunnel (e.g. ngrok) to test webhooks locally.
+ * Live lifecycle: initialize() returns a hosted checkout URL or in-app payload (per that
+ * gateway's checkout_mode, see {@see PaymentGatewayInterface}) plus which gateway served the
+ * request, since verify() later needs that same gateway even if the configured default
+ * changed. The donor pays without card details ever reaching our server; the gateway then
+ * either redirects the browser to callback_url or POSTs a webhook (PaystackWebhookController /
+ * StripeWebhookController) - both paths call the idempotent verify(), so whichever arrives
+ * first wins. Going live also requires registering each gateway's webhook URL in its
+ * dashboard (tunnel with ngrok to test locally, since neither reaches plain `localhost`).
  */
 class PaymentGatewayService
 {
@@ -96,11 +80,9 @@ class PaymentGatewayService
             'paid_at' => now()->toIso8601String(),
             'channel' => 'stub',
             'card_last_four' => '0000',
-            // Fake reusable authorization so the saved-payment-method flow (see
-            // PaymentMethodService) can be exercised end-to-end without a live gateway.
-            // authorization_code is unique per call (mirrors a gateway minting a fresh one per
-            // transaction), but signature is fixed; every stub payment "is" the same fake
-            // card, so repeated stub payments should dedupe to one saved payment method.
+            // Fake reusable authorization so PaymentMethodService's saved-card flow can be
+            // exercised without a live gateway; signature is fixed so repeated stub payments
+            // dedupe to one saved payment method, same as a real repeat card would.
             'authorization' => [
                 'authorization_code' => 'AUTH_stub_'.$reference,
                 'signature' => 'SIG_stub_fixed_test_card',

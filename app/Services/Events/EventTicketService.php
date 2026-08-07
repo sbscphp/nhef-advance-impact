@@ -189,10 +189,9 @@ class EventTicketService
 
     /**
      * The one place that actually confirms money moved (or, for free tickets, the immediate
-     * settlement path in register()). Called from two entry points:
-     * EventRegistrationPaymentController::verify() and PaystackWebhookController; it
-     * doesn't matter which gets here first, since the early-return below makes a second call for an
-     * already-settled payment a harmless no-op.
+     * settlement path in register()). Called from either
+     * EventRegistrationPaymentController::verify() or PaystackWebhookController; whichever
+     * gets here first, the early-return below makes a second call a harmless no-op.
      *
      * @return array<string, mixed>
      */

@@ -45,12 +45,8 @@ final readonly class RequestResponseEncryptionMiddleware
     ];
 
     /**
-     * Route path substrings that bypass encryption entirely.
-     *
-     * Payment provider webhook/callback routes use {@see BYPASS_SUFFIXES} instead.
-     * Dev provisioning routes accept plaintext for bootstrap. All other routes
-     * (including donations, public API, and checkout) require X-ClientKey when
-     * middleware is enabled.
+     * Route path substrings that bypass encryption entirely: dev provisioning routes, which
+     * accept plaintext for bootstrap (payment webhooks use {@see BYPASS_SUFFIXES} instead).
      *
      * @var list<string>
      */
@@ -60,14 +56,9 @@ final readonly class RequestResponseEncryptionMiddleware
     ];
 
     /**
-     * Route path regex patterns that bypass encryption entirely.
-     *
-     * Used for public guest download endpoints that are opened directly in a
-     * browser from an email link (donation receipts, tax receipts, donor
-     * recognition certificates, campaign update reports). These responses are
-     * streamed binary PDFs and authenticate via their own per-resource
-     * `?token=` query parameter, so they cannot rely on the `X-ClientKey`
-     * header that the encryption middleware otherwise requires.
+     * Route path regex patterns that bypass encryption entirely: public guest download
+     * endpoints opened directly from an email link (receipts, certificates, reports), which
+     * authenticate via their own signed URL and can't carry an `X-ClientKey` header.
      *
      * @var list<string>
      */

@@ -13,9 +13,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
 /**
- * Donor recognition wall (BRD REC-01/REC-02). Scoped to successful, NGN-denominated donation
- * payments only; summing across currencies isn't meaningful, and there's no FX-rate source
- * in this codebase. Anonymous donations never appear on the public leaderboard.
+ * Donor recognition wall (BRD REC-01/REC-02), scoped to successful, NGN-only donation
+ * payments (no FX-rate source to sum other currencies); anonymous donations never appear here.
  */
 class RecognitionService
 {
@@ -95,9 +94,9 @@ class RecognitionService
     }
 
     /**
-     * Shared base for both the leaderboard and the rank-comparison query in myRank(): one row
-     * per user, their lifetime NGN total from successful, non-anonymous donations. Guests
-     * (user_id null) are excluded automatically; there's no account to rank.
+     * Shared base for the leaderboard and myRank()'s rank-comparison query: one row per user,
+     * their lifetime NGN total from successful, non-anonymous donations. Guests are excluded
+     * automatically (no account to rank).
      */
     private function baseAggregateQuery(): Builder
     {

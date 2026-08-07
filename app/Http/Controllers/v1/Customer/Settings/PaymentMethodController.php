@@ -9,32 +9,15 @@ use App\Models\User;
 use App\Responser\JsonResponser;
 use App\Services\Settings\PaymentMethodService;
 use Illuminate\Http\Request;
-use Knuckles\Scribe\Attributes\Authenticated;
-use Knuckles\Scribe\Attributes\Endpoint;
-use Knuckles\Scribe\Attributes\Group;
-use Knuckles\Scribe\Attributes\Response;
-use Knuckles\Scribe\Attributes\UrlParam;
 
 /**
- * Saved cards, populated automatically from successful pledge/donation payments whenever
- * Paystack returns a reusable authorization for a logged-in customer (see
- * PaymentMethodService::saveFromAuthorization()). There is no "add a card" endpoint here; a
- * card is only ever saved as a side effect of paying with it.
+ * Saved cards, populated automatically whenever the gateway returns a reusable authorization
+ * for a logged-in customer's payment; there is no "add a card" endpoint, only this side effect.
  */
-#[Group('Customer Settings / Payment Methods', 'Manage cards saved from previous pledge/donation payments.')]
 class PaymentMethodController extends Controller
 {
     public function __construct(private readonly PaymentMethodService $paymentMethodService) {}
 
-    #[Endpoint('List saved payment methods')]
-    #[Authenticated]
-    #[Response(status: 200, content: [
-        'error' => false,
-        'message' => 'Payment methods retrieved.',
-        'data' => [
-            ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'brand' => 'visa DEBIT', 'last_four' => '3456', 'expires_formatted' => '03/28', 'is_default' => true],
-        ],
-    ], description: 'Saved payment methods retrieved.')]
     public function index(Request $request)
     {
         try {
@@ -47,19 +30,6 @@ class PaymentMethodController extends Controller
         }
     }
 
-    #[Endpoint('Set default payment method')]
-    #[Authenticated]
-    #[UrlParam('uuid', 'string', 'Payment method UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
-    #[Response(status: 200, content: [
-        'error' => false,
-        'message' => 'Default payment method updated.',
-        'data' => ['uuid' => 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8', 'is_default' => true],
-    ], description: 'Default payment method updated.')]
-    #[Response(status: 404, content: [
-        'error' => true,
-        'message' => 'Payment method not found.',
-        'data' => null,
-    ], description: 'No saved payment method with that UUID belongs to the authenticated customer.')]
     public function setDefault(Request $request, string $uuid)
     {
         try {
@@ -72,19 +42,6 @@ class PaymentMethodController extends Controller
         }
     }
 
-    #[Endpoint('Delete payment method')]
-    #[Authenticated]
-    #[UrlParam('uuid', 'string', 'Payment method UUID.', required: true, example: 'c3d4e5f6-a7b8-49c0-91d2-e3f4a5b6c7d8')]
-    #[Response(status: 200, content: [
-        'error' => false,
-        'message' => 'Payment method deleted.',
-        'data' => null,
-    ], description: 'Payment method deleted.')]
-    #[Response(status: 404, content: [
-        'error' => true,
-        'message' => 'Payment method not found.',
-        'data' => null,
-    ], description: 'No saved payment method with that UUID belongs to the authenticated customer.')]
     public function destroy(Request $request, string $uuid)
     {
         try {

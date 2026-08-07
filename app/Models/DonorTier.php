@@ -6,9 +6,8 @@ use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Donor recognition tiers (BRD REC-02: configurable per institution). Ranked by
- * minimum_amount: a donor's tier is the highest one whose threshold their lifetime NGN
- * donation total meets or exceeds. Seeded by DonorTierSeeder; no admin CRUD yet.
+ * Donor recognition tiers (BRD REC-02). A donor's tier is the highest minimum_amount
+ * threshold their lifetime NGN total meets or exceeds; seeded by DonorTierSeeder, no admin CRUD yet.
  */
 class DonorTier extends Model
 {

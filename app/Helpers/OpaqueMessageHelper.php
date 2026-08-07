@@ -31,8 +31,8 @@ final class OpaqueMessageHelper
     public const MESSAGE_GENERIC_PLAYER_REGISTRATION_OTP_ACK = 'If you have started registration with this contact, check your phone or email for a verification code. If a code was recently sent, wait until it expires before requesting another.';
 
     /**
-     * Final signup: do not reveal whether email or phone is already registered.
-     * The account holder may receive a separate security email with sign-in / forgot-password guidance.
+     * Final signup: do not reveal whether email or phone is already registered; the account
+     * holder may get a separate security email with sign-in / forgot-password guidance.
      */
     public const MESSAGE_GENERIC_SIGNUP_UNAVAILABLE = 'We could not complete registration with the details provided. If you already have an account, sign in or use Forgot password. You may also receive an email with more information.';
 
@@ -118,9 +118,9 @@ final class OpaqueMessageHelper
     }
 
     /**
-     * Invite-link flows have no email in the body; we still return a masked "email-shaped" hint so the JSON
-     * matches username-based sends. Domain is chosen from common public hosts (not a reserved/synthetic TLD)
-     * so responses do not scream "placeholder"; it is not the user's real address, only display noise.
+     * Invite-link flows have no real email, so we fake a masked "email-shaped" hint to match
+     * username-based sends; the domain is a common public host, not a synthetic TLD, so it
+     * doesn't scream "placeholder" (it's display noise, not the user's real address).
      */
     private static function syntheticMailboxDomainForInvite(string $namespace, string $inviteUuid): string
     {

@@ -8,9 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * Backs the admin "View Campaign" header. Expects `donors_count` and `days_remaining` to already
- * be set on the model (see CampaignController@show) since both require extra queries the base
- * CampaignAdminResource (used for lighter list/create responses) doesn't run.
+ * Backs the admin "View Campaign" header. Expects `donors_count` and `days_remaining` already
+ * set on the model (see CampaignController@show); both need extra queries the lighter
+ * CampaignAdminResource (list/create responses) doesn't run.
  *
  * @mixin Campaign
  */
