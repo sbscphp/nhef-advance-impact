@@ -106,6 +106,24 @@ Route::prefix('v1/admin')->group(function () {
         Route::prefix('campaigns')->group(function () {
             Route::post('/', [AdminCampaignController::class, 'store'])
                 ->middleware(['permission:campaigns.create']);
+            Route::get('/', [AdminCampaignController::class, 'index'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/{uuid}', [AdminCampaignController::class, 'show'])
+                ->middleware(['permission:campaigns.read']);
+            Route::patch('/{uuid}', [AdminCampaignController::class, 'update'])
+                ->middleware(['permission:campaigns.update']);
+            Route::patch('/{uuid}/pause', [AdminCampaignController::class, 'pause'])
+                ->middleware(['permission:campaigns.update']);
+            Route::patch('/{uuid}/resume', [AdminCampaignController::class, 'resume'])
+                ->middleware(['permission:campaigns.update']);
+            Route::get('/{uuid}/donations', [AdminCampaignController::class, 'donations'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/{uuid}/donations/overview', [AdminCampaignController::class, 'donationsOverview'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/{uuid}/pledges', [AdminCampaignController::class, 'pledges'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/{uuid}/donor-breakdown', [AdminCampaignController::class, 'donorBreakdown'])
+                ->middleware(['permission:campaigns.read']);
         });
     });
 });

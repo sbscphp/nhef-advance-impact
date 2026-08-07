@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\PledgeInstallmentStatusEnum;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Pledge extends Model
 {
@@ -45,6 +47,14 @@ class Pledge extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(PledgePayment::class);
+    }
+
+    /** The earliest still-pending installment; drives the "Next Instalment" amount on admin listings. */
+    public function nextPendingInstallment(): HasOne
+    {
+        return $this->hasOne(PledgeInstallment::class)
+            ->where('status', PledgeInstallmentStatusEnum::PENDING->value)
+            ->ofMany('sequence', 'min');
     }
 
     public function amountRemaining(): string

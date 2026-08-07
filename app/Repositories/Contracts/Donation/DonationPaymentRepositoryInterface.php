@@ -31,4 +31,24 @@ interface DonationPaymentRepositoryInterface
     public function sumSuccessfulForUser(int $userId, ?string $from, ?string $to): string;
 
     public function distinctCampaignGoalTotalForUser(int $userId): string;
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Registered donors (user_id not null) with a successful payment to this campaign, optionally
+     * scoped to a date window; feeds the "Donor Breakdown" tier chart (tiers are lifetime, so the
+     * window only decides which donors are counted, not which of their payments).
+     *
+     * @return list<int>
+     */
+    public function distinctSuccessfulDonorUserIdsForCampaign(int $campaignId, ?string $from, ?string $to): array;
+
+    /**
+     * Sum of successful payments for a campaign, optionally scoped to a date window; feeds the
+     * "Donation" tab overview (Total Donation Received).
+     */
+    public function sumSuccessfulForCampaign(int $campaignId, ?string $from, ?string $to): string;
 }

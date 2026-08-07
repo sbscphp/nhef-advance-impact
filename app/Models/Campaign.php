@@ -43,6 +43,11 @@ class Campaign extends Model
         return $this->belongsTo(Admin::class, 'allocated_admin_id');
     }
 
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'created_by', 'uuid');
+    }
+
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class);

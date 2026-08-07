@@ -22,6 +22,11 @@ interface PledgeRepositoryInterface
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator;
 
     /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function update(Pledge $pledge, array $data): Pledge;

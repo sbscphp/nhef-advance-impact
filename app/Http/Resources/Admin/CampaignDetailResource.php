@@ -7,8 +7,14 @@ use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin Campaign */
-class CampaignAdminResource extends JsonResource
+/**
+ * Backs the admin "View Campaign" header. Expects `donors_count` and `days_remaining` to already
+ * be set on the model (see CampaignController@show) since both require extra queries the base
+ * CampaignAdminResource (used for lighter list/create responses) doesn't run.
+ *
+ * @mixin Campaign
+ */
+class CampaignDetailResource extends JsonResource
 {
     /**
      * @return array<string, mixed>
@@ -26,9 +32,16 @@ class CampaignAdminResource extends JsonResource
             'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
             'raised_amount' => (string) $this->raised_amount,
             'raised_amount_formatted' => Money::format($this->raised_amount, $this->currency),
+            'progress_percentage' => $this->progressPercentage(),
             'status' => $this->status,
+            'donors_count' => $this->donors_count,
+            'days_remaining' => $this->days_remaining,
             'starts_at' => $this->starts_at?->toDateString(),
             'ends_at' => $this->ends_at?->toDateString(),
+            'creator' => $this->whenLoaded('creator', fn () => $this->creator === null ? null : [
+                'admin_id' => $this->creator->uuid,
+                'name' => $this->creator->displayName(),
+            ]),
             'allocated_admin' => $this->whenLoaded('allocatedAdmin', fn () => [
                 'admin_id' => $this->allocatedAdmin->uuid,
                 'name' => $this->allocatedAdmin->displayName(),
