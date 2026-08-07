@@ -198,11 +198,20 @@ class StripeService implements PaymentGatewayInterface
         }
     }
 
+    /**
+     * `max_network_retries` also makes the SDK auto-attach an idempotency key to any POST that
+     * doesn't already carry one (see stripe-php's CurlClient::specsForRequest), so the
+     * un-keyed `customers->create` call below becomes safely retryable too, not just
+     * `paymentIntents->create`. Without this, a single transient blip (timeout, connection
+     * reset, or Stripe-side lock conflict, i.e. HTTP 409) surfaces straight to the donor as a
+     * hard failure instead of being absorbed by the SDK's built-in exponential backoff.
+     */
     private function client(): StripeClient
     {
         return new StripeClient([
             'api_key' => (string) config('services.stripe.secret_key'),
             'api_base' => (string) config('services.stripe.base_url', 'https://api.stripe.com'),
+            'max_network_retries' => 2,
         ]);
     }
 
