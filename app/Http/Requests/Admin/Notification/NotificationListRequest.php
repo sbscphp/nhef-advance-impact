@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin\Notification;
 
+use App\Enums\NotificationCategoryEnum;
 use App\Http\Requests\ApiFormRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use Illuminate\Validation\Rule;
@@ -26,6 +27,7 @@ class NotificationListRequest extends ApiFormRequest
                 'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
                 'filters' => ['sometimes', 'array'],
                 'filters.read_status' => ['sometimes', 'nullable', Rule::in(['all', 'read', 'unread'])],
+                'filters.category' => ['sometimes', 'nullable', Rule::in(NotificationCategoryEnum::values())],
             ]
         );
     }
@@ -34,6 +36,7 @@ class NotificationListRequest extends ApiFormRequest
     {
         return array_merge(parent::messages(), ListingFilterRules::periodDateMessages(), [
             'filters.read_status.in' => 'Read status filter must be one of: all, read, unread.',
+            'filters.category.in' => 'Category filter is invalid.',
         ]);
     }
 }

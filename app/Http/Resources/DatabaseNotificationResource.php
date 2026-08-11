@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\NotificationCategoryEnum;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Notifications\DatabaseNotification;
@@ -18,12 +19,15 @@ class DatabaseNotificationResource extends JsonResource
         $notification = $this->resource;
         $data = is_array($notification->data) ? $notification->data : [];
         $recipient = $notification->notifiable;
+        $module = isset($data['module']) ? (string) $data['module'] : null;
 
         return [
             'id' => $notification->id,
             'type' => (string) ($data['event'] ?? class_basename((string) $notification->type)),
             'title' => (string) ($data['title'] ?? 'Notification'),
             'message' => (string) ($data['message'] ?? ''),
+            'module' => $module,
+            'category' => NotificationCategoryEnum::forModule($module)->value,
             'is_read' => $notification->read_at !== null,
             'read_at' => $notification->read_at?->toIso8601String(),
             'email_notifications_enabled' => (bool) data_get($recipient, 'email_notifications_enabled', true),

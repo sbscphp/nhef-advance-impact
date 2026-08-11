@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications;
 
+use App\Enums\NotificationCategoryEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -95,8 +96,51 @@ class NotificationInboxService
             ->with('notifiable')
             ->latest();
         $this->applyReadStatusFilter($query, $validated);
+        $this->applyCategoryFilter($query, $validated);
 
         return $query;
+    }
+
+    /**
+     * Category counts for the left-hand filter list (System Notification / Core Platform / etc.),
+     * always unfiltered by the current read-status/date selection so the sidebar counts stay
+     * stable while browsing - only the visible list itself reacts to those filters.
+     *
+     * @param  Model&object{notifications(): mixed}  $recipient
+     * @return list<array{key: string, label: string, count: int}>
+     */
+    public function categoryCounts(Model $recipient): array
+    {
+        return array_map(
+            fn (NotificationCategoryEnum $category): array => [
+                'key' => $category->value,
+                'label' => $category->label(),
+                'count' => $this->categoryCount($recipient, $category),
+            ],
+            NotificationCategoryEnum::cases(),
+        );
+    }
+
+    /**
+     * JSON_EXTRACT returns SQL NULL for notifications with no "module" key at all, which
+     * whereIn() never matches - "Others" also needs an explicit OR-NULL to catch those, nested
+     * in its own group so it can't leak past the recipient scope on notifications() itself.
+     *
+     * @param  Model&object{notifications(): mixed}  $recipient
+     */
+    private function categoryCount(Model $recipient, NotificationCategoryEnum $category): int
+    {
+        $query = $recipient->notifications();
+
+        if ($category === NotificationCategoryEnum::OTHERS) {
+            $query->where(function (Builder|Relation $q) use ($category): void {
+                $q->whereIn('data->module', $category->modules())->orWhereNull('data->module');
+            });
+        } else {
+            $query->whereIn('data->module', $category->modules());
+        }
+
+        return $query->count();
     }
 
     /**
@@ -123,5 +167,33 @@ class NotificationInboxService
             'unread' => $query->whereNull('read_at'),
             default => null,
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function applyCategoryFilter(Builder|Relation $query, array $validated): void
+    {
+        $category = data_get($validated, 'filters.category');
+
+        if (! is_string($category) || $category === '') {
+            return;
+        }
+
+        $categoryEnum = NotificationCategoryEnum::tryFrom($category);
+
+        if ($categoryEnum === null) {
+            return;
+        }
+
+        if ($categoryEnum === NotificationCategoryEnum::OTHERS) {
+            $query->where(function (Builder|Relation $q) use ($categoryEnum): void {
+                $q->whereIn('data->module', $categoryEnum->modules())->orWhereNull('data->module');
+            });
+
+            return;
+        }
+
+        $query->whereIn('data->module', $categoryEnum->modules());
     }
 }
