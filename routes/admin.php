@@ -5,6 +5,8 @@ use App\Http\Controllers\v1\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\v1\Admin\Auth\PasswordController as AdminPasswordController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
+use App\Http\Controllers\v1\Admin\Networking\AlumniSearchController;
+use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkingChannelController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
 use App\Http\Controllers\v1\Admin\UserManagement\UserManagementController;
@@ -126,6 +128,38 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.read']);
             Route::get('/{uuid}/donor-breakdown', [AdminCampaignController::class, 'donorBreakdown'])
                 ->middleware(['permission:campaigns.read']);
+        });
+
+        Route::prefix('networking')->group(function () {
+            Route::get('/alumni/search', [AlumniSearchController::class, 'index'])
+                ->middleware(['permission:networking.read']);
+
+            // Must be registered before /channels/{uuid}; otherwise "browse" would be swallowed
+            // as a channel uuid by the wildcard route below.
+            Route::get('/channels', [AdminNetworkingChannelController::class, 'index'])
+                ->middleware(['permission:networking.read']);
+            Route::post('/channels', [AdminNetworkingChannelController::class, 'store'])
+                ->middleware(['permission:networking.create']);
+            Route::get('/channels/{uuid}', [AdminNetworkingChannelController::class, 'show'])
+                ->middleware(['permission:networking.read']);
+            Route::patch('/channels/{uuid}', [AdminNetworkingChannelController::class, 'update'])
+                ->middleware(['permission:networking.update']);
+            Route::delete('/channels/{uuid}', [AdminNetworkingChannelController::class, 'destroy'])
+                ->middleware(['permission:networking.delete']);
+            Route::patch('/channels/{uuid}/lock', [AdminNetworkingChannelController::class, 'lock'])
+                ->middleware(['permission:networking.update']);
+            Route::patch('/channels/{uuid}/unlock', [AdminNetworkingChannelController::class, 'unlock'])
+                ->middleware(['permission:networking.update']);
+
+            Route::get('/channels/{uuid}/members', [AdminNetworkingChannelController::class, 'members'])
+                ->middleware(['permission:networking.read']);
+            Route::post('/channels/{uuid}/members', [AdminNetworkingChannelController::class, 'addMembers'])
+                ->middleware(['permission:networking.update']);
+            Route::delete('/channels/{uuid}/members/{memberUuid}', [AdminNetworkingChannelController::class, 'removeMember'])
+                ->middleware(['permission:networking.update']);
+
+            Route::get('/channels/{uuid}/messages', [AdminNetworkingChannelController::class, 'messages'])
+                ->middleware(['permission:networking.read']);
         });
     });
 });

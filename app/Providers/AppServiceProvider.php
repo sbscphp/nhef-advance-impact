@@ -26,6 +26,9 @@ use App\Repositories\Contracts\Mentorship\MenteeProfileRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorProfileRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorshipMatchRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorshipReviewRepositoryInterface;
+use App\Repositories\Contracts\Networking\NetworkingChannelRepositoryInterface;
+use App\Repositories\Contracts\Networking\NetworkingMessageReactionRepositoryInterface;
+use App\Repositories\Contracts\Networking\NetworkingMessageRepositoryInterface;
 use App\Repositories\Contracts\PaymentMethod\PaymentMethodRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgePaymentRepositoryInterface;
@@ -44,6 +47,9 @@ use App\Repositories\Mentorship\MenteeProfileRepository;
 use App\Repositories\Mentorship\MentorProfileRepository;
 use App\Repositories\Mentorship\MentorshipMatchRepository;
 use App\Repositories\Mentorship\MentorshipReviewRepository;
+use App\Repositories\Networking\NetworkingChannelRepository;
+use App\Repositories\Networking\NetworkingMessageReactionRepository;
+use App\Repositories\Networking\NetworkingMessageRepository;
 use App\Repositories\PaymentMethod\PaymentMethodRepository;
 use App\Repositories\Pledge\PledgeInstallmentRepository;
 use App\Repositories\Pledge\PledgePaymentRepository;
@@ -89,6 +95,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MenteeProfileRepositoryInterface::class, MenteeProfileRepository::class);
         $this->app->bind(MentorshipMatchRepositoryInterface::class, MentorshipMatchRepository::class);
         $this->app->bind(MentorshipReviewRepositoryInterface::class, MentorshipReviewRepository::class);
+        $this->app->bind(NetworkingChannelRepositoryInterface::class, NetworkingChannelRepository::class);
+        $this->app->bind(NetworkingMessageRepositoryInterface::class, NetworkingMessageRepository::class);
+        $this->app->bind(NetworkingMessageReactionRepositoryInterface::class, NetworkingMessageReactionRepository::class);
     }
 
     public function boot(): void
@@ -218,6 +227,18 @@ class AppServiceProvider extends ServiceProvider
             $userId = $request->user()?->id;
 
             return Limit::perMinute(10)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
+        });
+
+        RateLimiter::for('customer-networking-message-send', function (Request $request) {
+            $userId = $request->user()?->id;
+
+            return Limit::perMinute(30)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
+        });
+
+        RateLimiter::for('customer-networking-typing', function (Request $request) {
+            $userId = $request->user()?->id;
+
+            return Limit::perMinute(60)->by($userId !== null ? 'user:'.$userId : (string) $request->ip());
         });
     }
 

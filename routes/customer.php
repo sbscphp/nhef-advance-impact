@@ -10,6 +10,10 @@ use App\Http\Controllers\v1\Customer\Fundraising\PledgeController;
 use App\Http\Controllers\v1\Customer\Mentorship\MenteeController;
 use App\Http\Controllers\v1\Customer\Mentorship\MentorController;
 use App\Http\Controllers\v1\Customer\Mentorship\MentorshipReviewController;
+use App\Http\Controllers\v1\Customer\Networking\AlumniSearchController as NetworkingAlumniSearchController;
+use App\Http\Controllers\v1\Customer\Networking\ChannelController as NetworkingChannelController;
+use App\Http\Controllers\v1\Customer\Networking\MessageController as NetworkingMessageController;
+use App\Http\Controllers\v1\Customer\Networking\ReactionController as NetworkingReactionController;
 use App\Http\Controllers\v1\Customer\Notification\NotificationController;
 use App\Http\Controllers\v1\Customer\Recognition\RecognitionController;
 use App\Http\Controllers\v1\Customer\Settings\PaymentMethodController;
@@ -111,5 +115,27 @@ Route::prefix('v1')->group(function () {
         Route::get('/mentees/me', [MenteeController::class, 'me']);
         Route::get('/mentees', [MenteeController::class, 'index']);
         Route::get('/mentees/{uuid}', [MenteeController::class, 'show']);
+    });
+
+    Route::middleware('auth:sanctum')->prefix('networking')->group(function () {
+        Route::get('/conversations', [NetworkingChannelController::class, 'index']);
+        Route::get('/alumni/search', [NetworkingAlumniSearchController::class, 'index']);
+        Route::post('/direct-messages', [NetworkingChannelController::class, 'startDirect']);
+
+        // Must be registered before /channels/{uuid}; otherwise "browse" would be swallowed
+        // as a channel uuid by the wildcard route below.
+        Route::get('/channels/browse', [NetworkingChannelController::class, 'browse']);
+        Route::get('/channels/{uuid}', [NetworkingChannelController::class, 'show']);
+        Route::post('/channels/{uuid}/join', [NetworkingChannelController::class, 'join']);
+        Route::post('/channels/{uuid}/leave', [NetworkingChannelController::class, 'leave']);
+        Route::get('/channels/{uuid}/members', [NetworkingChannelController::class, 'members']);
+
+        Route::get('/channels/{uuid}/messages', [NetworkingMessageController::class, 'index']);
+        Route::post('/channels/{uuid}/messages', [NetworkingMessageController::class, 'store'])->middleware('throttle:customer-networking-message-send');
+        Route::post('/channels/{uuid}/read', [NetworkingMessageController::class, 'markRead']);
+        Route::post('/channels/{uuid}/typing', [NetworkingMessageController::class, 'typing'])->middleware('throttle:customer-networking-typing');
+
+        Route::post('/messages/{uuid}/reactions', [NetworkingReactionController::class, 'store']);
+        Route::delete('/messages/{uuid}/reactions/{emoji}', [NetworkingReactionController::class, 'destroy']);
     });
 });

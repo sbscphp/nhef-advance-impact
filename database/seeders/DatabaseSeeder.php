@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             DonorTierSeeder::class,
             EventSeeder::class,
             MentorshipSeeder::class,
+            NetworkingSeeder::class,
         ]);
     }
 }
