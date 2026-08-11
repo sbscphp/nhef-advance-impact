@@ -4,9 +4,8 @@ use App\Models\User;
 use App\Repositories\Contracts\Networking\NetworkingChannelRepositoryInterface;
 use Illuminate\Support\Facades\Broadcast;
 
-// Broadcast::channel() invokes this closure directly as ($user, ...$patternParams), with no
-// container injection for extra parameters (unlike route closures) - resolve the repository
-// from the container inside the body instead of via a type-hinted parameter.
+// No container injection for extra closure params here (unlike route closures) - resolve the
+// repository inside the body instead of via a type-hinted parameter, or this throws ArgumentCountError.
 Broadcast::channel('networking.channel.{channelUuid}', function (User $user, string $channelUuid) {
     $channels = app(NetworkingChannelRepositoryInterface::class);
     $channel = $channels->findByUuid($channelUuid);

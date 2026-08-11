@@ -12,9 +12,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * For direct channels, set the `other_member` (User) attribute on the model before wrapping it
  * in this resource, since a direct channel has no name of its own {@see
- * \App\Services\Networking\NetworkingService::attachDirectChannelDisplayData()}. Its `description`
- * is a system-generated "Direct message between X and Y" string set at creation time, unlike
- * community/forum channels where it's admin-authored.
+ * \App\Services\Networking\NetworkingService::attachDirectChannelDisplayData()}.
  */
 class NetworkingChannelResource extends JsonResource
 {

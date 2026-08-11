@@ -57,7 +57,8 @@ class NetworkingServiceTest extends TestCase
         $channelRepository = Mockery::mock(NetworkingChannelRepositoryInterface::class);
         $channelRepository->shouldReceive('findDirectBetween')->once()->andReturn(null);
         $channelRepository->shouldReceive('create')->once()
-            ->with(['type' => NetworkingChannelTypeEnum::DIRECT->value])
+            ->with(Mockery::on(fn (array $data): bool => $data['type'] === NetworkingChannelTypeEnum::DIRECT->value
+                && str_starts_with($data['description'] ?? '', 'Direct message between')))
             ->andReturn($newChannel);
         $channelRepository->shouldReceive('addMember')->twice()->andReturn(true);
 

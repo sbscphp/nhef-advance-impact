@@ -102,9 +102,8 @@ class NotificationInboxService
     }
 
     /**
-     * Category counts for the left-hand filter list (System Notification / Core Platform / etc.),
-     * always unfiltered by the current read-status/date selection so the sidebar counts stay
-     * stable while browsing - only the visible list itself reacts to those filters.
+     * Always unfiltered by the current read-status/date selection, so sidebar counts stay stable
+     * while browsing.
      *
      * @param  Model&object{notifications(): mixed}  $recipient
      * @return list<array{key: string, label: string, count: int}>
@@ -122,9 +121,8 @@ class NotificationInboxService
     }
 
     /**
-     * JSON_EXTRACT returns SQL NULL for notifications with no "module" key at all, which
-     * whereIn() never matches - "Others" also needs an explicit OR-NULL to catch those, nested
-     * in its own group so it can't leak past the recipient scope on notifications() itself.
+     * "Others" needs an OR-NULL for notifications with no module key, nested in its own group so
+     * it can't leak past the recipient scope on notifications() itself.
      *
      * @param  Model&object{notifications(): mixed}  $recipient
      */

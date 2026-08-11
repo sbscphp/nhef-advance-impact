@@ -3,12 +3,8 @@
 namespace App\Enums;
 
 /**
- * UI-level grouping of the granular ModuleEnums keys used to tag notifications, matching the
- * admin "Notification" screen's left-hand category filter (System Notification / Core Platform /
- * Alumni & Advancement Suite / Impact & Grant / Others). This grouping isn't specified anywhere
- * in the BRD or existing module mapping (see PermissionModuleMapper, which only lists modules
- * flat) - it's inferred from the design. Adjust modules() below if a category should cover a
- * different set of ModuleEnums values.
+ * UI-level grouping of ModuleEnums keys for the admin "Notification" screen's category filter.
+ * Not specified in the BRD - inferred from the design, so adjust modules() below if wrong.
  */
 enum NotificationCategoryEnum: string
 {

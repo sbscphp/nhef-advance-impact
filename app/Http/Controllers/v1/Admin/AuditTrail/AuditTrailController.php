@@ -14,14 +14,8 @@ use App\Services\Audit\AuditTrailQueryService;
 use App\Support\ListingQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Knuckles\Scribe\Attributes\Authenticated;
-use Knuckles\Scribe\Attributes\Endpoint;
-use Knuckles\Scribe\Attributes\Group;
-use Knuckles\Scribe\Attributes\QueryParam;
-use Knuckles\Scribe\Attributes\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-#[Group('Admin / Audit Trail', 'Search, filter, and export the immutable log of admin/customer actions. Requires the `audit_trail.read` permission.')]
 class AuditTrailController extends Controller
 {
     public function __construct(
@@ -29,45 +23,6 @@ class AuditTrailController extends Controller
         private readonly PDFReportHelper $pdfReportHelper,
     ) {}
 
-    #[Endpoint('List / search / export audit logs', 'Returns paginated JSON by default. Set export=csv or export=pdf to instead stream a file download of the same filtered result set (capped at 5000 rows; the CSV response carries an X-Export-Truncated header when the real total exceeds that).')]
-    #[Authenticated]
-    #[QueryParam('search', 'string', 'Matches description, UUID, IP, user agent, action, module, model, model ID, actor email/name/phone.', required: false, example: 'campaign')]
-    #[QueryParam('period', 'string', 'Filters by date. One of: 1day, 3days, 7days, 14days, 30days, 3months, 6months, 1year, lastyear, custom.', required: false, example: '30days')]
-    #[QueryParam('start_date', 'string', 'Start date; required when period=custom.', required: false, example: '2026-06-01')]
-    #[QueryParam('end_date', 'string', 'End date; required when period=custom.', required: false, example: '2026-06-30')]
-    #[QueryParam('sort_by', 'string', 'One of: id, uuid, created_at, action, action_module, user_type, http_status.', required: false, example: 'created_at')]
-    #[QueryParam('sort_direction', 'string', 'asc or desc (default).', required: false, example: 'desc')]
-    #[QueryParam('export', 'string', 'csv or pdf to download instead of a JSON page.', required: false, example: 'csv')]
-    #[QueryParam('filters[user_type]', 'string', 'One of: ADMIN, CUSTOMER.', required: false, example: 'ADMIN')]
-    #[QueryParam('filters[action_module]', 'string', 'One of: dashboard, alumni, constituent_management, user_management, audit_trail, settings, authentication, fundraising, donation, communications, crm, events, reporting, mentorship, networking, custom_field, system_configuration.', required: false, example: 'fundraising')]
-    #[QueryParam('filters[action]', 'string', 'One of the AuditActionEnum values, e.g. CAMPAIGN_CREATED, LOGIN_SUCCESS, ADMIN_DELETED.', required: false, example: 'CAMPAIGN_CREATED')]
-    #[QueryParam('filters[model]', 'string', 'Matches the affected model class name.', required: false, example: 'Campaign')]
-    #[QueryParam('filters[http_status]', 'int', 'Exact HTTP status code of the originating request (100-599).', required: false, example: 200)]
-    #[QueryParam('page', 'int', 'Page number.', required: false, example: 1)]
-    #[QueryParam('per_page', 'int', 'Results per page (max 100).', required: false, example: 15)]
-    #[Response(status: 200, content: [
-        'error' => false,
-        'message' => 'Audit logs retrieved.',
-        'data' => [
-            'current_page' => 1,
-            'data' => [
-                [
-                    'uuid' => 'b2c3d4e5-f6a7-48b9-90c1-d2e3f4a5b6c7',
-                    'user_type' => 'ADMIN',
-                    'action_module' => 'fundraising',
-                    'action' => 'CAMPAIGN_CREATED',
-                    'description' => 'Adeola Craig created a new Campaign.',
-                    'ip_address' => '127.0.0.1',
-                    'user_agent' => 'Mozilla/5.0',
-                    'http_outcome' => 'success',
-                    'created_at' => '2026-06-16T05:20:00+00:00',
-                    'admin' => ['uuid' => 'a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7', 'name' => 'Adeola Craig', 'email' => 'adeola@nhef.org'],
-                ],
-            ],
-            'per_page' => 15,
-            'total' => 1,
-        ],
-    ], description: 'JSON mode only (export not set); each row groups naturally by created_at date on the client if a "grouped by day" view is needed - the API itself returns a flat, sorted list.')]
     public function index(AuditTrailListingRequest $request)
     {
         try {

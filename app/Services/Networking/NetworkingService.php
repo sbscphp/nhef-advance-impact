@@ -97,9 +97,8 @@ class NetworkingService
             return $existing;
         }
 
-        // Identifies the pair at a glance, both via the API and when inspecting the table
-        // directly. Truncated defensively: MySQL strict mode throws on overlong values for this
-        // VARCHAR(255) column, and unusually long names/emails could otherwise break DM creation.
+        // mb_substr below: MySQL strict mode throws on overlong values for this VARCHAR(255)
+        // column, and unusually long names/emails could otherwise break DM creation entirely.
         $description = "Direct message between {$user->displayName()} ({$user->email}) and {$otherUser->displayName()} ({$otherUser->email})";
 
         $channel = $this->channelRepository->create([
@@ -129,8 +128,8 @@ class NetworkingService
 
         $wasAdded = $this->channelRepository->addMember($channel, $user->id);
 
-        // Re-fetch: $channel's members_count was loaded by the withCount() in findChannelOrFail()
-        // above, before addMember() ran, so it would otherwise report the pre-join count.
+        // Re-fetch: $channel's members_count was loaded before addMember() ran, so it would
+        // otherwise report the pre-join count.
         $refreshed = $this->findChannelOrFail($uuid);
         $refreshed->setAttribute('viewer_is_member', true);
         $refreshed->setAttribute('was_already_member', ! $wasAdded);

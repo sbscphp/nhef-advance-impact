@@ -8,10 +8,8 @@ use App\Http\Requests\Concerns\ListingFilterRules;
 use Illuminate\Validation\Rule;
 
 /**
- * Shared by both "My conversations" and "Browse Community/Forum channels". sort_by,
- * sort_direction, period, start_date, and end_date only take effect on the browse endpoint;
- * conversations always stay ordered by most recent activity, since a direct conversation has no
- * queryable name or creation date of its own.
+ * Shared by both "My conversations" and "Browse Community/Forum channels" - sort_by/period
+ * filters only take effect on browse; conversations always stay ordered by recent activity.
  */
 class ChannelListRequest extends ApiFormRequest
 {
