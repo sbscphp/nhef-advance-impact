@@ -41,6 +41,10 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->when(
                 filled($filters['filters']['status'] ?? null),
                 fn ($query) => $query->where('status', $filters['filters']['status'])
+            )
+            ->when(
+                filled($filters['filters']['type'] ?? null),
+                fn ($query) => $query->where('type', $filters['filters']['type'])
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');

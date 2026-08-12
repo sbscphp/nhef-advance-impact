@@ -18,6 +18,7 @@ class CampaignPledgeResource extends JsonResource
         return [
             'pledge_id' => $this->uuid,
             'donor_name' => $this->donorName(),
+            'institution' => $this->whenLoaded('user', fn () => $this->user?->university),
             'total_pledge' => (string) $this->total_amount,
             'total_pledge_formatted' => Money::format($this->total_amount, $this->currency),
             'received' => (string) $this->amount_paid,

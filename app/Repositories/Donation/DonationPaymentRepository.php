@@ -154,4 +154,15 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->when($to !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '<=', $to))
             ->sum('donation_payments.amount');
     }
+
+    public function sumSuccessfulForCampaignAndUniversity(int $campaignId, string $university): string
+    {
+        return (string) DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('users', 'users.id', '=', 'donations.user_id')
+            ->where('donations.campaign_id', $campaignId)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('users.university', $university)
+            ->sum('donation_payments.amount');
+    }
 }

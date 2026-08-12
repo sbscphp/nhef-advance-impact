@@ -21,6 +21,7 @@ class CampaignDonationResource extends JsonResource
             'date' => ($this->paid_at ?? $this->created_at)?->toIso8601String(),
             'donor_name' => $this->whenLoaded('donation', fn () => $this->donation->donorName()),
             'donor_email' => $this->whenLoaded('donation', fn () => $this->donation->donorEmail()),
+            'institution' => $this->whenLoaded('donation', fn () => $this->donation->user?->university),
             'amount' => (string) $this->amount,
             'amount_formatted' => Money::format($this->amount, $this->currency),
             'method' => $this->method,

@@ -5,6 +5,7 @@ use App\Http\Controllers\v1\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\v1\Admin\Auth\PasswordController as AdminPasswordController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
+use App\Http\Controllers\v1\Admin\Fundraising\InstitutionController;
 use App\Http\Controllers\v1\Admin\Networking\AlumniSearchController;
 use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkingChannelController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
@@ -107,8 +108,17 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.create']);
         });
 
+        Route::prefix('institutions')->group(function () {
+            Route::get('/', [InstitutionController::class, 'index'])
+                ->middleware(['permission:campaigns.read']);
+            Route::post('/', [InstitutionController::class, 'store'])
+                ->middleware(['permission:campaigns.create']);
+        });
+
         Route::prefix('campaigns')->group(function () {
             Route::post('/', [AdminCampaignController::class, 'store'])
+                ->middleware(['permission:campaigns.create']);
+            Route::post('/national-giving-day', [AdminCampaignController::class, 'storeNationalGivingDay'])
                 ->middleware(['permission:campaigns.create']);
             Route::get('/', [AdminCampaignController::class, 'index'])
                 ->middleware(['permission:campaigns.read']);
@@ -120,6 +130,16 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.update']);
             Route::patch('/{uuid}/resume', [AdminCampaignController::class, 'resume'])
                 ->middleware(['permission:campaigns.update']);
+            Route::get('/{uuid}/institutions', [AdminCampaignController::class, 'institutions'])
+                ->middleware(['permission:campaigns.read']);
+            Route::post('/{uuid}/institutions', [AdminCampaignController::class, 'addInstitution'])
+                ->middleware(['permission:campaigns.create']);
+            Route::put('/{uuid}/institutions', [AdminCampaignController::class, 'syncInstitutions'])
+                ->middleware(['permission:campaigns.update']);
+            Route::patch('/{uuid}/institutions/{institutionUuid}', [AdminCampaignController::class, 'updateInstitution'])
+                ->middleware(['permission:campaigns.update']);
+            Route::delete('/{uuid}/institutions/{institutionUuid}', [AdminCampaignController::class, 'removeInstitution'])
+                ->middleware(['permission:campaigns.delete']);
             Route::get('/{uuid}/donations', [AdminCampaignController::class, 'donations'])
                 ->middleware(['permission:campaigns.read']);
             Route::get('/{uuid}/donations/overview', [AdminCampaignController::class, 'donationsOverview'])

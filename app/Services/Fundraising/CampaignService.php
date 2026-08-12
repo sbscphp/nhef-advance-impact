@@ -4,6 +4,7 @@ namespace App\Services\Fundraising;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\CampaignStatusEnum;
+use App\Enums\CampaignTypeEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
@@ -13,15 +14,21 @@ use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Admin;
 use App\Models\BankAccount;
 use App\Models\Campaign;
+use App\Models\CampaignInstitution;
+use App\Models\Institution;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\BankAccount\BankAccountRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
+use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CampaignService
@@ -33,6 +40,8 @@ class CampaignService
         private readonly DonationPaymentRepositoryInterface $paymentRepository,
         private readonly PledgeRepositoryInterface $pledgeRepository,
         private readonly DonorTierRepositoryInterface $donorTierRepository,
+        private readonly InstitutionRepositoryInterface $institutionRepository,
+        private readonly CampaignInstitutionRepositoryInterface $campaignInstitutionRepository,
     ) {}
 
     /**
@@ -93,6 +102,33 @@ class CampaignService
     }
 
     /**
+     * Backs the "View Campaign" header total for a National Giving Day campaign. Institutions can
+     * carry different currencies, and summing across currencies isn't meaningful (same limitation
+     * already accepted elsewhere, e.g. `DonationPaymentRepository::sumSuccessfulForUser`), so this
+     * aggregates NGN-currency institutions only.
+     *
+     * @return array{goal_amount: string, raised_amount: string, currency: string}
+     */
+    public function nationalGivingDayTotals(Campaign $campaign): array
+    {
+        $rows = $this->campaignInstitutionRepository->allForCampaign($campaign->id)
+            ->filter(fn (CampaignInstitution $row) => $row->currency === 'NGN');
+
+        $goalAmount = (string) $rows->sum(fn (CampaignInstitution $row) => (float) $row->goal_amount);
+
+        $raisedAmount = (string) $rows->sum(function (CampaignInstitution $row) use ($campaign) {
+            return (float) $this->paymentRepository->sumSuccessfulForCampaignAndUniversity($campaign->id, $row->institution->name)
+                + (float) $this->pledgeRepository->sumReceivedForCampaignAndUniversity($campaign->id, $row->institution->name);
+        });
+
+        return [
+            'goal_amount' => $goalAmount,
+            'raised_amount' => $raisedAmount,
+            'currency' => 'NGN',
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function create(array $payload, Admin $actor, Request $request): Campaign
@@ -150,6 +186,102 @@ class CampaignService
         );
 
         return $campaign;
+    }
+
+    /**
+     * Backs the "Add National Giving Day Campaign" wizard. Unlike a standard campaign, there is
+     * no single top-level goal/currency/bank account; each targeted institution carries its own.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function createNationalGivingDay(array $payload, Admin $actor, Request $request): Campaign
+    {
+        $allocatedAdmin = $this->adminRepository->findByUuid((string) $payload['allocated_admin_id']);
+        if (! $allocatedAdmin instanceof Admin) {
+            throw new ApiException('The selected officer does not exist.', 422);
+        }
+
+        $institutionRows = $this->resolveInstitutionRows((array) $payload['institutions']);
+
+        $coverUrl = FileUploadHelper::smartSingleFileUpload($payload['cover'] ?? null, 'campaigns/covers');
+
+        $campaign = $this->campaignRepository->create([
+            'title' => $payload['title'],
+            'slug' => $this->uniqueSlug((string) $payload['title']),
+            'description' => $payload['description'],
+            'cover_image_url' => $coverUrl,
+            'type' => CampaignTypeEnum::NATIONAL_GIVING_DAY->value,
+            'currency' => null,
+            'goal_amount' => null,
+            'raised_amount' => 0,
+            'allow_one_time' => true,
+            'allow_recurring' => true,
+            'allow_anonymous' => true,
+            'status' => CampaignStatusEnum::ACTIVE->value,
+            'starts_at' => $payload['starts_at'],
+            'ends_at' => $payload['ends_at'] ?? null,
+            'created_by' => $actor->uuid,
+            'allocated_admin_id' => $allocatedAdmin->id,
+            'bank_account_id' => null,
+        ]);
+
+        $this->campaignInstitutionRepository->createMany($campaign, $institutionRows);
+
+        $campaign->setRelation('allocatedAdmin', $allocatedAdmin);
+        $campaign->load('campaignInstitutions.institution', 'campaignInstitutions.bankAccount.bank');
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::CAMPAIGN_CREATED,
+            $request,
+            $actor->uuid,
+            [
+                'campaign_uuid' => $campaign->uuid,
+                'title' => $campaign->title,
+                'type' => $campaign->type,
+                'institution_count' => count($institutionRows),
+            ],
+            $actor->displayName().' created a National Giving Day campaign: '.$campaign->title.'.',
+            Campaign::class,
+            $campaign->uuid,
+            ModuleEnums::fundraising,
+            200,
+        );
+
+        return $campaign;
+    }
+
+    /**
+     * Resolves and validates each `institutions[]` entry's institution/bank-account uuids into
+     * FK ids, ready for `CampaignInstitution::create()`. Shared by create and add-institution.
+     *
+     * @param  list<array<string, mixed>>  $institutions
+     * @return list<array<string, mixed>>
+     */
+    private function resolveInstitutionRows(array $institutions): array
+    {
+        $rows = [];
+
+        foreach ($institutions as $entry) {
+            $institution = $this->institutionRepository->findByUuid((string) $entry['institution_id']);
+            if (! $institution instanceof Institution) {
+                throw new ApiException('One of the selected institutions does not exist.', 422);
+            }
+
+            $bankAccount = $this->bankAccountRepository->findByUuid((string) $entry['bank_account_id']);
+            if (! $bankAccount instanceof BankAccount) {
+                throw new ApiException('One of the selected bank accounts does not exist.', 422);
+            }
+
+            $rows[] = [
+                'institution_id' => $institution->id,
+                'goal_amount' => $entry['goal_amount'],
+                'currency' => $entry['currency'],
+                'bank_account_id' => $bankAccount->id,
+            ];
+        }
+
+        return $rows;
     }
 
     /**
@@ -262,6 +394,199 @@ class CampaignService
         );
 
         return $campaign;
+    }
+
+    /**
+     * Backs the "Institutions" tab. Each row's `raised_amount` is computed live (donations +
+     * pledge payments from donors whose profile `university` matches the institution's name),
+     * not stored, since donors don't earmark a gift to a specific institution.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function listInstitutions(string $uuid, array $filters): LengthAwarePaginator
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        $paginator = $this->campaignInstitutionRepository->paginateForCampaign($campaign->id, $filters, $perPage);
+
+        foreach ($paginator->items() as $row) {
+            /** @var CampaignInstitution $row */
+            $raised = (float) $this->paymentRepository->sumSuccessfulForCampaignAndUniversity($campaign->id, $row->institution->name)
+                + (float) $this->pledgeRepository->sumReceivedForCampaignAndUniversity($campaign->id, $row->institution->name);
+            $row->setAttribute('raised_amount', (string) $raised);
+        }
+
+        return $paginator;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function addInstitution(string $uuid, array $payload, Admin $actor, Request $request): CampaignInstitution
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $this->assertNationalGivingDay($campaign);
+
+        $rows = $this->resolveInstitutionRows([$payload]);
+        $campaignInstitution = $this->campaignInstitutionRepository->create($campaign, $rows[0]);
+        $campaignInstitution->load('institution', 'bankAccount.bank');
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::CAMPAIGN_INSTITUTION_ADDED,
+            $request,
+            $actor->uuid,
+            ['campaign_uuid' => $campaign->uuid, 'institution' => $campaignInstitution->institution->name],
+            $actor->displayName().' added '.$campaignInstitution->institution->name.' to campaign: '.$campaign->title.'.',
+            Campaign::class,
+            $campaign->uuid,
+            ModuleEnums::fundraising,
+            200,
+        );
+
+        return $campaignInstitution;
+    }
+
+    /**
+     * Replaces a National Giving Day campaign's full institution list in one transaction:
+     * matches submitted rows to existing ones by `institution_id` (unique per campaign),
+     * updates matches, creates new ones, and removes rows no longer present in the payload.
+     * Backs the "edit institutions" screen, which submits the whole list together rather
+     * than one row at a time.
+     *
+     * @param  list<array<string, mixed>>  $institutions
+     * @return Collection<int, CampaignInstitution>
+     */
+    public function syncInstitutions(string $uuid, array $institutions, Admin $actor, Request $request): Collection
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $this->assertNationalGivingDay($campaign);
+
+        $rows = $this->resolveInstitutionRows($institutions);
+
+        $campaignInstitutions = DB::transaction(function () use ($campaign, $rows) {
+            $existing = $this->campaignInstitutionRepository->allForCampaign($campaign->id)->keyBy('institution_id');
+            $submittedInstitutionIds = array_column($rows, 'institution_id');
+
+            foreach ($rows as $row) {
+                $current = $existing->get($row['institution_id']);
+
+                if ($current instanceof CampaignInstitution) {
+                    $this->campaignInstitutionRepository->update($current, $row);
+                } else {
+                    $this->campaignInstitutionRepository->create($campaign, $row);
+                }
+            }
+
+            foreach ($existing as $institutionId => $campaignInstitution) {
+                if (! in_array($institutionId, $submittedInstitutionIds, true)) {
+                    $this->campaignInstitutionRepository->delete($campaignInstitution);
+                }
+            }
+
+            return $this->campaignInstitutionRepository->allForCampaign($campaign->id);
+        });
+
+        $campaignInstitutions->load('institution', 'bankAccount.bank');
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::CAMPAIGN_INSTITUTION_UPDATED,
+            $request,
+            $actor->uuid,
+            ['campaign_uuid' => $campaign->uuid, 'institution_count' => $campaignInstitutions->count()],
+            $actor->displayName().' updated the institution allocations for campaign: '.$campaign->title.'.',
+            Campaign::class,
+            $campaign->uuid,
+            ModuleEnums::fundraising,
+            200,
+        );
+
+        return $campaignInstitutions;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateInstitution(string $uuid, string $institutionUuid, array $payload, Admin $actor, Request $request): CampaignInstitution
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $this->assertNationalGivingDay($campaign);
+
+        $campaignInstitution = $this->campaignInstitutionRepository->findForCampaign($campaign->id, $institutionUuid);
+        if (! $campaignInstitution instanceof CampaignInstitution) {
+            throw new ApiException('Campaign institution not found.', 404);
+        }
+
+        $updates = [];
+        foreach (['goal_amount', 'currency'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $updates[$field] = $payload[$field];
+            }
+        }
+
+        if (array_key_exists('bank_account_id', $payload)) {
+            $bankAccount = $this->bankAccountRepository->findByUuid((string) $payload['bank_account_id']);
+            if (! $bankAccount instanceof BankAccount) {
+                throw new ApiException('The selected bank account does not exist.', 422);
+            }
+            $updates['bank_account_id'] = $bankAccount->id;
+        }
+
+        if ($updates !== []) {
+            $campaignInstitution = $this->campaignInstitutionRepository->update($campaignInstitution, $updates);
+        }
+        $campaignInstitution->load('institution', 'bankAccount.bank');
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::CAMPAIGN_INSTITUTION_UPDATED,
+            $request,
+            $actor->uuid,
+            ['campaign_uuid' => $campaign->uuid, 'campaign_institution_uuid' => $campaignInstitution->uuid, 'fields' => array_keys($updates)],
+            $actor->displayName().' updated an institution allocation on campaign: '.$campaign->title.'.',
+            Campaign::class,
+            $campaign->uuid,
+            ModuleEnums::fundraising,
+            200,
+        );
+
+        return $campaignInstitution;
+    }
+
+    public function removeInstitution(string $uuid, string $institutionUuid, Admin $actor, Request $request): void
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $this->assertNationalGivingDay($campaign);
+
+        $campaignInstitution = $this->campaignInstitutionRepository->findForCampaign($campaign->id, $institutionUuid);
+        if (! $campaignInstitution instanceof CampaignInstitution) {
+            throw new ApiException('Campaign institution not found.', 404);
+        }
+
+        $institutionName = $campaignInstitution->institution->name;
+        $this->campaignInstitutionRepository->delete($campaignInstitution);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::CAMPAIGN_INSTITUTION_REMOVED,
+            $request,
+            $actor->uuid,
+            ['campaign_uuid' => $campaign->uuid, 'institution' => $institutionName],
+            $actor->displayName().' removed '.$institutionName.' from campaign: '.$campaign->title.'.',
+            Campaign::class,
+            $campaign->uuid,
+            ModuleEnums::fundraising,
+            200,
+        );
+    }
+
+    private function assertNationalGivingDay(Campaign $campaign): void
+    {
+        if ($campaign->type !== CampaignTypeEnum::NATIONAL_GIVING_DAY->value) {
+            throw new ApiException('Institutions can only be managed on a National Giving Day campaign.', 422);
+        }
     }
 
     /**

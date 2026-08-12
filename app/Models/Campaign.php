@@ -53,6 +53,11 @@ class Campaign extends Model
         return $this->belongsTo(BankAccount::class);
     }
 
+    public function campaignInstitutions(): HasMany
+    {
+        return $this->hasMany(CampaignInstitution::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', CampaignStatusEnum::ACTIVE->value);

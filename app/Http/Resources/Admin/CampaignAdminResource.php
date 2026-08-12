@@ -21,6 +21,7 @@ class CampaignAdminResource extends JsonResource
             'slug' => $this->slug,
             'description' => $this->description,
             'cover_image_url' => $this->cover_image_url,
+            'type' => $this->type,
             'currency' => $this->currency,
             'goal_amount' => (string) $this->goal_amount,
             'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),

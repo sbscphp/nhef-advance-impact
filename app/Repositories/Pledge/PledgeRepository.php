@@ -100,4 +100,13 @@ class PledgeRepository implements PledgeRepositoryInterface
     {
         return $pledge->fresh($relations);
     }
+
+    public function sumReceivedForCampaignAndUniversity(int $campaignId, string $university): string
+    {
+        return (string) Pledge::query()
+            ->join('users', 'users.id', '=', 'pledges.user_id')
+            ->where('pledges.campaign_id', $campaignId)
+            ->where('users.university', $university)
+            ->sum('pledges.amount_paid');
+    }
 }
