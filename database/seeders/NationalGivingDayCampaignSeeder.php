@@ -14,9 +14,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * One sample National Giving Day campaign with three institution allocations, for local
- * development and Postman testing. Depends on AdminSeeder, BankSeeder, and InstitutionSeeder
- * having already run.
+ * Depends on AdminSeeder, BankSeeder, and InstitutionSeeder.
  *
  * php artisan db:seed --class=NationalGivingDayCampaignSeeder
  */

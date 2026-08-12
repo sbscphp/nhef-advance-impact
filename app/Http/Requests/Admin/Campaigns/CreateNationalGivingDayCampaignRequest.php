@@ -13,11 +13,7 @@ class CreateNationalGivingDayCampaignRequest extends ApiFormRequest
 
     private const MAX_COVER_BYTES = 10 * 1024 * 1024;
 
-    /**
-     * `institutions` normally arrives already nested (e.g. Postman's `institutions[0][institution_id]`
-     * form-data fields, which PHP parses natively). This only handles the fallback case where a
-     * client sends it as a single JSON-encoded string field instead.
-     */
+    /** Fallback for clients sending `institutions` as a JSON-encoded string instead of nested fields. */
     protected function prepareForValidation(): void
     {
         if (is_string($this->input('institutions'))) {

@@ -23,16 +23,9 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * Pledges + installments + payments for every seeded campaign, alongside DonationSeeder, so
- * admin endpoints (campaign pledges list, institutions tab, donor breakdown) have real pledge
- * data to return for local Postman testing. Depends on CampaignSeeder, InstitutionSeeder, and
- * NationalGivingDayCampaignSeeder having already run; DonationSeeder is independent but
- * recommended first so `raised_amount` reflects both in one pass.
- *
- * National Giving Day pledges are attributed to an institution purely by the pledgor's
- * `university` field matching the institution's name (see
- * PledgeRepository::sumReceivedForCampaignAndUniversity()), reusing the same per-institution
- * donor DonationSeeder creates.
+ * Depends on CampaignSeeder, InstitutionSeeder, and NationalGivingDayCampaignSeeder. Run after
+ * DonationSeeder so `raised_amount` reflects both. Reuses DonationSeeder's per-institution
+ * donors, since National Giving Day attribution is by the pledgor's `university` field.
  *
  * php artisan db:seed --class=PledgeSeeder
  */

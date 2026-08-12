@@ -6,11 +6,7 @@ use App\Enums\eRole;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
-/**
- * Shared by DonationSeeder and PledgeSeeder so a National Giving Day institution's seeded
- * donation and seeded pledge come from the same donor, whose `university` is what attributes
- * either one to that institution (see CampaignService::nationalGivingDayTotals()).
- */
+/** Shared so a National Giving Day institution's seeded donation and pledge share the same donor. */
 trait SeedsDonors
 {
     private const DONOR_PASSWORD = 'password';

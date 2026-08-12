@@ -19,16 +19,9 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * Successful donations + payments for every seeded campaign, so admin endpoints (campaign
- * donations list, donation overview, donor breakdown, institutions tab) have real data to
- * return for local Postman testing. Depends on CampaignSeeder, InstitutionSeeder, and
- * NationalGivingDayCampaignSeeder having already run.
- *
- * National Giving Day donations are attributed to an institution purely by the donor's
- * `university` field matching the institution's name (see
- * CampaignService::listInstitutions()/nationalGivingDayTotals()), so this creates one donor
- * per institution with `university` set accordingly, rather than tying the payment to the
- * institution directly.
+ * Depends on CampaignSeeder, InstitutionSeeder, and NationalGivingDayCampaignSeeder. National
+ * Giving Day donations are attributed to an institution by the donor's `university` matching
+ * the institution's name (see CampaignService::nationalGivingDayTotals()).
  *
  * php artisan db:seed --class=DonationSeeder
  */

@@ -102,10 +102,7 @@ class CampaignService
     }
 
     /**
-     * Backs the "View Campaign" header total for a National Giving Day campaign. Institutions can
-     * carry different currencies, and summing across currencies isn't meaningful (same limitation
-     * already accepted elsewhere, e.g. `DonationPaymentRepository::sumSuccessfulForUser`), so this
-     * aggregates NGN-currency institutions only.
+     * Summing across currencies isn't meaningful, so this aggregates NGN institutions only.
      *
      * @return array{goal_amount: string, raised_amount: string, currency: string}
      */
@@ -189,8 +186,8 @@ class CampaignService
     }
 
     /**
-     * Backs the "Add National Giving Day Campaign" wizard. Unlike a standard campaign, there is
-     * no single top-level goal/currency/bank account; each targeted institution carries its own.
+     * Unlike a standard campaign, there's no top-level goal/currency/bank account; each
+     * institution carries its own.
      *
      * @param  array<string, mixed>  $payload
      */
@@ -252,9 +249,6 @@ class CampaignService
     }
 
     /**
-     * Resolves and validates each `institutions[]` entry's institution/bank-account uuids into
-     * FK ids, ready for `CampaignInstitution::create()`. Shared by create and add-institution.
-     *
      * @param  list<array<string, mixed>>  $institutions
      * @return list<array<string, mixed>>
      */
@@ -397,9 +391,7 @@ class CampaignService
     }
 
     /**
-     * Backs the "Institutions" tab. Each row's `raised_amount` is computed live (donations +
-     * pledge payments from donors whose profile `university` matches the institution's name),
-     * not stored, since donors don't earmark a gift to a specific institution.
+     * `raised_amount` is computed live from donors whose `university` matches the institution.
      *
      * @param  array<string, mixed>  $filters
      */
@@ -449,11 +441,8 @@ class CampaignService
     }
 
     /**
-     * Replaces a National Giving Day campaign's full institution list in one transaction:
-     * matches submitted rows to existing ones by `institution_id` (unique per campaign),
-     * updates matches, creates new ones, and removes rows no longer present in the payload.
-     * Backs the "edit institutions" screen, which submits the whole list together rather
-     * than one row at a time.
+     * Matches rows by `institution_id` (unique per campaign): updates matches, creates new
+     * ones, deletes rows no longer present.
      *
      * @param  list<array<string, mixed>>  $institutions
      * @return Collection<int, CampaignInstitution>

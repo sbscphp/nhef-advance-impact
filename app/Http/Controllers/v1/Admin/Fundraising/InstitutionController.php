@@ -17,22 +17,7 @@ class InstitutionController extends Controller
     public function __construct(private readonly InstitutionService $institutionService) {}
 
     /**
-     * List institutions
-     *
-     * Returns every institution, for populating the "Institution" dropdown on the National
-     * Giving Day campaign wizard. Pass `active_only=false` to include inactive ones.
-     *
-     * @group Institutions
-     *
-     * @queryParam active_only boolean Whether to only return active institutions. Defaults to true. Example: true
-     *
-     * @response 200 {
-     *   "error": false,
-     *   "message": "Institutions retrieved.",
-     *   "data": [
-     *     {"uuid": "0f2a1e2e-2c3b-4a3e-9c3d-6e3a3f1b2c4d", "name": "University of Lagos", "is_active": true}
-     *   ]
-     * }
+     * @hideFromAPIDocumentation
      */
     public function index(InstitutionListRequest $request)
     {
@@ -47,20 +32,7 @@ class InstitutionController extends Controller
     }
 
     /**
-     * Add an institution
-     *
-     * Adds a new institution to the shared lookup list, so it becomes selectable on the
-     * National Giving Day campaign wizard.
-     *
-     * @group Institutions
-     *
-     * @bodyParam name string required The institution's name. Must be unique. Example: University of Abuja
-     *
-     * @response 200 {
-     *   "error": false,
-     *   "message": "Institution added.",
-     *   "data": {"uuid": "0f2a1e2e-2c3b-4a3e-9c3d-6e3a3f1b2c4d", "name": "University of Abuja", "is_active": true}
-     * }
+     * @hideFromAPIDocumentation
      */
     public function store(CreateInstitutionRequest $request)
     {

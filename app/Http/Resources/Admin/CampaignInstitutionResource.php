@@ -8,9 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * Backs the "Institutions" tab of a National Giving Day campaign. Expects `raised_amount`
- * already set on the model (see CampaignService::listInstitutions()) - it's computed live from
- * donations/pledges, not stored on the row.
+ * Expects `raised_amount` already set on the model (see CampaignService::listInstitutions()).
  *
  * @mixin CampaignInstitution
  */

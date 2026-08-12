@@ -47,32 +47,7 @@ class CampaignController extends Controller
     }
 
     /**
-     * Create a National Giving Day campaign
-     *
-     * Creates a multi-institution campaign: unlike a standard campaign, there is no single
-     * top-level goal/currency/bank account - each targeted institution carries its own via the
-     * `institutions` array. The campaign is created directly `active`.
-     *
-     * Because `cover` is a file, this request must be sent as `multipart/form-data`. Send each
-     * institution as its own set of indexed fields, e.g. `institutions[0][institution_id]`,
-     * `institutions[0][goal_amount]`, `institutions[0][currency]`, `institutions[0][bank_account_id]`,
-     * then `institutions[1][institution_id]`, etc. for additional institutions - PHP parses this
-     * into a nested array natively, no JSON encoding needed. A single JSON-encoded string in the
-     * `institutions` field is also accepted as a fallback for programmatic clients.
-     *
-     * @group National Giving Day Campaigns
-     *
-     * @bodyParam title string required Campaign title. Example: Feed a Child
-     * @bodyParam starts_at date required Campaign start date. Example: 2026-09-01
-     * @bodyParam ends_at date Campaign end date, on/after starts_at. Example: 2026-09-30
-     * @bodyParam description string required Campaign description/story.
-     * @bodyParam allocated_admin_id string required UUID of the admin officer this campaign is allocated to.
-     * @bodyParam cover file required Cover image (JPG/PNG/GIF/WEBP, max 10MB).
-     * @bodyParam institutions object[] required List of institution allocations. Send as indexed form-data fields, e.g. institutions[0][institution_id].
-     * @bodyParam institutions[].institution_id string required UUID of the targeted institution. Example: 0f2a1e2e-2c3b-4a3e-9c3d-6e3a3f1b2c4d
-     * @bodyParam institutions[].goal_amount number required Fundraising goal for this institution. Example: 100000
-     * @bodyParam institutions[].currency string required Currency code for this institution's goal. Example: NGN
-     * @bodyParam institutions[].bank_account_id string required UUID of the bank account this institution's donations settle to. Example: b1a2c3d4-5e6f-4a3e-9c3d-6e3a3f1b2c4d
+     * @hideFromAPIDocumentation
      */
     public function storeNationalGivingDay(CreateNationalGivingDayCampaignRequest $request)
     {
@@ -130,11 +105,7 @@ class CampaignController extends Controller
         }
     }
 
-    /**
-     * A national_giving_day campaign has no top-level goal/raised/currency of its own (each
-     * institution carries its own); overlay the live NGN-aggregate totals so the "View Campaign"
-     * header still has something meaningful to show.
-     */
+    /** NGD campaigns store no top-level goal/raised/currency; overlay the live NGN aggregate. */
     private function applyNationalGivingDayTotals(Campaign $campaign): void
     {
         if ($campaign->type !== CampaignTypeEnum::NATIONAL_GIVING_DAY->value) {
@@ -172,13 +143,7 @@ class CampaignController extends Controller
     }
 
     /**
-     * List a campaign's institutions
-     *
-     * Backs the "Institutions" tab of a National Giving Day campaign. Each row's `raised_amount`
-     * is computed live from donations/pledges made by donors whose profile university matches
-     * that institution.
-     *
-     * @group National Giving Day Campaigns
+     * @hideFromAPIDocumentation
      */
     public function institutions(CampaignInstitutionListRequest $request, string $uuid)
     {
@@ -192,16 +157,7 @@ class CampaignController extends Controller
     }
 
     /**
-     * Add an institution to a campaign
-     *
-     * Only valid on a `national_giving_day` campaign.
-     *
-     * @group National Giving Day Campaigns
-     *
-     * @bodyParam institution_id string required UUID of the institution.
-     * @bodyParam goal_amount number required This institution's fundraising goal.
-     * @bodyParam currency string required Currency code (NGN, USD, GBP, EUR).
-     * @bodyParam bank_account_id string required UUID of the recipient bank account.
+     * @hideFromAPIDocumentation
      */
     public function addInstitution(AddCampaignInstitutionRequest $request, string $uuid)
     {
@@ -216,22 +172,9 @@ class CampaignController extends Controller
     }
 
     /**
-     * Replace a campaign's full institution allocation list
+     * Full-list replace: any institution left out of `institutions` is deleted from the campaign.
      *
-     * Send the complete desired list of institutions for this campaign in one request:
-     * existing allocations are updated, ones missing from the list are removed, and new
-     * ones are added, all in a single transaction. Only valid on a `national_giving_day`
-     * campaign. Use this when the interface lets an admin edit multiple institutions
-     * together (a screen that shows the whole list at once); use POST/PATCH/DELETE on
-     * `/institutions/{institutionUuid}` instead for single-row actions.
-     *
-     * @group National Giving Day Campaigns
-     *
-     * @bodyParam institutions object[] required Full list of institution allocations for this campaign.
-     * @bodyParam institutions[].institution_id string required UUID of the targeted institution. Example: 0f2a1e2e-2c3b-4a3e-9c3d-6e3a3f1b2c4d
-     * @bodyParam institutions[].goal_amount number required Fundraising goal for this institution. Example: 100000
-     * @bodyParam institutions[].currency string required Currency code for this institution's goal. Example: NGN
-     * @bodyParam institutions[].bank_account_id string required UUID of the bank account this institution's donations settle to. Example: b1a2c3d4-5e6f-4a3e-9c3d-6e3a3f1b2c4d
+     * @hideFromAPIDocumentation
      */
     public function syncInstitutions(SyncCampaignInstitutionsRequest $request, string $uuid)
     {
@@ -246,17 +189,7 @@ class CampaignController extends Controller
     }
 
     /**
-     * Update a single institution's allocation
-     *
-     * For editing one institution's allocation in isolation. If the interface edits multiple
-     * institutions together, use `PUT /{uuid}/institutions` instead to submit the whole list
-     * at once.
-     *
-     * @group National Giving Day Campaigns
-     *
-     * @bodyParam goal_amount number This institution's fundraising goal.
-     * @bodyParam currency string Currency code (NGN, USD, GBP, EUR).
-     * @bodyParam bank_account_id string UUID of the recipient bank account.
+     * @hideFromAPIDocumentation
      */
     public function updateInstitution(UpdateCampaignInstitutionRequest $request, string $uuid, string $institutionUuid)
     {
@@ -271,9 +204,7 @@ class CampaignController extends Controller
     }
 
     /**
-     * Remove an institution from a campaign
-     *
-     * @group National Giving Day Campaigns
+     * @hideFromAPIDocumentation
      */
     public function removeInstitution(Request $request, string $uuid, string $institutionUuid)
     {
