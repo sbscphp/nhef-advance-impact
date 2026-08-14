@@ -1,6 +1,6 @@
-# NHEF Nexus
+# NHEF Advance Impact
 
-Laravel API backend for the NHEF Nexus platform. This repository currently focuses on **authentication and account management** for admins and customers, with optional API transport encryption, OTP (email/SMS), roles/permissions, audit trails, and notifications.
+Laravel API backend for the NHEF Advance Impact platform. This repository currently focuses on **authentication and account management** for admins and customers, with optional API transport encryption, OTP (email/SMS), roles/permissions, audit trails, and notifications.
 
 API base path: `/api` (Laravel default). Versioned routes live under `/api/v1/...`.
 
@@ -63,7 +63,7 @@ php artisan serve
 ```
 
 Health check: `GET /up`  
-Root: `GET /` → `{ "name": "NHEF Nexus", "status": "ok" }` (name follows `APP_NAME`).
+Root: `GET /` → `{ "name": "NHEF Advance Impact", "status": "ok" }` (name follows `APP_NAME`).
 
 ---
 

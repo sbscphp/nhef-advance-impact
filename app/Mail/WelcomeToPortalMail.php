@@ -30,7 +30,7 @@ class WelcomeToPortalMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.auth.welcome-nhef-nexus',
+            view: 'emails.auth.welcome-nhef-advance-impact',
             with: [
                 'recipientName' => $this->recipientName,
                 'loginUrl' => $this->loginUrl,

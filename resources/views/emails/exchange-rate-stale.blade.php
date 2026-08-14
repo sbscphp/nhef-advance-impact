@@ -1,7 +1,7 @@
 @extends('emails.layouts.base')
 
 @php
-    $subject = 'NHEF Nexus Exchange Rate Alert';
+    $subject = 'NHEF Advance Impact Exchange Rate Alert';
     $headline = 'Exchange Rate Alert';
     $lead = $alertMessage;
 @endphp

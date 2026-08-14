@@ -15,5 +15,5 @@ jobs:
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ftp.jkp.mje.mybluehost.me
-          username: developer@nhef-nexus-api.sbscuk.co.uk
+          username: developer@nhef-advance-impact-api.sbscuk.co.uk
           password: Y[vN1f8I{w9f

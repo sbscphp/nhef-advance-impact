@@ -14,7 +14,7 @@ return [
     'title' => config('app.name').' API Documentation',
 
     // A short description of your API. Will be included in the docs webpage, Postman collection and OpenAPI spec.
-    'description' => 'API documentation for the NHEF Nexus alumni advancement platform: customer/alumni auth, admin, and developer endpoints.',
+    'description' => 'API documentation for the NHEF Advance Impact alumni advancement platform: customer/alumni auth, admin, and developer endpoints.',
 
     // Text to place in the "Introduction" section, right after the `description`. Markdown and HTML are supported.
     'intro_text' => <<<'INTRO'
