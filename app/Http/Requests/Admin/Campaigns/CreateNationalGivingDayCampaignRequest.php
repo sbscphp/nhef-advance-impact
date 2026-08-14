@@ -60,26 +60,29 @@ class CreateNationalGivingDayCampaignRequest extends ApiFormRequest
     private function coverRule(): \Closure
     {
         return function (string $attribute, mixed $value, \Closure $fail): void {
-            if (! $value instanceof UploadedFile) {
-                $fail('The cover must be an uploaded image.');
+            if ($value instanceof UploadedFile) {
+                if (! $value->isValid()) {
+                    $fail('The cover upload failed. Please try again.');
+
+                    return;
+                }
+
+                if (! in_array($value->getMimeType(), self::ALLOWED_COVER_MIME_TYPES, true)) {
+                    $fail('The cover must be a JPG, PNG, GIF, or WEBP image.');
+
+                    return;
+                }
+
+                if ($value->getSize() > self::MAX_COVER_BYTES) {
+                    $fail('The cover must not be larger than 10MB.');
+                }
 
                 return;
             }
 
-            if (! $value->isValid()) {
-                $fail('The cover upload failed. Please try again.');
-
-                return;
-            }
-
-            if (! in_array($value->getMimeType(), self::ALLOWED_COVER_MIME_TYPES, true)) {
-                $fail('The cover must be a JPG, PNG, GIF, or WEBP image.');
-
-                return;
-            }
-
-            if ($value->getSize() > self::MAX_COVER_BYTES) {
-                $fail('The cover must not be larger than 10MB.');
+            // Accepts a base64/data-URI string or an existing http(s) URL (see FileUploadHelper).
+            if (! is_string($value) || trim($value) === '') {
+                $fail('The cover must be an uploaded image, a URL, or a base64-encoded image.');
             }
         };
     }

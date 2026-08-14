@@ -277,11 +277,9 @@ class NetworkingService
      *
      * @param  array<string, mixed>  $validated
      */
-    public function createChannelForAdmin(Admin $actor, array $validated, ?UploadedFile $avatar, Request $request): NetworkingChannel
+    public function createChannelForAdmin(Admin $actor, array $validated, UploadedFile|string|null $avatar, Request $request): NetworkingChannel
     {
-        $avatarUrl = $avatar !== null
-            ? FileUploadHelper::smartSingleFileUpload($avatar, 'networking/avatars')
-            : null;
+        $avatarUrl = FileUploadHelper::smartSingleFileUpload($avatar, 'networking/avatars');
 
         $channel = $this->channelRepository->create([
             'type' => $validated['type'],
@@ -322,7 +320,7 @@ class NetworkingService
      *
      * @param  array<string, mixed>  $validated
      */
-    public function updateChannelForAdmin(Admin $actor, string $uuid, array $validated, ?UploadedFile $avatar, Request $request): NetworkingChannel
+    public function updateChannelForAdmin(Admin $actor, string $uuid, array $validated, UploadedFile|string|null $avatar, Request $request): NetworkingChannel
     {
         $channel = $this->findChannelOrFail($uuid);
 
