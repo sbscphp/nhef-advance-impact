@@ -54,7 +54,7 @@ class ChannelController extends Controller
             $channel = $this->networkingService->createChannelForAdmin(
                 $admin,
                 $request->validated(),
-                $request->file('avatar'),
+                $request->validated()['avatar'] ?? null,
                 $request,
             );
 
@@ -72,7 +72,7 @@ class ChannelController extends Controller
                 $admin,
                 $uuid,
                 $request->validated(),
-                $request->file('avatar'),
+                $request->validated()['avatar'] ?? null,
                 $request,
             );
 
