@@ -154,7 +154,7 @@ class PasswordResetService
         }
 
         $token = $this->issueResetTokenFor($admin);
-        $admin->notify(new AdminResetPasswordLinkMail($token, $this->adminSetPasswordUrl($token)));
+        $admin->notify(new AdminResetPasswordLinkMail($token, $this->adminSetPasswordUrl($token, null, $admin->email)));
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
@@ -306,7 +306,7 @@ class PasswordResetService
         ]);
     }
 
-    public function adminSetPasswordUrl(string $resetToken, ?string $frontendUrl = null): string
+    public function adminSetPasswordUrl(string $resetToken, ?string $frontendUrl = null, ?string $email = null): string
     {
         $override = config('app.admin_frontend_set_password_url');
         if (is_string($override) && $override !== '') {
@@ -316,26 +316,35 @@ class PasswordResetService
             if ($adminFrontend === '') {
                 $adminFrontend = rtrim((string) config('app.frontend_url'), '/');
             }
-            $base = $adminFrontend !== '' ? $adminFrontend.'/create-new-password' : url('/');
+            $base = $adminFrontend !== '' ? $adminFrontend.'/create-password' : url('/');
         }
 
-        $sep = str_contains($base, '?') ? '&' : '?';
-
-        return $base.$sep.'token='.urlencode($resetToken);
+        return $this->appendTokenAndEmail($base, $resetToken, $email);
     }
 
-    public function customerVerifyEmailUrl(string $resetToken, ?string $frontendUrl = null): string
+    public function customerVerifyEmailUrl(string $resetToken, ?string $frontendUrl = null, ?string $email = null): string
     {
         $override = config('app.frontend_verify_email_url');
         if (is_string($override) && $override !== '') {
             $base = $override;
         } else {
-            $base = rtrim((string) ($frontendUrl ?? config('app.frontend_url')), '/').'/create-new-password';
+            $base = rtrim((string) ($frontendUrl ?? config('app.frontend_url')), '/').'/create-password';
         }
 
-        $sep = str_contains($base, '?') ? '&' : '?';
+        return $this->appendTokenAndEmail($base, $resetToken, $email);
+    }
 
-        return $base.$sep.'token='.urlencode($resetToken);
+    /** Matches the frontend's `?token=<token>&email=<email>` contract for both create-password links. */
+    private function appendTokenAndEmail(string $base, string $resetToken, ?string $email): string
+    {
+        $sep = str_contains($base, '?') ? '&' : '?';
+        $url = $base.$sep.'token='.urlencode($resetToken);
+
+        if ($email !== null && $email !== '') {
+            $url .= '&email='.urlencode($email);
+        }
+
+        return $url;
     }
 
     /**

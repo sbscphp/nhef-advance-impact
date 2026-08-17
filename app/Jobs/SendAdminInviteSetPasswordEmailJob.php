@@ -44,7 +44,7 @@ class SendAdminInviteSetPasswordEmailJob implements ShouldBeUnique, ShouldQueue
 
             $admin->notify(new AdminInviteSetPasswordMail(
                 token: $resetToken,
-                resetUrl: $passwordResetService->adminSetPasswordUrl($resetToken, $this->frontendUrl),
+                resetUrl: $passwordResetService->adminSetPasswordUrl($resetToken, $this->frontendUrl, $admin->email),
             ));
         } catch (\Throwable $e) {
             Log::warning('Admin invite set-password email failed: '.$e->getMessage(), [
