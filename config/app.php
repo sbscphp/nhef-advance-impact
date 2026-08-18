@@ -115,8 +115,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | Full URL the admin invite email should link to for first-time password
-    | setup. Defaults to {admin_frontend_url}/create-new-password when not set.
-    | The reset token is appended as a query parameter automatically.
+    | setup. Defaults to {admin_frontend_url}/create-password when not set.
+    | `token` and `email` are appended as query parameters automatically.
     |
     */
     'admin_frontend_set_password_url' => env('ADMIN_FRONTEND_SET_PASSWORD_URL'),
@@ -127,8 +127,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | Full URL the sign-up "Verify Email Address" email should link to, where
-    | the customer sets their password. Defaults to {frontend_url}/create-new-password
-    | when not set. The reset token is appended as a query parameter automatically.
+    | the customer sets their password. Defaults to {frontend_url}/create-password
+    | when not set. `token` and `email` are appended as query parameters automatically.
     |
     */
     'frontend_verify_email_url' => env('FRONTEND_VERIFY_EMAIL_URL'),

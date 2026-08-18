@@ -18,12 +18,24 @@ class DonationPaymentListRequest extends ApiFormRequest
             ListingFilterRules::rules(['name', 'value']),
             [
                 'status' => ['sometimes', 'nullable', Rule::in(PaymentStatusEnum::values())],
+                'export' => ['sometimes', 'nullable', 'string', Rule::in(['csv', 'pdf'])],
             ]
         );
     }
 
     public function messages(): array
     {
-        return array_merge(parent::messages(), ListingFilterRules::listingMessages());
+        return array_merge(parent::messages(), ListingFilterRules::listingMessages(), [
+            'export.in' => "Export format must be either 'csv' or 'pdf'.",
+        ]);
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('export') && is_string($this->input('export'))) {
+            $this->merge([
+                'export' => strtolower(trim($this->input('export'))),
+            ]);
+        }
     }
 }

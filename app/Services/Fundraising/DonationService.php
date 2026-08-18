@@ -27,6 +27,7 @@ use App\Services\ThirdParty\Payment\PaymentGatewayService;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -459,6 +460,18 @@ class DonationService
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         return $this->paymentRepository->paginateForUser($user->id, $filters, $perPage);
+    }
+
+    /**
+     * Same filters as {@see self::paginatePaymentsForUser()}, capped instead of paginated, for
+     * CSV/PDF export of the "Donation History" screen.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, DonationPayment>, 1: bool}
+     */
+    public function exportPaymentsForUser(User $user, array $filters): array
+    {
+        return $this->paymentRepository->exportForUser($user->id, $filters);
     }
 
     public function findPaymentForUser(User $user, string $uuid): DonationPayment

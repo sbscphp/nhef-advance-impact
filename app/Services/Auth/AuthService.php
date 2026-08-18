@@ -96,7 +96,7 @@ class AuthService
             $resetToken = $this->passwordResetService->issueResetTokenFor($user);
             $user->notify(new CustomerVerifyEmailMail(
                 token: $resetToken,
-                verifyUrl: $this->passwordResetService->customerVerifyEmailUrl($resetToken),
+                verifyUrl: $this->passwordResetService->customerVerifyEmailUrl($resetToken, null, $user->email),
             ));
 
             GeneralHelper::storeAuditLog(

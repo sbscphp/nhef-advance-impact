@@ -33,7 +33,7 @@ class NetworkingMessageRepository implements NetworkingMessageRepositoryInterfac
         }
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
-        ListingFilterRules::applySort($query, $filters, [], 'created_at', 'desc');
+        ListingFilterRules::applySort($query, $filters, [], 'created_at', 'asc');
 
         return $query->paginate($perPage);
     }
