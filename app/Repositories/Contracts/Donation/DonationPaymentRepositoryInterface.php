@@ -4,6 +4,7 @@ namespace App\Repositories\Contracts\Donation;
 
 use App\Models\DonationPayment;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface DonationPaymentRepositoryInterface
 {
@@ -25,6 +26,14 @@ interface DonationPaymentRepositoryInterface
      * @param  array<string, mixed>  $filters
      */
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Same filters as {@see self::paginateForUser()}, capped at MAX_EXPORT_ROWS instead of paginated.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, DonationPayment>, 1: bool}
+     */
+    public function exportForUser(int $userId, array $filters): array;
 
     public function findByUuidForUser(int $userId, string $uuid): ?DonationPayment;
 

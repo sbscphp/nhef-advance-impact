@@ -7,10 +7,14 @@ use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Campaign;
 use App\Models\DonationPayment;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 {
+    private const MAX_EXPORT_ROWS = 5000;
+
     public function create(array $data): DonationPayment
     {
         return DonationPayment::create($data);
@@ -40,6 +44,29 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator
     {
+        return $this->userPaymentsQuery($userId, $filters)->paginate($perPage);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, DonationPayment>, 1: bool}
+     */
+    public function exportForUser(int $userId, array $filters): array
+    {
+        $query = $this->userPaymentsQuery($userId, $filters);
+        $total = (clone $query)->count();
+        $truncated = $total > self::MAX_EXPORT_ROWS;
+        $rows = $query->limit(self::MAX_EXPORT_ROWS)->get();
+
+        return [$rows, $truncated];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Builder<DonationPayment>
+     */
+    private function userPaymentsQuery(int $userId, array $filters): Builder
+    {
         $query = DonationPayment::query()
             ->select('donation_payments.*')
             ->with(['donation.campaign'])
@@ -63,7 +90,7 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             'value' => fn ($query, string $direction) => $query->orderBy('donation_payments.amount', $direction),
         ], 'donation_payments.created_at');
 
-        return $query->paginate($perPage);
+        return $query;
     }
 
     public function findByUuidForUser(int $userId, string $uuid): ?DonationPayment
