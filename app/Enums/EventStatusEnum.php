@@ -10,6 +10,10 @@ enum EventStatusEnum: string
     case PUBLISHED = 'published';
     /** Called off; no further registrations accepted. */
     case CANCELLED = 'cancelled';
+    /** Hidden from donors/guests and ticket sales suspended; reversible via reactivate. */
+    case DEACTIVATED = 'deactivated';
+    /** Moved out of active listings; kept for reporting/record-keeping. */
+    case ARCHIVED = 'archived';
 
     /**
      * @return list<string>

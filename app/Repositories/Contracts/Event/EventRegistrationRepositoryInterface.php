@@ -2,8 +2,11 @@
 
 namespace App\Repositories\Contracts\Event;
 
+use App\Models\Event;
 use App\Models\EventRegistration;
+use Carbon\CarbonInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface EventRegistrationRepositoryInterface
 {
@@ -30,4 +33,33 @@ interface EventRegistrationRepositoryInterface
      * @param  list<string>  $relations
      */
     public function loadFresh(EventRegistration $registration, array $relations): EventRegistration;
+
+    /**
+     * Completed registrations ("Ticket Sales") for one event.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForEventAdmin(Event $event, array $filters, int $perPage): LengthAwarePaginator;
+
+    public function findByUuidForEventAdmin(Event $event, string $uuid): ?EventRegistration;
+
+    /**
+     * Unpaginated, capped export set. Returns `[rows, truncated]`.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, EventRegistration>, 1: bool}
+     */
+    public function exportForEventAdmin(Event $event, array $filters, int $limit = 5000): array;
+
+    /**
+     * Daily count of tickets sold (completed registration items) within the window.
+     *
+     * @return Collection<int, object{date: string, quantity: int}>
+     */
+    public function salesTrend(Event $event, CarbonInterface $start, CarbonInterface $end): Collection;
+
+    /**
+     * @return Collection<int, EventRegistration>
+     */
+    public function completedForEvent(Event $event): Collection;
 }

@@ -24,6 +24,7 @@ use App\Repositories\Contracts\Event\EventRegistrationPaymentRepositoryInterface
 use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use App\Repositories\Contracts\Event\EventTicketTypeRepositoryInterface;
+use App\Repositories\Contracts\Event\EventWaitlistEntryRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MenteeProfileRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorProfileRepositoryInterface;
@@ -46,6 +47,7 @@ use App\Repositories\Event\EventRegistrationPaymentRepository;
 use App\Repositories\Event\EventRegistrationRepository;
 use App\Repositories\Event\EventRepository;
 use App\Repositories\Event\EventTicketTypeRepository;
+use App\Repositories\Event\EventWaitlistEntryRepository;
 use App\Repositories\Institution\InstitutionRepository;
 use App\Repositories\Mentorship\MenteeProfileRepository;
 use App\Repositories\Mentorship\MentorProfileRepository;
@@ -97,6 +99,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EventRegistrationRepositoryInterface::class, EventRegistrationRepository::class);
         $this->app->bind(EventRegistrationItemRepositoryInterface::class, EventRegistrationItemRepository::class);
         $this->app->bind(EventRegistrationPaymentRepositoryInterface::class, EventRegistrationPaymentRepository::class);
+        $this->app->bind(EventWaitlistEntryRepositoryInterface::class, EventWaitlistEntryRepository::class);
         $this->app->bind(MentorProfileRepositoryInterface::class, MentorProfileRepository::class);
         $this->app->bind(MenteeProfileRepositoryInterface::class, MenteeProfileRepository::class);
         $this->app->bind(MentorshipMatchRepositoryInterface::class, MentorshipMatchRepository::class);

@@ -4,6 +4,7 @@ namespace App\Services\Events;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\EventRegistrationStatusEnum;
+use App\Enums\EventWaitlistStatusEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\PaymentStatusEnum;
 use App\Enums\UserTypeEnum;
@@ -14,6 +15,7 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\EventRegistrationPayment;
 use App\Models\EventTicketType;
+use App\Models\EventWaitlistEntry;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Event\EventRegistrationItemRepositoryInterface;
@@ -21,6 +23,7 @@ use App\Repositories\Contracts\Event\EventRegistrationPaymentRepositoryInterface
 use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use App\Repositories\Contracts\Event\EventTicketTypeRepositoryInterface;
+use App\Repositories\Contracts\Event\EventWaitlistEntryRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Settings\PaymentMethodService;
 use App\Services\Theme\ThemeResolver;
@@ -41,6 +44,7 @@ class EventTicketService
         private readonly EventRegistrationRepositoryInterface $registrationRepository,
         private readonly EventRegistrationItemRepositoryInterface $registrationItemRepository,
         private readonly EventRegistrationPaymentRepositoryInterface $paymentRepository,
+        private readonly EventWaitlistEntryRepositoryInterface $waitlistRepository,
         private readonly PaymentGatewayService $paymentGatewayService,
         private readonly NotificationDispatchService $notificationDispatchService,
         private readonly PaymentMethodService $paymentMethodService,
@@ -83,6 +87,7 @@ class EventTicketService
 
         $ticketTypes = [];
         $totalQuantity = 0;
+        $capacityMessage = null;
 
         foreach ($validated['tickets'] as $line) {
             $ticketType = $this->ticketTypeRepository->findByUuidForEvent($event, $line['ticket_type_uuid']);
@@ -94,12 +99,18 @@ class EventTicketService
             $quantity = (int) $line['quantity'];
 
             if (! $ticketType->isAvailable()) {
-                throw new ApiException('"'.$ticketType->name.'" is no longer available.', 422);
+                if (! $event->waitlist_enabled) {
+                    throw new ApiException('"'.$ticketType->name.'" is no longer available.', 422);
+                }
+                $capacityMessage ??= '"'.$ticketType->name.'" is no longer available.';
             }
 
             $remaining = $ticketType->quantityRemaining();
             if ($remaining !== null && $quantity > $remaining) {
-                throw new ApiException('Only '.$remaining.' "'.$ticketType->name.'" ticket(s) left.', 422);
+                if (! $event->waitlist_enabled) {
+                    throw new ApiException('Only '.$remaining.' "'.$ticketType->name.'" ticket(s) left.', 422);
+                }
+                $capacityMessage ??= 'Only '.$remaining.' "'.$ticketType->name.'" ticket(s) left.';
             }
 
             $totalQuantity += $quantity;
@@ -108,7 +119,14 @@ class EventTicketService
 
         $seatsRemaining = $event->seatsRemaining();
         if ($seatsRemaining !== null && $totalQuantity > $seatsRemaining) {
-            throw new ApiException('Only '.$seatsRemaining.' seat(s) left for this event.', 422);
+            if (! $event->waitlist_enabled) {
+                throw new ApiException('Only '.$seatsRemaining.' seat(s) left for this event.', 422);
+            }
+            $capacityMessage ??= 'Only '.$seatsRemaining.' seat(s) left for this event.';
+        }
+
+        if ($capacityMessage !== null) {
+            return $this->addToWaitlist($user, $event, $ticketTypes, $validated, $request);
         }
 
         return DB::transaction(function () use ($user, $event, $ticketTypes, $validated, $request): array {
@@ -165,6 +183,7 @@ class EventTicketService
                 $registration = $this->completeRegistration($registration, $ticketTypes, $event, $request);
 
                 return [
+                    'waitlisted' => false,
                     'registration' => $this->registrationRepository->loadFresh($registration, ['user', 'event', 'items.ticketType', 'payments']),
                     'authorization_url' => null,
                     'access_code' => null,
@@ -177,6 +196,7 @@ class EventTicketService
             $initialization = $this->initializePaymentFor($user, $registration, $validated['email'] ?? null);
 
             return [
+                'waitlisted' => false,
                 'registration' => $this->registrationRepository->loadFresh($registration, ['user', 'event', 'items.ticketType', 'payments']),
                 'authorization_url' => $initialization['authorization_url'],
                 'access_code' => $initialization['access_code'],
@@ -295,6 +315,66 @@ class EventTicketService
         }
 
         return $registration;
+    }
+
+    /**
+     * Capacity/quantity was exceeded but {@see Event::waitlist_enabled} is on, so the attempt
+     * becomes a waitlist entry instead of a 422. One entry per attempt (not per ticket line):
+     * `event_ticket_type_id` records the first requested type, `quantity_requested` the total.
+     *
+     * @param  list<array{ticketType: EventTicketType, quantity: int}>  $ticketTypes
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function addToWaitlist(?User $user, Event $event, array $ticketTypes, array $validated, Request $request): array
+    {
+        $totalQuantity = array_sum(array_column($ticketTypes, 'quantity'));
+        $currency = $ticketTypes[0]['ticketType']->currency;
+        $projectedValue = array_reduce(
+            $ticketTypes,
+            fn (float $carry, array $line): float => $carry + ((float) $line['ticketType']->price * $line['quantity']),
+            0.0
+        );
+
+        $entry = $this->waitlistRepository->create([
+            'event_id' => $event->id,
+            'event_ticket_type_id' => $ticketTypes[0]['ticketType']->id,
+            'user_id' => $user?->id,
+            'guest_name' => $user === null ? $validated['full_name'] : null,
+            'guest_email' => $user === null ? $validated['email'] : null,
+            'quantity_requested' => $totalQuantity,
+            'currency' => $currency,
+            'projected_value' => $projectedValue,
+            'position' => $this->waitlistRepository->nextPositionForEvent($event),
+            'status' => EventWaitlistStatusEnum::PENDING->value,
+        ]);
+
+        $attendeeName = $user?->displayName() ?? $validated['full_name'];
+
+        GeneralHelper::storeAuditLog(
+            $user === null ? UserTypeEnum::GUEST : UserTypeEnum::CUSTOMER,
+            AuditActionEnum::EVENT_WAITLISTED,
+            $request,
+            $user?->uuid,
+            ['event_uuid' => $event->uuid, 'waitlist_entry_uuid' => $entry->uuid, 'quantity_requested' => $totalQuantity],
+            $attendeeName.' was added to the waitlist for "'.$event->title.'".',
+            EventWaitlistEntry::class,
+            $entry->uuid,
+            ModuleEnums::events,
+            202,
+        );
+
+        return [
+            'waitlisted' => true,
+            'registration' => null,
+            'waitlist_entry_uuid' => $entry->uuid,
+            'waitlist_position' => $entry->position,
+            'authorization_url' => null,
+            'access_code' => null,
+            'client_secret' => null,
+            'publishable_key' => null,
+            'reference' => null,
+        ];
     }
 
     /**
