@@ -368,11 +368,7 @@ class AdminEventService
         return $this->waitlistRepository->exportForEventAdmin($event, $filters);
     }
 
-    /**
-     * "Send Event Reminder": queues one {@see SendEventReminderJob} per completed registration
-     * (guests get a direct email, registered users a database+mail notification) so the admin
-     * request doesn't block on mail delivery for every attendee.
-     */
+    /** Queues one {@see SendEventReminderJob} per completed registration so the request doesn't block on mail delivery. */
     public function sendReminder(string $uuid, Admin $actor, Request $request): int
     {
         $event = $this->findForAdmin($uuid);

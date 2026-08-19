@@ -44,11 +44,7 @@ class Event extends Model
         return $query->where('status', EventStatusEnum::PUBLISHED->value);
     }
 
-    /**
-     * Query equivalent of {@see self::displayStatus()}: filters by the persisted `status` for
-     * draft/cancelled/deactivated/archived events, or by the derived scheduled/ongoing/completed
-     * timeline bucket (against `starts_at`/`ends_at`) for published ones.
-     */
+    /** Query equivalent of {@see self::displayStatus()}: derives scheduled/ongoing/completed for published events from starts_at/ends_at. */
     public function scopeWhereDisplayStatus(Builder $query, string $displayStatus): Builder
     {
         $now = now();
@@ -67,9 +63,7 @@ class Event extends Model
     }
 
     /**
-     * Admin-facing status label combining the stored `status` with the computed
-     * {@see self::timelineStatus()}, matching the "Scheduled"/"Ongoing"/"Completed" badges
-     * on the admin Event Management screens (those aren't persisted states).
+     * Admin-facing status label combining `status` with the derived {@see self::timelineStatus()}.
      *
      * @return 'draft'|'scheduled'|'ongoing'|'completed'|'cancelled'|'deactivated'|'archived'
      */

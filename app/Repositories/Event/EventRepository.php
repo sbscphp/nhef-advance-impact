@@ -93,12 +93,7 @@ class EventRepository implements EventRepositoryInterface
         return Event::query()->where('slug', $slug)->exists();
     }
 
-    /**
-     * "Ongoing"/"completed" aren't stored columns (see {@see Event::displayStatus()}), so
-     * they're derived here from `starts_at`/`ends_at` against `now()` for published events.
-     * The date range filters on `starts_at`, matching the events-dashboard framing of "events
-     * happening in this period" rather than "events created in this period".
-     */
+    /** "Ongoing"/"completed" are derived from starts_at/ends_at (see {@see Event::displayStatus()}), not stored columns. */
     public function countByStatusBuckets(?CarbonInterface $start, ?CarbonInterface $end): array
     {
         $scoped = fn () => Event::query()
