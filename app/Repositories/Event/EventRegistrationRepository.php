@@ -2,10 +2,15 @@
 
 namespace App\Repositories\Event;
 
+use App\Enums\EventRegistrationStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
+use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
+use Carbon\CarbonInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class EventRegistrationRepository implements EventRegistrationRepositoryInterface
 {
@@ -61,5 +66,76 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
     public function loadFresh(EventRegistration $registration, array $relations): EventRegistration
     {
         return $registration->fresh($relations);
+    }
+
+    public function paginateForEventAdmin(Event $event, array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = $this->completedQueryForEvent($event)
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->where(function ($query) use ($filters) {
+                    $term = '%'.$filters['search'].'%';
+                    $query->where('guest_name', 'like', $term)
+                        ->orWhere('guest_email', 'like', $term)
+                        ->orWhereHas('user', fn ($query) => $query
+                            ->where('firstname', 'like', $term)
+                            ->orWhere('lastname', 'like', $term)
+                            ->orWhere('email', 'like', $term));
+                })
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'completed_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'value' => fn ($query, string $direction) => $query->orderBy('amount', $direction),
+        ], 'completed_at');
+
+        return $query->paginate($perPage);
+    }
+
+    public function findByUuidForEventAdmin(Event $event, string $uuid): ?EventRegistration
+    {
+        return EventRegistration::query()
+            ->with(['user', 'items.ticketType', 'payments'])
+            ->where('event_id', $event->id)
+            ->where('uuid', $uuid)
+            ->first();
+    }
+
+    public function exportForEventAdmin(Event $event, array $filters, int $limit = 5000): array
+    {
+        $query = $this->completedQueryForEvent($event);
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'completed_at');
+
+        $rows = $query->orderByDesc('completed_at')->limit($limit + 1)->get();
+        $truncated = $rows->count() > $limit;
+
+        return [$rows->take($limit), $truncated];
+    }
+
+    public function salesTrend(Event $event, CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        return DB::table('event_registration_items')
+            ->join('event_registrations', 'event_registrations.id', '=', 'event_registration_items.event_registration_id')
+            ->where('event_registrations.event_id', $event->id)
+            ->where('event_registrations.status', EventRegistrationStatusEnum::COMPLETED->value)
+            ->whereBetween('event_registrations.completed_at', [$start, $end])
+            ->selectRaw('DATE(event_registrations.completed_at) as date, SUM(event_registration_items.quantity) as quantity')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+    }
+
+    public function completedForEvent(Event $event): Collection
+    {
+        return $this->completedQueryForEvent($event)->with(['user'])->get();
+    }
+
+    private function completedQueryForEvent(Event $event)
+    {
+        return EventRegistration::query()
+            ->with(['items.ticketType', 'payments'])
+            ->where('event_id', $event->id)
+            ->where('status', EventRegistrationStatusEnum::COMPLETED->value);
     }
 }

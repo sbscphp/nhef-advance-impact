@@ -17,6 +17,9 @@ class EventTicketType extends Model
         return [
             'price' => 'decimal:2',
             'sales_close_at' => 'datetime',
+            'discount_percentage' => 'decimal:2',
+            'discount_starts_at' => 'datetime',
+            'discount_ends_at' => 'datetime',
         ];
     }
 

@@ -20,6 +20,7 @@ class Event extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'registration_ends_at' => 'datetime',
+            'waitlist_enabled' => 'boolean',
         ];
     }
 
@@ -33,9 +34,58 @@ class Event extends Model
         return $this->hasMany(EventRegistration::class);
     }
 
+    public function waitlistEntries(): HasMany
+    {
+        return $this->hasMany(EventWaitlistEntry::class);
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', EventStatusEnum::PUBLISHED->value);
+    }
+
+    /**
+     * Query equivalent of {@see self::displayStatus()}: filters by the persisted `status` for
+     * draft/cancelled/deactivated/archived events, or by the derived scheduled/ongoing/completed
+     * timeline bucket (against `starts_at`/`ends_at`) for published ones.
+     */
+    public function scopeWhereDisplayStatus(Builder $query, string $displayStatus): Builder
+    {
+        $now = now();
+
+        return match ($displayStatus) {
+            'scheduled' => $query->where('status', EventStatusEnum::PUBLISHED->value)
+                ->where('starts_at', '>', $now),
+            'ongoing' => $query->where('status', EventStatusEnum::PUBLISHED->value)
+                ->where('starts_at', '<=', $now)
+                ->where(fn (Builder $q) => $q->whereNull('ends_at')->orWhere('ends_at', '>=', $now)),
+            'completed' => $query->where('status', EventStatusEnum::PUBLISHED->value)
+                ->whereNotNull('ends_at')
+                ->where('ends_at', '<', $now),
+            default => $query->where('status', $displayStatus),
+        };
+    }
+
+    /**
+     * Admin-facing status label combining the stored `status` with the computed
+     * {@see self::timelineStatus()}, matching the "Scheduled"/"Ongoing"/"Completed" badges
+     * on the admin Event Management screens (those aren't persisted states).
+     *
+     * @return 'draft'|'scheduled'|'ongoing'|'completed'|'cancelled'|'deactivated'|'archived'
+     */
+    public function displayStatus(): string
+    {
+        return match ($this->status) {
+            EventStatusEnum::DRAFT->value => 'draft',
+            EventStatusEnum::CANCELLED->value => 'cancelled',
+            EventStatusEnum::DEACTIVATED->value => 'deactivated',
+            EventStatusEnum::ARCHIVED->value => 'archived',
+            default => match ($this->timelineStatus()) {
+                'upcoming' => 'scheduled',
+                'ended' => 'completed',
+                default => 'ongoing',
+            },
+        };
     }
 
     public function isRegistrationOpen(): bool

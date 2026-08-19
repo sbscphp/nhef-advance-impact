@@ -3,6 +3,7 @@
 use App\Http\Controllers\v1\Admin\AuditTrail\AuditTrailController;
 use App\Http\Controllers\v1\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\v1\Admin\Auth\PasswordController as AdminPasswordController;
+use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
 use App\Http\Controllers\v1\Admin\Fundraising\InstitutionController;
@@ -148,6 +149,41 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.read']);
             Route::get('/{uuid}/donor-breakdown', [AdminCampaignController::class, 'donorBreakdown'])
                 ->middleware(['permission:campaigns.read']);
+        });
+
+        Route::prefix('events')->group(function () {
+            Route::post('/', [AdminEventController::class, 'store'])
+                ->middleware(['permission:events.create']);
+            Route::get('/', [AdminEventController::class, 'index'])
+                ->middleware(['permission:events.read']);
+            // Must be registered before /{uuid}; otherwise "overview" would be swallowed as
+            // a wildcard event uuid by the route below (same caution as networking/channels).
+            Route::get('/overview', [AdminEventController::class, 'overview'])
+                ->middleware(['permission:events.read']);
+            Route::get('/{uuid}', [AdminEventController::class, 'show'])
+                ->middleware(['permission:events.read']);
+            Route::patch('/{uuid}', [AdminEventController::class, 'update'])
+                ->middleware(['permission:events.update']);
+            Route::patch('/{uuid}/deactivate', [AdminEventController::class, 'deactivate'])
+                ->middleware(['permission:events.update']);
+            Route::patch('/{uuid}/reactivate', [AdminEventController::class, 'reactivate'])
+                ->middleware(['permission:events.update']);
+            Route::patch('/{uuid}/archive', [AdminEventController::class, 'archive'])
+                ->middleware(['permission:events.update']);
+            Route::post('/{uuid}/reminder', [AdminEventController::class, 'sendReminder'])
+                ->middleware(['permission:events.update']);
+            Route::get('/{uuid}/report', [AdminEventController::class, 'downloadReport'])
+                ->middleware(['permission:events.read']);
+            Route::get('/{uuid}/analytics', [AdminEventController::class, 'analytics'])
+                ->middleware(['permission:events.read']);
+            Route::get('/{uuid}/ticket-sales', [AdminEventController::class, 'ticketSales'])
+                ->middleware(['permission:events.read']);
+            Route::get('/{uuid}/ticket-sales/{saleUuid}', [AdminEventController::class, 'ticketSale'])
+                ->middleware(['permission:events.read']);
+            Route::get('/{uuid}/waitlist', [AdminEventController::class, 'waitlist'])
+                ->middleware(['permission:events.read']);
+            Route::get('/{uuid}/waitlist/{entryUuid}', [AdminEventController::class, 'waitlistEntry'])
+                ->middleware(['permission:events.read']);
         });
 
         Route::prefix('networking')->group(function () {
