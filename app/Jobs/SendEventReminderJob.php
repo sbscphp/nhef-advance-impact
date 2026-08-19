@@ -18,12 +18,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
-/**
- * One event reminder for one completed registration: a direct email for guests, or a
- * database+mail notification for registered users. Dispatched per-recipient from
- * {@see \App\Services\Events\AdminEventService::sendReminder()} so the admin request returns
- * immediately instead of blocking on mail delivery for every attendee.
- */
+/** One reminder for one completed registration: direct email for guests, database+mail notification for registered users. */
 class SendEventReminderJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
