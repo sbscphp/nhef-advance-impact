@@ -13,7 +13,8 @@ interface EventRepositoryInterface
      */
     public function paginatePublished(array $filters, int $perPage): LengthAwarePaginator;
 
-    public function findPublishedByUuid(string $uuid): ?Event;
+    /** Matches by `uuid` or `slug`, so donor-facing "get event" routes work with either. */
+    public function findPublishedByUuid(string $identifier): ?Event;
 
     public function incrementSeatsTaken(Event $event, int $quantity): Event;
 
@@ -22,8 +23,11 @@ interface EventRepositoryInterface
      */
     public function paginateAdmin(array $filters, int $perPage): LengthAwarePaginator;
 
-    /** Unscoped by status; admin "View Event" must load a deactivated/archived event too. */
-    public function findByUuid(string $uuid): ?Event;
+    /**
+     * Matches by `uuid` or `slug`, so admin event routes work with either. Unscoped by status;
+     * admin "View Event" must load a deactivated/archived event too.
+     */
+    public function findByUuid(string $identifier): ?Event;
 
     /**
      * @param  array<string, mixed>  $data
