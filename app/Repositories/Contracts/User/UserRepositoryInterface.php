@@ -3,6 +3,7 @@
 namespace App\Repositories\Contracts\User;
 
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -34,4 +35,16 @@ interface UserRepositoryInterface
      * @param  array<string, mixed>  $filters
      */
     public function paginateAlumniSearch(array $filters, int $perPage): LengthAwarePaginator;
+
+    public function emailExists(string $email): bool;
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * @return array{all: int, active: int, access_revoked: int}
+     */
+    public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array;
 }

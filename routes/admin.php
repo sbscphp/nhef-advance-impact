@@ -3,6 +3,7 @@
 use App\Http\Controllers\v1\Admin\AuditTrail\AuditTrailController;
 use App\Http\Controllers\v1\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\v1\Admin\Auth\PasswordController as AdminPasswordController;
+use App\Http\Controllers\v1\Admin\ConstituentManagement\ConstituentController;
 use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
@@ -184,6 +185,29 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:events.read']);
             Route::get('/{uuid}/waitlist/{entryUuid}', [AdminEventController::class, 'waitlistEntry'])
                 ->middleware(['permission:events.read']);
+        });
+
+        Route::prefix('constituents/individuals')->group(function () {
+            Route::post('/', [ConstituentController::class, 'store'])
+                ->middleware(['permission:constituents.create']);
+            Route::get('/', [ConstituentController::class, 'index'])
+                ->middleware(['permission:constituents.read']);
+            // Must be registered before /{uuid}; otherwise "overview" would be swallowed as
+            // a wildcard constituent uuid by the route below (same caution as events/overview).
+            Route::get('/overview', [ConstituentController::class, 'overview'])
+                ->middleware(['permission:constituents.read']);
+            Route::get('/{uuid}', [ConstituentController::class, 'show'])
+                ->middleware(['permission:constituents.read']);
+            Route::patch('/{uuid}', [ConstituentController::class, 'update'])
+                ->middleware(['permission:constituents.update']);
+            Route::patch('/{uuid}/revoke', [ConstituentController::class, 'revoke'])
+                ->middleware(['permission:constituents.update']);
+            Route::patch('/{uuid}/reactivate', [ConstituentController::class, 'reactivate'])
+                ->middleware(['permission:constituents.update']);
+            Route::post('/{uuid}/resend-invite', [ConstituentController::class, 'resendInvite'])
+                ->middleware(['permission:constituents.update']);
+            Route::get('/{uuid}/donations', [ConstituentController::class, 'donations'])
+                ->middleware(['permission:constituents.read']);
         });
 
         Route::prefix('networking')->group(function () {

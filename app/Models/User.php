@@ -44,6 +44,8 @@ class User extends Authenticatable
             'is_locked' => 'boolean',
             'locked_at' => 'datetime',
             'last_active_at' => 'datetime',
+            'invited_at' => 'datetime',
+            'onboarded_at' => 'datetime',
         ];
     }
 
@@ -55,6 +57,12 @@ class User extends Authenticatable
         ])));
 
         return $name !== '' ? $name : (string) $this->email;
+    }
+
+    /** Presentational only, derived from the UUID (see EventTicketSaleResource for the same pattern); no persisted code column. */
+    public function code(): string
+    {
+        return 'NHEF-AD-'.strtoupper(substr($this->uuid, 0, 6));
     }
 
     public function sendPasswordResetNotification($token): void
