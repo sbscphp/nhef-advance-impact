@@ -2,9 +2,11 @@
 
 namespace App\Repositories\User;
 
+use App\Enums\ConstituentStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\User;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -74,5 +76,48 @@ class UserRepository implements UserRepositoryInterface
         ], 'firstname', 'asc');
 
         return $query->paginate($perPage);
+    }
+
+    public function emailExists(string $email): bool
+    {
+        return User::query()->where('email', $email)->exists();
+    }
+
+    public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = User::query()
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->where(function ($query) use ($filters) {
+                    $query->where('firstname', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('lastname', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('email', 'like', '%'.$filters['search'].'%');
+                })
+            )
+            ->when(
+                filled($filters['filters']['status'] ?? null),
+                fn ($query) => $query->where('status', $filters['filters']['status'])
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query->orderBy('firstname', $direction)->orderBy('lastname', $direction),
+        ], 'created_at');
+
+        return $query->paginate($perPage);
+    }
+
+    public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array
+    {
+        $scoped = fn () => User::query()
+            ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
+            ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end));
+
+        return [
+            'all' => (int) $scoped()->count(),
+            'active' => (int) $scoped()->where('status', ConstituentStatusEnum::ACTIVE->value)->count(),
+            'access_revoked' => (int) $scoped()->where('status', ConstituentStatusEnum::ACCESS_REVOKED->value)->count(),
+        ];
     }
 }

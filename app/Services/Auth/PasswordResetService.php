@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Enums\AuditActionEnum;
+use App\Enums\ConstituentStatusEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\OtpChannelEnum;
 use App\Enums\OtpPurposeEnum;
@@ -256,6 +257,14 @@ class PasswordResetService
         if ($subject instanceof Admin) {
             $updates['must_reset_password'] = false;
         }
+        // A User setting their password while still `invite_sent` is completing onboarding via
+        // an admin-issued invite (see AdminConstituentService::invite()), not an ordinary
+        // forgot-password reset; self-registered users never carry this status, so their
+        // regular reset flow is unaffected.
+        if ($subject instanceof User && $subject->status === ConstituentStatusEnum::INVITE_SENT->value) {
+            $updates['status'] = ConstituentStatusEnum::ACTIVE->value;
+            $updates['onboarded_at'] = now();
+        }
         $subject->forceFill($updates)->save();
 
         $subject->tokens()->delete();
@@ -289,7 +298,8 @@ class PasswordResetService
         return [
             'email' => $subject->email,
             'name' => $this->displayName($subject),
-            'is_invite' => $subject instanceof Admin && (bool) $subject->must_reset_password,
+            'is_invite' => ($subject instanceof Admin && (bool) $subject->must_reset_password)
+                || ($subject instanceof User && $subject->status === ConstituentStatusEnum::INVITE_SENT->value),
         ];
     }
 
