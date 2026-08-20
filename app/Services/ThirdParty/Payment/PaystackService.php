@@ -74,7 +74,44 @@ class PaystackService implements PaymentGatewayInterface
             throw new ApiException('Unable to verify payment with the gateway. Please try again.', 502);
         }
 
-        $data = $response->json('data', []);
+        return $this->mapTransactionDataToResult($response->json('data', []));
+    }
+
+    /**
+     * Off-session variant of verify(), for recurring donation cycles (see
+     * DonationService::chargeRecurringDonation()). Paystack's docs: POST
+     * /transaction/charge_authorization. `$savedMethodToken` is the saved
+     * `PaymentMethod::authorization_code`; a decline is reported via the response body's
+     * `status`, same as verify(), not a distinct error path.
+     *
+     * @param  array<string, mixed>  $meta
+     */
+    public function charge(string $reference, string $amount, string $currency, string $email, string $savedMethodToken, array $meta = []): array
+    {
+        $response = $this->client()->post('/transaction/charge_authorization', [
+            'authorization_code' => $savedMethodToken,
+            'reference' => $reference,
+            'email' => $email,
+            'amount' => $this->toSubunit($amount),
+            'currency' => $currency,
+            'metadata' => $meta,
+        ]);
+
+        if ($response->failed() || ! $response->json('status')) {
+            Log::error('Paystack charge failed', ['reference' => $reference, 'body' => $response->body()]);
+
+            throw new ApiException('Unable to charge the gateway. Please try again.', 502);
+        }
+
+        return $this->mapTransactionDataToResult($response->json('data', []));
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
+     */
+    private function mapTransactionDataToResult(array $data): array
+    {
         $gatewayStatus = (string) ($data['status'] ?? 'failed');
         $authorization = $data['authorization'] ?? [];
 

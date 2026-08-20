@@ -28,6 +28,15 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->first();
     }
 
+    public function findByReferenceForUpdate(string $reference): ?DonationPayment
+    {
+        return DonationPayment::query()
+            ->with(['donation.campaign', 'user'])
+            ->where('gateway_reference', $reference)
+            ->lockForUpdate()
+            ->first();
+    }
+
     public function markFailed(DonationPayment $payment): DonationPayment
     {
         $payment->forceFill(['status' => PaymentStatusEnum::FAILED->value])->save();

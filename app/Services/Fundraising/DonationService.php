@@ -328,25 +328,134 @@ class DonationService
 
         $result = $this->paymentGatewayService->verify($reference, $payment->gateway);
 
-        if ($result['status'] !== 'successful') {
-            $payment = $this->paymentRepository->markFailed($payment);
+        return DB::transaction(function () use ($reference, $result, $request): array {
+            // Re-fetch under a row lock: the gateway call above is a slow network round trip,
+            // so the webhook and this call could both have reached here for the same payment.
+            // Only the request that wins the lock actually settles it; the loser sees the
+            // now-updated status below and returns without redoing the work.
+            $payment = $this->paymentRepository->findByReferenceForUpdate($reference);
 
-            GeneralHelper::storeAuditLog(
-                $payment->user === null ? UserTypeEnum::GUEST : UserTypeEnum::CUSTOMER,
-                AuditActionEnum::PAYMENT_FAILED,
-                $request,
-                $payment->user?->uuid,
-                ['reference' => $reference, 'gateway_status' => $result['status'], 'donor_email' => $payment->donation->donorEmail()],
-                'Payment for a donation failed or was not completed.',
-                DonationPayment::class,
-                $payment->uuid,
-                ModuleEnums::fundraising,
-                200,
-            );
+            if (! $payment instanceof DonationPayment) {
+                throw new ApiException('Payment not found.', 404);
+            }
 
-            return ['payment' => $payment, 'donation' => $payment->donation];
+            if ($payment->status === PaymentStatusEnum::SUCCESSFUL->value) {
+                return ['payment' => $payment, 'donation' => $payment->donation];
+            }
+
+            return $result['status'] !== 'successful'
+                ? $this->settleFailedPayment($payment, $result, $reference, $request)
+                : $this->settleSuccessfulPayment($payment, $result, $reference, $request);
+        });
+    }
+
+    /**
+     * Charges one due cycle of a recurring donation off-session, against the donor's default
+     * saved payment method. No card on file (or no default set) is a normal outcome for a
+     * lapsed donor, not a system error: the payment is recorded as failed and the donor is
+     * notified, same as any other declined charge.
+     */
+    public function chargeRecurringDonation(Donation $donation, Request $request): array
+    {
+        $user = $donation->user;
+        $paymentMethod = $user !== null
+            ? $this->paymentMethodService->listForUser($user)->firstWhere('is_default', true)
+            : null;
+
+        $reference = 'DON_'.strtoupper(Str::random(20));
+
+        $payment = $this->paymentRepository->create([
+            'donation_id' => $donation->id,
+            'user_id' => $user?->id,
+            'amount' => $donation->amount,
+            'currency' => $donation->currency,
+            'gateway' => $paymentMethod->gateway ?? 'none',
+            'gateway_reference' => $reference,
+            'status' => PaymentStatusEnum::PENDING->value,
+        ]);
+
+        if ($paymentMethod === null || $user === null) {
+            $result = $this->noSavedMethodResult();
+            $settled = $this->settleFailedPayment($payment, $result, $reference, $request);
+            $this->notifyRecurringChargeFailed($donation, $payment);
+
+            return $settled;
         }
 
+        $result = $this->paymentGatewayService->charge(
+            $reference,
+            (string) $donation->amount,
+            $donation->currency,
+            $user->email,
+            $paymentMethod->authorization_code,
+            $paymentMethod->gateway,
+            ['donation_uuid' => $donation->uuid],
+        );
+
+        if ($result['status'] !== 'successful') {
+            $settled = $this->settleFailedPayment($payment, $result, $reference, $request);
+            $this->notifyRecurringChargeFailed($donation, $payment);
+
+            return $settled;
+        }
+
+        return $this->settleSuccessfulPayment($payment, $result, $reference, $request);
+    }
+
+    /**
+     * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
+     */
+    private function noSavedMethodResult(): array
+    {
+        return [
+            'status' => 'failed',
+            'amount' => null,
+            'currency' => null,
+            'paid_at' => null,
+            'channel' => null,
+            'card_last_four' => null,
+            'authorization' => [
+                'authorization_code' => null,
+                'signature' => null,
+                'reusable' => false,
+                'card_type' => null,
+                'last4' => null,
+                'exp_month' => null,
+                'exp_year' => null,
+                'bin' => null,
+                'bank' => null,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function settleFailedPayment(DonationPayment $payment, array $result, string $reference, Request $request): array
+    {
+        $payment = $this->paymentRepository->markFailed($payment);
+
+        GeneralHelper::storeAuditLog(
+            $payment->user === null ? UserTypeEnum::GUEST : UserTypeEnum::CUSTOMER,
+            AuditActionEnum::PAYMENT_FAILED,
+            $request,
+            $payment->user?->uuid,
+            ['reference' => $reference, 'gateway_status' => $result['status'], 'donor_email' => $payment->donation->donorEmail()],
+            'Payment for a donation failed or was not completed.',
+            DonationPayment::class,
+            $payment->uuid,
+            ModuleEnums::fundraising,
+            200,
+        );
+
+        return ['payment' => $payment, 'donation' => $payment->donation];
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function settleSuccessfulPayment(DonationPayment $payment, array $result, string $reference, Request $request): array
+    {
         return DB::transaction(function () use ($payment, $result, $reference, $request): array {
             // Captured before markSuccessful() below so it reflects the total *excluding* this
             // payment; used to detect a tier crossing (REC-04) once this payment is counted.
@@ -581,6 +690,31 @@ class DonationService
                 'message' => $th->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * A recurring charge attempt has no one watching a screen for it (unlike the manual verify
+     * flow, where the donor sees the failure live), so the donor needs an explicit heads-up
+     * that a cycle was missed. Guests can't have recurring donations (no saved card to charge),
+     * so this only ever applies to registered donors.
+     */
+    private function notifyRecurringChargeFailed(Donation $donation, DonationPayment $payment): void
+    {
+        if ($donation->user === null) {
+            return;
+        }
+
+        $notification = new GenericDatabaseNotification(
+            module: ModuleEnums::fundraising->value,
+            event: 'recurring_payment_failed',
+            title: 'Recurring donation payment failed',
+            message: 'We were unable to charge your saved payment method '.Money::format($payment->amount, $payment->currency).' for your recurring donation to "'.$donation->campaign->title.'". Please update your payment method to keep your donation active.',
+            meta: ['donation_uuid' => $donation->uuid, 'campaign_uuid' => $donation->campaign->uuid],
+            sendMail: true,
+            mailSubject: 'Action needed: recurring donation payment failed',
+        );
+
+        $this->notificationDispatchService->notifyUsersByUuids([$donation->user->uuid], $notification);
     }
 
     /**

@@ -229,28 +229,58 @@ class EventTicketService
 
         $result = $this->paymentGatewayService->verify($reference, $payment->gateway);
 
-        if ($result['status'] !== 'successful') {
-            $payment = $this->paymentRepository->markFailed($payment);
-            $registration = $this->registrationRepository->update($payment->registration, [
-                'status' => EventRegistrationStatusEnum::FAILED->value,
-            ]);
+        return DB::transaction(function () use ($reference, $result, $request): array {
+            // Re-fetch under a row lock: the gateway call above is a slow network round trip,
+            // so the webhook and this call could both have reached here for the same payment.
+            // Only the request that wins the lock actually settles it; the loser sees the
+            // now-updated status below and returns without redoing the work.
+            $payment = $this->paymentRepository->findByReferenceForUpdate($reference);
 
-            GeneralHelper::storeAuditLog(
-                $payment->user === null ? UserTypeEnum::GUEST : UserTypeEnum::CUSTOMER,
-                AuditActionEnum::PAYMENT_FAILED,
-                $request,
-                $payment->user?->uuid,
-                ['reference' => $reference, 'gateway_status' => $result['status'], 'attendee_email' => $registration->attendeeEmail()],
-                'Payment for an event registration failed or was not completed.',
-                EventRegistrationPayment::class,
-                $payment->uuid,
-                ModuleEnums::events,
-                200,
-            );
+            if (! $payment instanceof EventRegistrationPayment) {
+                throw new ApiException('Payment not found.', 404);
+            }
 
-            return ['payment' => $payment, 'registration' => $registration];
-        }
+            if ($payment->status === PaymentStatusEnum::SUCCESSFUL->value) {
+                return ['payment' => $payment, 'registration' => $payment->registration];
+            }
 
+            return $result['status'] !== 'successful'
+                ? $this->settleFailedPayment($payment, $result, $reference, $request)
+                : $this->settleSuccessfulPayment($payment, $result, $reference, $request);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function settleFailedPayment(EventRegistrationPayment $payment, array $result, string $reference, Request $request): array
+    {
+        $payment = $this->paymentRepository->markFailed($payment);
+        $registration = $this->registrationRepository->update($payment->registration, [
+            'status' => EventRegistrationStatusEnum::FAILED->value,
+        ]);
+
+        GeneralHelper::storeAuditLog(
+            $payment->user === null ? UserTypeEnum::GUEST : UserTypeEnum::CUSTOMER,
+            AuditActionEnum::PAYMENT_FAILED,
+            $request,
+            $payment->user?->uuid,
+            ['reference' => $reference, 'gateway_status' => $result['status'], 'attendee_email' => $registration->attendeeEmail()],
+            'Payment for an event registration failed or was not completed.',
+            EventRegistrationPayment::class,
+            $payment->uuid,
+            ModuleEnums::events,
+            200,
+        );
+
+        return ['payment' => $payment, 'registration' => $registration];
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    private function settleSuccessfulPayment(EventRegistrationPayment $payment, array $result, string $reference, Request $request): array
+    {
         return DB::transaction(function () use ($payment, $result, $reference, $request): array {
             $payment = $this->paymentRepository->markSuccessful($payment, [
                 'paid_at' => now(),

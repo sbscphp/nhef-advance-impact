@@ -21,6 +21,15 @@ class EventRegistrationPaymentRepository implements EventRegistrationPaymentRepo
             ->first();
     }
 
+    public function findByReferenceForUpdate(string $reference): ?EventRegistrationPayment
+    {
+        return EventRegistrationPayment::query()
+            ->with(['registration.event', 'registration.items.ticketType', 'user'])
+            ->where('gateway_reference', $reference)
+            ->lockForUpdate()
+            ->first();
+    }
+
     public function markFailed(EventRegistrationPayment $payment): EventRegistrationPayment
     {
         $payment->forceFill(['status' => PaymentStatusEnum::FAILED->value])->save();
