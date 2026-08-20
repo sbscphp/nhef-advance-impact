@@ -16,6 +16,9 @@ use App\Models\User;
 use App\Notifications\Auth\AdminResetPasswordLinkMail;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -269,6 +272,7 @@ class PasswordResetService
 
         $subject->tokens()->delete();
         event(new PasswordReset($subject));
+        $this->markResetTokenConsumed($payload);
 
         $userType = $subject instanceof Admin ? UserTypeEnum::ADMIN : UserTypeEnum::CUSTOMER;
         GeneralHelper::storeAuditLog(
@@ -311,6 +315,7 @@ class PasswordResetService
         return encrypt([
             'purpose' => 'RESET_PASSWORD',
             'exp' => $exp,
+            'jti' => (string) Str::uuid(),
             'subject_type' => $subject instanceof Admin ? UserTypeEnum::ADMIN->value : UserTypeEnum::CUSTOMER->value,
             'subject_id' => $subject->uuid,
         ]);
@@ -379,18 +384,53 @@ class PasswordResetService
             throw new ApiException($this->resetTokenErrorMessage($payload, expired: true), 422);
         }
 
+        $jti = $payload['jti'] ?? null;
+        if (is_string($jti) && $jti !== '' && Cache::has($this->consumedTokenCacheKey($jti))) {
+            throw new ApiException($this->resetTokenErrorMessage($payload, expired: false, consumed: true), 422);
+        }
+
         return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function markResetTokenConsumed(array $payload): void
+    {
+        $jti = $payload['jti'] ?? null;
+        if (! is_string($jti) || $jti === '') {
+            return;
+        }
+
+        $expiresAt = Carbon::createFromTimestamp((int) ($payload['exp'] ?? now()->timestamp));
+        // Deferred to afterCommit so a rolled-back transaction (e.g. downstream OTP/mail
+        // failure in completeCustomerRegistration) doesn't burn the token before the
+        // password/verification change it guards has actually been persisted.
+        DB::afterCommit(fn () => Cache::put($this->consumedTokenCacheKey($jti), true, $expiresAt));
+    }
+
+    private function consumedTokenCacheKey(string $jti): string
+    {
+        return 'password_reset_token_consumed:'.$jti;
     }
 
     /**
      * @param  array<string, mixed>|null  $payload
      */
-    private function resetTokenErrorMessage(?array $payload, bool $expired): string
+    private function resetTokenErrorMessage(?array $payload, bool $expired, bool $consumed = false): string
     {
         if ($this->isAdminAccountSetupToken($payload)) {
+            if ($consumed) {
+                return 'This account setup link has already been used. Please contact your administrator to resend the invitation, or use Forgot Password on the login page.';
+            }
+
             return $expired
                 ? 'This account setup link has expired. Please contact your administrator to resend the invitation, or use Forgot Password on the login page.'
                 : 'This account setup link is invalid. Please contact your administrator to resend the invitation.';
+        }
+
+        if ($consumed) {
+            return 'This link has already been used. Please restart the process to get a new link.';
         }
 
         return $expired
