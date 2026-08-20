@@ -30,12 +30,12 @@ class EventRepository implements EventRepositoryInterface
         return $query->paginate($perPage);
     }
 
-    public function findPublishedByUuid(string $uuid): ?Event
+    public function findPublishedByUuid(string $identifier): ?Event
     {
         return Event::query()
             ->with(['ticketTypes'])
             ->where('status', EventStatusEnum::PUBLISHED->value)
-            ->where('uuid', $uuid)
+            ->where(fn ($query) => $query->where('uuid', $identifier)->orWhere('slug', $identifier))
             ->first();
     }
 
@@ -68,11 +68,11 @@ class EventRepository implements EventRepositoryInterface
         return $query->paginate($perPage);
     }
 
-    public function findByUuid(string $uuid): ?Event
+    public function findByUuid(string $identifier): ?Event
     {
         return Event::query()
             ->with(['ticketTypes'])
-            ->where('uuid', $uuid)
+            ->where(fn ($query) => $query->where('uuid', $identifier)->orWhere('slug', $identifier))
             ->first();
     }
 
