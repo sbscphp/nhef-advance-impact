@@ -28,7 +28,7 @@ interface PaymentGatewayInterface
     /**
      * Charges a previously-saved, reusable payment method off-session (no donor present), for
      * recurring donation cycles. `$savedMethodToken` is `PaymentMethod::authorization_code`
-     * (Paystack's authorization code, or Stripe's PaymentMethod id — whichever gateway saved
+     * (Paystack's authorization code, or Stripe's PaymentMethod id, whichever gateway saved
      * it). Unlike verify(), this reports the outcome directly from the gateway's synchronous
      * charge response rather than needing a follow-up lookup, since a declined/expired card is
      * an expected possible outcome here, not a system error.

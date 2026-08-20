@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Log;
  * ChargeRecurringDonationsCommand for what dispatches these. One job per donation, so one
  * gateway failure can't take the rest of the day's batch down with it, and Laravel's queue
  * retry/backoff absorbs transient failures (a declined card is not an exception here, so it
- * won't trigger a retry — only a genuine gateway/communication failure will).
+ * won't trigger a retry; only a genuine gateway/communication failure will).
  */
 class ChargeRecurringDonationJob implements ShouldBeUnique, ShouldQueue
 {

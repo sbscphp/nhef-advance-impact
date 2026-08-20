@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
  * Finds every recurring donation due for its next cycle and queues one
  * {@see ChargeRecurringDonationJob} per donation. Only registered donors are eligible: a
  * recurring donation needs a saved, reusable payment method to charge off-session, and guests
- * never get one saved (no account to attach it to) — so a guest recurring donation has no
+ * never get one saved (no account to attach it to), so a guest recurring donation has no
  * chargeable path today regardless of this command; that's a separate, pre-existing gap in
  * whether guests should be able to pick "recurring" at all, not something this fixes.
  */

@@ -10,5 +10,5 @@ Artisan::command('inspire', function () {
 
 // Off-peak, so a burst of gateway calls doesn't compete with donor-facing traffic. Requires the
 // Laravel scheduler's cron entry (`* * * * * php artisan schedule:run`) to be registered on the
-// server — not something that can be verified from the codebase alone.
+// server, not something that can be verified from the codebase alone.
 Schedule::command('donations:charge-recurring')->dailyAt('02:00');
