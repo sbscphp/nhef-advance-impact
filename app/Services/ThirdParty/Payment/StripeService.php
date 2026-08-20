@@ -5,6 +5,7 @@ namespace App\Services\ThirdParty\Payment;
 use App\Exceptions\ApiException;
 use Illuminate\Support\Facades\Log;
 use Stripe\Exception\ApiErrorException;
+use Stripe\Exception\CardException;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\PaymentIntent;
 use Stripe\StripeClient;
@@ -145,6 +146,61 @@ class StripeService implements PaymentGatewayInterface
             throw new ApiException('Unable to verify payment with the gateway. Please try again.', 502);
         }
 
+        return $this->mapPaymentIntentToResult($paymentIntent);
+    }
+
+    /**
+     * Off-session variant of verify(), for recurring donation cycles (see
+     * DonationService::chargeRecurringDonation()). The saved PaymentMethod is already attached
+     * to a Stripe Customer (from the original `setup_future_usage: off_session` charge in
+     * initializeEmbedded()), so this retrieves it to read that Customer id back rather than
+     * persisting a separate `gateway_customer_id` column anywhere.
+     *
+     * @param  array<string, mixed>  $meta
+     */
+    public function charge(string $reference, string $amount, string $currency, string $email, string $savedMethodToken, array $meta = []): array
+    {
+        try {
+            $paymentMethod = $this->client()->paymentMethods->retrieve($savedMethodToken);
+            $customerId = is_string($paymentMethod->customer) ? $paymentMethod->customer : null;
+
+            if ($customerId === null) {
+                Log::error('Stripe charge: saved payment method has no attached customer', ['reference' => $reference, 'payment_method' => $savedMethodToken]);
+
+                throw new ApiException('Unable to charge the gateway. Please try again.', 502);
+            }
+
+            $paymentIntent = $this->client()->paymentIntents->create([
+                'amount' => $this->toSubunit($amount),
+                'currency' => strtolower($currency),
+                'customer' => $customerId,
+                'payment_method' => $savedMethodToken,
+                'off_session' => true,
+                'confirm' => true,
+                'receipt_email' => $email,
+                'expand' => ['payment_method'],
+                'metadata' => [...$meta, 'reference' => $reference],
+            ], ['idempotency_key' => $reference]);
+        } catch (CardException $exception) {
+            // A decline/expired card/etc. is an expected possible outcome of an off-session
+            // charge attempt, not a system error; report it as a normal failed result.
+            Log::info('Stripe recurring charge declined', ['reference' => $reference, 'message' => $exception->getMessage()]);
+
+            return $this->declinedResult();
+        } catch (ApiErrorException $exception) {
+            Log::error('Stripe charge failed', ['reference' => $reference, 'message' => $exception->getMessage()]);
+
+            throw new ApiException('Unable to charge the gateway. Please try again.', 502);
+        }
+
+        return $this->mapPaymentIntentToResult($paymentIntent);
+    }
+
+    /**
+     * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
+     */
+    private function mapPaymentIntentToResult(PaymentIntent $paymentIntent): array
+    {
         $paymentMethod = is_object($paymentIntent->payment_method) ? $paymentIntent->payment_method : null;
         $card = $paymentMethod->card ?? null;
 
@@ -163,6 +219,32 @@ class StripeService implements PaymentGatewayInterface
                 'last4' => $card->last4 ?? null,
                 'exp_month' => isset($card->exp_month) ? (string) $card->exp_month : null,
                 'exp_year' => isset($card->exp_year) ? (string) $card->exp_year : null,
+                'bin' => null,
+                'bank' => null,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
+     */
+    private function declinedResult(): array
+    {
+        return [
+            'status' => 'failed',
+            'amount' => null,
+            'currency' => null,
+            'paid_at' => null,
+            'channel' => null,
+            'card_last_four' => null,
+            'authorization' => [
+                'authorization_code' => null,
+                'signature' => null,
+                'reusable' => false,
+                'card_type' => null,
+                'last4' => null,
+                'exp_month' => null,
+                'exp_year' => null,
                 'bin' => null,
                 'bank' => null,
             ],

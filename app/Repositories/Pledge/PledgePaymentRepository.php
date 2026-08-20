@@ -21,6 +21,15 @@ class PledgePaymentRepository implements PledgePaymentRepositoryInterface
             ->first();
     }
 
+    public function findByReferenceForUpdate(string $reference): ?PledgePayment
+    {
+        return PledgePayment::query()
+            ->with(['pledge.campaign', 'installment', 'user'])
+            ->where('gateway_reference', $reference)
+            ->lockForUpdate()
+            ->first();
+    }
+
     public function markFailed(PledgePayment $payment): PledgePayment
     {
         $payment->forceFill(['status' => PaymentStatusEnum::FAILED->value])->save();

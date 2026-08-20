@@ -28,7 +28,7 @@
 
     <p style="margin:0 0 8px 0; font-size:14px; font-weight:600; color:{{ $theme->accentColor() }};">Implementation steps</p>
     <ol style="margin:0 0 16px 0; padding-left:20px; font-size:13px; line-height:1.8; color:{{ $theme->text_color }};">
-        <li>Send the <code>X-ClientKey</code> header (value above) on every request to the API — it identifies your app and its configured encryption mode.</li>
+        <li>Send the <code>X-ClientKey</code> header (value above) on every request to the API; it identifies your app and its configured encryption mode.</li>
         <li>Cipher is <strong>AES-256-CBC</strong>. Base64-decode the key and IV above before use (32 bytes and 16 bytes raw respectively); do not send the base64 strings straight into the cipher.</li>
         <li>If your mode encrypts requests (<strong>both</strong> or <strong>request_only</strong>): JSON-encode your request body, encrypt it with the key/IV, base64-encode the ciphertext, then send <code>{"payload": "&lt;ciphertext&gt;"}</code> as the entire request body (<code>Content-Type: application/json</code>).</li>
         <li>For encrypted <strong>GET</strong>/<strong>DELETE</strong> requests: JSON-encode your query params object instead, encrypt/base64 it the same way, and send it as a single <code>?enc=&lt;ciphertext&gt;</code> query parameter.</li>

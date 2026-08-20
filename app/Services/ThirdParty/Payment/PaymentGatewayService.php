@@ -98,6 +98,45 @@ class PaymentGatewayService
     }
 
     /**
+     * Charges a saved payment method off-session (recurring donation cycles). Mirrors verify()'s
+     * mode branching; stub/log mode reports the same fake success as verify()'s stub so the
+     * recurring-charge flow is exercisable end-to-end without live credentials.
+     *
+     * @param  array<string, mixed>  $meta
+     * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
+     */
+    public function charge(string $reference, string $amount, string $currency, string $email, string $savedMethodToken, string $gateway, array $meta = []): array
+    {
+        if (PaymentMode::isLive()) {
+            return $this->gatewayResolver->make($gateway)->charge($reference, $amount, $currency, $email, $savedMethodToken, $meta);
+        }
+
+        if (PaymentMode::current() === PaymentMode::LOG) {
+            Log::info('Payment charge stubbed as successful (PAYMENT_MODE=log)', ['reference' => $reference, 'gateway' => $gateway]);
+        }
+
+        return [
+            'status' => 'successful',
+            'amount' => null,
+            'currency' => null,
+            'paid_at' => now()->toIso8601String(),
+            'channel' => 'stub',
+            'card_last_four' => '0000',
+            'authorization' => [
+                'authorization_code' => 'AUTH_stub_'.$reference,
+                'signature' => 'SIG_stub_fixed_test_card',
+                'reusable' => true,
+                'card_type' => 'visa DEBIT',
+                'last4' => '0000',
+                'exp_month' => '12',
+                'exp_year' => (string) (now()->year + 2),
+                'bin' => '408408',
+                'bank' => 'Stub Bank',
+            ],
+        ];
+    }
+
+    /**
      * Verifies an inbound webhook's signature against the named gateway; each gateway owns its
      * own scheme (see the `verifyWebhookSignature` implementations on PaystackService and
      * StripeService).

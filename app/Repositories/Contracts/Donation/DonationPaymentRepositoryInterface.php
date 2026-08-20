@@ -15,6 +15,13 @@ interface DonationPaymentRepositoryInterface
 
     public function findByReference(string $reference): ?DonationPayment;
 
+    /**
+     * Same as {@see self::findByReference()} but with `lockForUpdate()`; call only inside an
+     * open transaction, right before settling, to close the race between the webhook and the
+     * frontend-driven verify call both reaching the "not yet successful" check at once.
+     */
+    public function findByReferenceForUpdate(string $reference): ?DonationPayment;
+
     public function markFailed(DonationPayment $payment): DonationPayment;
 
     /**
