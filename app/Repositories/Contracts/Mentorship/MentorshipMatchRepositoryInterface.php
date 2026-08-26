@@ -11,6 +11,8 @@ interface MentorshipMatchRepositoryInterface
      */
     public function create(array $data): MentorshipMatch;
 
+    public function findByUuid(string $uuid): ?MentorshipMatch;
+
     public function findActiveForMentee(int $menteeProfileId): ?MentorshipMatch;
 
     public function findByUuidForMentee(int $menteeProfileId, string $uuid): ?MentorshipMatch;

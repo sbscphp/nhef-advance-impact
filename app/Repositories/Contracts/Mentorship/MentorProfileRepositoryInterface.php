@@ -23,6 +23,13 @@ interface MentorProfileRepositoryInterface
     public function paginateApproved(array $filters, int $perPage): LengthAwarePaginator;
 
     /**
+     * All mentors regardless of review status, for the admin "Applications" listing.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
      * Approved, not paused, and under capacity. Candidate pool for the auto-matching algorithm.
      *
      * @return Collection<int, MentorProfile>

@@ -19,7 +19,7 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
 
     public function findByUuid(string $uuid): ?MentorProfile
     {
-        return MentorProfile::query()->with(['user'])->where('uuid', $uuid)->first();
+        return MentorProfile::query()->with(['user', 'reviewer', 'suspendedBy'])->where('uuid', $uuid)->first();
     }
 
     public function findByUserId(int $userId): ?MentorProfile
@@ -52,6 +52,34 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
         return $query->paginate($perPage);
     }
 
+    public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = MentorProfile::query()
+            ->select('mentor_profiles.*')
+            ->with(['user'])
+            ->when(
+                filled($filters['filters']['status'] ?? null),
+                fn ($query) => $query->where('mentor_profiles.review_status', $filters['filters']['status'])
+            )
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery
+                    ->where('firstname', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('lastname', 'like', '%'.$filters['search'].'%'))
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'mentor_profiles.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('users', 'users.id', '=', 'mentor_profiles.user_id')
+                ->orderBy('users.firstname', $direction)
+                ->orderBy('users.lastname', $direction),
+        ], 'mentor_profiles.created_at');
+
+        return $query->paginate($perPage);
+    }
+
     public function candidatesForMatching(): Collection
     {
         return MentorProfile::query()
@@ -65,7 +93,9 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
     {
         $mentor->forceFill($data)->save();
 
-        return $mentor;
+        // Refreshes any already-loaded relations (e.g. reviewer, suspendedBy) that were
+        // cached as null before this update changed their underlying foreign key.
+        return $mentor->refresh();
     }
 
     public function incrementMenteeCount(MentorProfile $mentor, int $by = 1): MentorProfile

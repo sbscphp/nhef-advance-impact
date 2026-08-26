@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Mentorship;
 
+use App\Enums\MentorshipMatchStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\MenteeProfile;
 use App\Repositories\Contracts\Mentorship\MenteeProfileRepositoryInterface;
@@ -28,7 +29,32 @@ class MenteeProfileRepository implements MenteeProfileRepositoryInterface
     {
         $query = MenteeProfile::query()
             ->select('mentee_profiles.*')
+            ->with(['user', 'activeMatch.mentorProfile.user'])
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery
+                    ->where('firstname', 'like', '%'.$filters['search'].'%')
+                    ->orWhere('lastname', 'like', '%'.$filters['search'].'%'))
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'mentee_profiles.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('users', 'users.id', '=', 'mentee_profiles.user_id')
+                ->orderBy('users.firstname', $direction)
+                ->orderBy('users.lastname', $direction),
+        ], 'mentee_profiles.created_at');
+
+        return $query->paginate($perPage);
+    }
+
+    public function paginateUnmatched(array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = MenteeProfile::query()
+            ->select('mentee_profiles.*')
             ->with(['user'])
+            ->whereDoesntHave('matches', fn ($matchQuery) => $matchQuery->where('status', MentorshipMatchStatusEnum::ACTIVE->value))
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery

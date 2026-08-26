@@ -13,6 +13,14 @@ class MentorshipMatchRepository implements MentorshipMatchRepositoryInterface
         return MentorshipMatch::create($data);
     }
 
+    public function findByUuid(string $uuid): ?MentorshipMatch
+    {
+        return MentorshipMatch::query()
+            ->with(['mentorProfile.user', 'menteeProfile.user'])
+            ->where('uuid', $uuid)
+            ->first();
+    }
+
     public function findActiveForMentee(int $menteeProfileId): ?MentorshipMatch
     {
         return MentorshipMatch::query()

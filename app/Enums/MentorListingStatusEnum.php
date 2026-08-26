@@ -8,6 +8,9 @@ enum MentorListingStatusEnum: string
     case ACTIVE = 'active';
     case PAUSED = 'paused';
 
+    /** Set only by an admin (see {@see MentorshipService::suspendMentor()}); the mentor cannot self-toggle into or out of this state. */
+    case SUSPENDED = 'suspended';
+
     /** @return list<string> */
     public static function values(): array
     {
