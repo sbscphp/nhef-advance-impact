@@ -20,4 +20,11 @@ interface MenteeProfileRepositoryInterface
      * @param  array<string, mixed>  $filters
      */
     public function paginate(array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Mentees with no currently active match, for the admin Matching Engine.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateUnmatched(array $filters, int $perPage): LengthAwarePaginator;
 }

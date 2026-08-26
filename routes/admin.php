@@ -8,6 +8,9 @@ use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
 use App\Http\Controllers\v1\Admin\Fundraising\InstitutionController;
+use App\Http\Controllers\v1\Admin\Mentorship\MatchingController as AdminMentorshipMatchingController;
+use App\Http\Controllers\v1\Admin\Mentorship\MenteeController as AdminMentorshipMenteeController;
+use App\Http\Controllers\v1\Admin\Mentorship\MentorController as AdminMentorshipMentorController;
 use App\Http\Controllers\v1\Admin\Networking\AlumniSearchController;
 use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkingChannelController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
@@ -208,6 +211,38 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:constituents.update']);
             Route::get('/{uuid}/donations', [ConstituentController::class, 'donations'])
                 ->middleware(['permission:constituents.read']);
+        });
+
+        Route::prefix('mentorship')->group(function () {
+            Route::get('/mentors', [AdminMentorshipMentorController::class, 'index'])
+                ->middleware(['permission:mentorship.read']);
+            Route::get('/mentors/{uuid}', [AdminMentorshipMentorController::class, 'show'])
+                ->middleware(['permission:mentorship.read']);
+            Route::patch('/mentors/{uuid}/approve', [AdminMentorshipMentorController::class, 'approve'])
+                ->middleware(['permission:mentorship.update']);
+            Route::patch('/mentors/{uuid}/reject', [AdminMentorshipMentorController::class, 'reject'])
+                ->middleware(['permission:mentorship.update']);
+            Route::patch('/mentors/{uuid}/suspend', [AdminMentorshipMentorController::class, 'suspend'])
+                ->middleware(['permission:mentorship.update']);
+            Route::patch('/mentors/{uuid}/reactivate', [AdminMentorshipMentorController::class, 'reactivate'])
+                ->middleware(['permission:mentorship.update']);
+            Route::get('/mentors/{uuid}/reviews', [AdminMentorshipMentorController::class, 'reviews'])
+                ->middleware(['permission:mentorship.read']);
+
+            Route::get('/mentees', [AdminMentorshipMenteeController::class, 'index'])
+                ->middleware(['permission:mentorship.read']);
+            Route::get('/mentees/{uuid}', [AdminMentorshipMenteeController::class, 'show'])
+                ->middleware(['permission:mentorship.read']);
+
+            // The Matching Engine: unmatched mentees, ranked mentor recommendations, and manual matching.
+            Route::get('/matching/unmatched-mentees', [AdminMentorshipMatchingController::class, 'unmatchedMentees'])
+                ->middleware(['permission:mentorship.read']);
+            Route::get('/matching/mentees/{uuid}/recommendations', [AdminMentorshipMatchingController::class, 'recommendations'])
+                ->middleware(['permission:mentorship.read']);
+            Route::post('/matching/matches', [AdminMentorshipMatchingController::class, 'store'])
+                ->middleware(['permission:mentorship.update']);
+            Route::get('/matching/matches/{uuid}/chat', [AdminMentorshipMatchingController::class, 'chat'])
+                ->middleware(['permission:mentorship.read']);
         });
 
         Route::prefix('networking')->group(function () {

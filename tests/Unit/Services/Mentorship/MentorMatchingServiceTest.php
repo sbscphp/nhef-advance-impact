@@ -104,6 +104,32 @@ class MentorMatchingServiceTest extends TestCase
         $this->assertNotNull($service->match($mentee));
     }
 
+    public function test_recommendations_for_are_ranked_by_match_percentage_and_include_zero_score_candidates(): void
+    {
+        $mentee = $this->makeMentee(['react', 'product management']);
+        $noOverlap = $this->makeMentor(1, ['finance'], 10, 0);
+        $partialOverlap = $this->makeMentor(2, ['react'], 10, 0);
+        $fullOverlap = $this->makeMentor(3, ['react', 'product management'], 10, 0);
+
+        $mentorRepository = Mockery::mock(MentorProfileRepositoryInterface::class);
+        $mentorRepository->shouldReceive('candidatesForMatching')->once()
+            ->andReturn(new Collection([$noOverlap, $partialOverlap, $fullOverlap]));
+
+        $matchRepository = Mockery::mock(MentorshipMatchRepositoryInterface::class);
+
+        $service = new MentorMatchingService($mentorRepository, $matchRepository);
+
+        $recommendations = $service->recommendationsFor($mentee, 5);
+
+        $this->assertCount(3, $recommendations);
+        $this->assertSame(3, $recommendations[0]['mentor']->id);
+        $this->assertSame(100, $recommendations[0]['score']);
+        $this->assertSame(2, $recommendations[1]['mentor']->id);
+        $this->assertSame(50, $recommendations[1]['score']);
+        $this->assertSame(1, $recommendations[2]['mentor']->id);
+        $this->assertSame(0, $recommendations[2]['score']);
+    }
+
     /**
      * Direct attribute assignment (not constructor mass-assignment) so this stays a pure unit
      * test with no Eloquent guard/schema lookup, and therefore no real database connection.

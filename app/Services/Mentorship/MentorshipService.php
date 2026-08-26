@@ -5,20 +5,25 @@ namespace App\Services\Mentorship;
 use App\Enums\AuditActionEnum;
 use App\Enums\MentorListingStatusEnum;
 use App\Enums\MentorReviewStatusEnum;
+use App\Enums\MentorshipMatchedByEnum;
+use App\Enums\MentorshipMatchStatusEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
 use App\Helpers\GeneralHelper;
+use App\Models\Admin;
 use App\Models\MenteeProfile;
 use App\Models\MentorProfile;
 use App\Models\MentorshipMatch;
 use App\Models\MentorshipReview;
+use App\Models\NetworkingChannel;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Mentorship\MenteeProfileRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorProfileRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorshipMatchRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorshipReviewRepositoryInterface;
+use App\Services\Networking\NetworkingService;
 use App\Services\Notifications\NotificationDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -33,6 +38,7 @@ class MentorshipService
         private readonly MentorshipReviewRepositoryInterface $reviewRepository,
         private readonly MentorMatchingService $matchingService,
         private readonly NotificationDispatchService $notificationDispatchService,
+        private readonly NetworkingService $networkingService,
     ) {}
 
     /**
@@ -244,6 +250,18 @@ class MentorshipService
         return $mentee;
     }
 
+    /** Unlike {@see findMentorByUuid()}, admins may view a mentor in any review status. */
+    public function findMentorForAdmin(string $uuid): MentorProfile
+    {
+        $mentor = $this->mentorProfileRepository->findByUuid($uuid);
+
+        if (! $mentor instanceof MentorProfile) {
+            throw new ApiException('Mentor not found.', 404);
+        }
+
+        return $mentor;
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      */
@@ -252,6 +270,18 @@ class MentorshipService
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         return $this->mentorProfileRepository->paginateApproved($filters, $perPage);
+    }
+
+    /**
+     * All mentors regardless of review status, for the admin "Applications" listing.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateMentorsForAdmin(array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->mentorProfileRepository->paginateForAdmin($filters, $perPage);
     }
 
     /**
@@ -318,6 +348,281 @@ class MentorshipService
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         return $this->reviewRepository->paginateForMentor($mentor->id, $filters, $perPage);
+    }
+
+    public function approveMentorApplication(Admin $actor, string $uuid, Request $request): MentorProfile
+    {
+        $mentor = $this->findMentorForAdmin($uuid);
+
+        if ($mentor->review_status !== MentorReviewStatusEnum::PENDING->value) {
+            throw new ApiException('Only a pending application can be approved.', 422);
+        }
+
+        $mentor = $this->mentorProfileRepository->update($mentor, [
+            'review_status' => MentorReviewStatusEnum::APPROVED->value,
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'rejection_reason' => null,
+        ]);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::MENTOR_APPLICATION_APPROVED,
+            $request,
+            $actor->uuid,
+            ['mentor_profile_uuid' => $mentor->uuid],
+            $actor->displayName().' approved a mentor application: '.$mentor->user->displayName().'.',
+            MentorProfile::class,
+            $mentor->uuid,
+            ModuleEnums::mentorship,
+            200,
+        );
+
+        $this->notificationDispatchService->notifyUsersByUuids([$mentor->user->uuid], new GenericDatabaseNotification(
+            module: ModuleEnums::mentorship->value,
+            event: 'mentor_application_approved',
+            title: 'Your mentor application was approved',
+            message: 'You are now a listed mentor and may be matched with mentees.',
+            meta: ['mentor_profile_uuid' => $mentor->uuid],
+            sendMail: true,
+            mailSubject: 'Your mentor application was approved',
+        ));
+
+        return $mentor;
+    }
+
+    public function rejectMentorApplication(Admin $actor, string $uuid, string $reason, Request $request): MentorProfile
+    {
+        $mentor = $this->findMentorForAdmin($uuid);
+
+        if ($mentor->review_status !== MentorReviewStatusEnum::PENDING->value) {
+            throw new ApiException('Only a pending application can be rejected.', 422);
+        }
+
+        $mentor = $this->mentorProfileRepository->update($mentor, [
+            'review_status' => MentorReviewStatusEnum::REJECTED->value,
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'rejection_reason' => $reason,
+        ]);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::MENTOR_APPLICATION_REJECTED,
+            $request,
+            $actor->uuid,
+            ['mentor_profile_uuid' => $mentor->uuid, 'reason' => $reason],
+            $actor->displayName().' rejected a mentor application: '.$mentor->user->displayName().'.',
+            MentorProfile::class,
+            $mentor->uuid,
+            ModuleEnums::mentorship,
+            200,
+        );
+
+        $this->notificationDispatchService->notifyUsersByUuids([$mentor->user->uuid], new GenericDatabaseNotification(
+            module: ModuleEnums::mentorship->value,
+            event: 'mentor_application_rejected',
+            title: 'Your mentor application was not approved',
+            message: $reason,
+            meta: ['mentor_profile_uuid' => $mentor->uuid],
+            sendMail: true,
+            mailSubject: 'Your mentor application was not approved',
+        ));
+
+        return $mentor;
+    }
+
+    /** Only an approved, currently-listed mentor can be suspended; use {@see reactivateMentor()} to undo. */
+    public function suspendMentor(Admin $actor, string $uuid, string $reason, Request $request): MentorProfile
+    {
+        $mentor = $this->findMentorForAdmin($uuid);
+
+        if ($mentor->review_status !== MentorReviewStatusEnum::APPROVED->value) {
+            throw new ApiException('Only an approved mentor can be suspended.', 422);
+        }
+
+        if ($mentor->listing_status === MentorListingStatusEnum::SUSPENDED->value) {
+            throw new ApiException('This mentor is already suspended.', 422);
+        }
+
+        $mentor = $this->mentorProfileRepository->update($mentor, [
+            'listing_status' => MentorListingStatusEnum::SUSPENDED->value,
+            'suspended_by' => $actor->id,
+            'suspended_at' => now(),
+            'suspension_reason' => $reason,
+        ]);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::MENTOR_SUSPENDED,
+            $request,
+            $actor->uuid,
+            ['mentor_profile_uuid' => $mentor->uuid, 'reason' => $reason],
+            $actor->displayName().' suspended mentor: '.$mentor->user->displayName().'.',
+            MentorProfile::class,
+            $mentor->uuid,
+            ModuleEnums::mentorship,
+            200,
+        );
+
+        $this->notificationDispatchService->notifyUsersByUuids([$mentor->user->uuid], new GenericDatabaseNotification(
+            module: ModuleEnums::mentorship->value,
+            event: 'mentor_suspended',
+            title: 'Your mentor listing was suspended',
+            message: $reason,
+            meta: ['mentor_profile_uuid' => $mentor->uuid],
+            sendMail: true,
+            mailSubject: 'Your mentor listing was suspended',
+        ));
+
+        return $mentor;
+    }
+
+    /** Undoes either a rejection or a suspension, restoring the mentor to an approved, active listing. */
+    public function reactivateMentor(Admin $actor, string $uuid, Request $request): MentorProfile
+    {
+        $mentor = $this->findMentorForAdmin($uuid);
+
+        $wasRejected = $mentor->review_status === MentorReviewStatusEnum::REJECTED->value;
+        $wasSuspended = $mentor->listing_status === MentorListingStatusEnum::SUSPENDED->value;
+
+        if (! $wasRejected && ! $wasSuspended) {
+            throw new ApiException('Only a rejected or suspended mentor can be reactivated.', 422);
+        }
+
+        $mentor = $this->mentorProfileRepository->update($mentor, [
+            'review_status' => MentorReviewStatusEnum::APPROVED->value,
+            'listing_status' => MentorListingStatusEnum::ACTIVE->value,
+            'reviewed_by' => $actor->id,
+            'reviewed_at' => now(),
+            'rejection_reason' => null,
+            'suspended_by' => null,
+            'suspended_at' => null,
+            'suspension_reason' => null,
+        ]);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::MENTOR_REACTIVATED,
+            $request,
+            $actor->uuid,
+            ['mentor_profile_uuid' => $mentor->uuid],
+            $actor->displayName().' reactivated mentor: '.$mentor->user->displayName().'.',
+            MentorProfile::class,
+            $mentor->uuid,
+            ModuleEnums::mentorship,
+            200,
+        );
+
+        $this->notificationDispatchService->notifyUsersByUuids([$mentor->user->uuid], new GenericDatabaseNotification(
+            module: ModuleEnums::mentorship->value,
+            event: 'mentor_reactivated',
+            title: 'Your mentor listing is active again',
+            message: 'You may be matched with mentees again.',
+            meta: ['mentor_profile_uuid' => $mentor->uuid],
+            sendMail: true,
+            mailSubject: 'Your mentor listing is active again',
+        ));
+
+        return $mentor;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateReviewsForMentorAdmin(string $mentorUuid, array $filters): LengthAwarePaginator
+    {
+        $mentor = $this->findMentorForAdmin($mentorUuid);
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->reviewRepository->paginateForMentor($mentor->id, $filters, $perPage);
+    }
+
+    /**
+     * Mentees with no active match, for the "Unmatched Students" panel of the admin Matching Engine.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateUnmatchedMentees(array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->menteeProfileRepository->paginateUnmatched($filters, $perPage);
+    }
+
+    /**
+     * @return list<array{mentor: MentorProfile, score: int}>
+     */
+    public function recommendMentorsForMentee(string $menteeUuid, int $limit = 5): array
+    {
+        $mentee = $this->findMenteeByUuid($menteeUuid);
+
+        return $this->matchingService->recommendationsFor($mentee, $limit);
+    }
+
+    /** Admin-initiated equivalent of the auto-matching algorithm, for the Matching Engine's "Approve Match" action. */
+    public function matchManually(Admin $actor, string $mentorUuid, string $menteeUuid, Request $request): MentorshipMatch
+    {
+        $mentee = $this->findMenteeByUuid($menteeUuid);
+        $mentor = $this->findMentorForAdmin($mentorUuid);
+
+        if ($this->matchRepository->findActiveForMentee($mentee->id) !== null) {
+            throw new ApiException('This mentee already has an active mentor match.', 422);
+        }
+
+        if (! $mentor->isAvailableForMatching()) {
+            throw new ApiException('This mentor is not available for matching right now.', 422);
+        }
+
+        $match = DB::transaction(function () use ($mentor, $mentee): MentorshipMatch {
+            $match = $this->matchRepository->create([
+                'mentor_profile_id' => $mentor->id,
+                'mentee_profile_id' => $mentee->id,
+                'status' => MentorshipMatchStatusEnum::ACTIVE->value,
+                'matched_by' => MentorshipMatchedByEnum::ADMIN->value,
+                'matched_at' => now(),
+            ]);
+
+            $this->mentorProfileRepository->incrementMenteeCount($mentor);
+
+            return $match;
+        });
+
+        $match->setRelation('mentorProfile', $mentor);
+        $match->setRelation('menteeProfile', $mentee);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::MENTORSHIP_MATCHED_MANUALLY,
+            $request,
+            $actor->uuid,
+            ['mentorship_match_uuid' => $match->uuid, 'mentor_profile_uuid' => $mentor->uuid, 'mentee_profile_uuid' => $mentee->uuid],
+            $actor->displayName().' matched '.$mentee->user->displayName().' with mentor '.$mentor->user->displayName().'.',
+            MentorshipMatch::class,
+            $match->uuid,
+            ModuleEnums::mentorship,
+            201,
+        );
+
+        $this->notifyMatched($match);
+
+        return $match;
+    }
+
+    /**
+     * Finds or opens the direct-message channel between a match's mentor and mentee, so the admin
+     * "Chat Mentor or Mentee" screen can reuse the existing Admin/Networking oversight endpoints
+     * instead of a parallel messaging system. Admins never send into it; see {@see NetworkingService::listMessagesForAdmin()}.
+     */
+    public function chatChannelForMatch(string $matchUuid): NetworkingChannel
+    {
+        $match = $this->matchRepository->findByUuid($matchUuid);
+
+        if (! $match instanceof MentorshipMatch) {
+            throw new ApiException('Mentorship match not found.', 404);
+        }
+
+        return $this->networkingService->startDirectConversation($match->menteeProfile->user, $match->mentorProfile->user->uuid);
     }
 
     private function notifyAdminsOfNewMentorApplication(MentorProfile $mentor, User $user): void

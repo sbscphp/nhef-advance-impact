@@ -23,6 +23,7 @@ class MentorProfile extends Model
             'available_days' => 'array',
             'eligibility_confirmed_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'suspended_at' => 'datetime',
         ];
     }
 
@@ -34,6 +35,11 @@ class MentorProfile extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(Admin::class, 'reviewed_by');
+    }
+
+    public function suspendedBy(): BelongsTo
+    {
+        return $this->belongsTo(Admin::class, 'suspended_by');
     }
 
     public function matches(): HasMany

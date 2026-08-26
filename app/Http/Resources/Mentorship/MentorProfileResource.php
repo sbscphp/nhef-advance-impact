@@ -51,6 +51,12 @@ class MentorProfileResource extends JsonResource
             'portfolio_url' => $this->portfolio_url,
             'review_status' => $this->review_status,
             'listing_status' => $this->listing_status,
+            'reviewer' => $this->whenLoaded('reviewer', fn () => $this->reviewer?->displayName()),
+            'reviewed_at' => $this->reviewed_at?->toIso8601String(),
+            'rejection_reason' => $this->rejection_reason,
+            'suspended_by' => $this->whenLoaded('suspendedBy', fn () => $this->suspendedBy?->displayName()),
+            'suspended_at' => $this->suspended_at?->toIso8601String(),
+            'suspension_reason' => $this->suspension_reason,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
