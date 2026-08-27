@@ -4,6 +4,7 @@ namespace App\Http\Requests\Customer\Mentorship;
 
 use App\Enums\MentorshipCommitmentEnum;
 use App\Enums\MentorshipFrequencyEnum;
+use App\Enums\SocialPlatformEnum;
 use App\Http\Requests\ApiFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -31,8 +32,9 @@ class MentorApplicationRequest extends ApiFormRequest
             'available_days.*' => ['required', Rule::in(self::WEEKDAYS)],
             'frequency_of_interaction' => ['required', Rule::in(MentorshipFrequencyEnum::values())],
             'program_commitment' => ['required', Rule::in(MentorshipCommitmentEnum::values())],
-            'linkedin_url' => ['sometimes', 'nullable', 'url', 'max:255'],
-            'twitter_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'socials' => ['sometimes', 'nullable', 'array', 'max:'.count(SocialPlatformEnum::values())],
+            'socials.*.platform' => ['required', Rule::in(SocialPlatformEnum::values()), 'distinct'],
+            'socials.*.value' => ['required', 'string', 'max:255'],
             'portfolio_url' => ['sometimes', 'nullable', 'url', 'max:255'],
             'confirms_experience_requirement' => ['required', 'accepted'],
             'confirms_time_commitment' => ['required', 'accepted'],

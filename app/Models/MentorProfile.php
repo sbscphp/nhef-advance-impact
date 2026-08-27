@@ -21,6 +21,7 @@ class MentorProfile extends Model
             'expertise_tags' => 'array',
             'guidance_areas' => 'array',
             'available_days' => 'array',
+            'socials' => 'array',
             'eligibility_confirmed_at' => 'datetime',
             'reviewed_at' => 'datetime',
             'suspended_at' => 'datetime',

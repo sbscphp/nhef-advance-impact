@@ -21,6 +21,7 @@ class MenteeProfile extends Model
             'interest_areas' => 'array',
             'skills' => 'array',
             'available_days' => 'array',
+            'socials' => 'array',
             'consent_confirmed_at' => 'datetime',
         ];
     }

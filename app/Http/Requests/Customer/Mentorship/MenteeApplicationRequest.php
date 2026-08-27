@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Customer\Mentorship;
 
 use App\Enums\MentorshipFrequencyEnum;
+use App\Enums\SocialPlatformEnum;
 use App\Http\Requests\ApiFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,8 +26,9 @@ class MenteeApplicationRequest extends ApiFormRequest
             'available_days' => ['required', 'array', 'min:1'],
             'available_days.*' => ['required', Rule::in(self::WEEKDAYS)],
             'frequency_of_interaction' => ['required', Rule::in(MentorshipFrequencyEnum::values())],
-            'linkedin_url' => ['sometimes', 'nullable', 'url', 'max:255'],
-            'twitter_url' => ['sometimes', 'nullable', 'url', 'max:255'],
+            'socials' => ['sometimes', 'nullable', 'array', 'max:'.count(SocialPlatformEnum::values())],
+            'socials.*.platform' => ['required', Rule::in(SocialPlatformEnum::values()), 'distinct'],
+            'socials.*.value' => ['required', 'string', 'max:255'],
             'portfolio_url' => ['sometimes', 'nullable', 'url', 'max:255'],
             'confirms_information_accuracy' => ['required', 'accepted'],
             'confirms_matching_understanding' => ['required', 'accepted'],
