@@ -9,6 +9,7 @@ use App\Enums\MentorshipCommitmentEnum;
 use App\Enums\MentorshipFrequencyEnum;
 use App\Enums\MentorshipMatchedByEnum;
 use App\Enums\MentorshipMatchStatusEnum;
+use App\Enums\SocialPlatformEnum;
 use App\Models\MenteeProfile;
 use App\Models\MentorProfile;
 use App\Models\MentorshipMatch;
@@ -66,7 +67,9 @@ class MentorshipSeeder extends Seeder
                 'available_days' => ['Tuesday', 'Thursday'],
                 'frequency_of_interaction' => MentorshipFrequencyEnum::BI_WEEKLY->value,
                 'program_commitment' => MentorshipCommitmentEnum::SIX_MONTHS->value,
-                'linkedin_url' => 'https://linkedin.com/in/nhef-mentor-1',
+                'socials' => [
+                    ['platform' => SocialPlatformEnum::LINKEDIN->value, 'value' => 'https://linkedin.com/in/nhef-mentor-1'],
+                ],
                 'eligibility_confirmed_at' => now()->subMonth(),
                 'review_status' => MentorReviewStatusEnum::APPROVED->value,
                 'listing_status' => MentorListingStatusEnum::ACTIVE->value,
@@ -83,7 +86,9 @@ class MentorshipSeeder extends Seeder
                 'why_mentor_needed' => 'Want guidance on technical interviews and career progression.',
                 'available_days' => ['Tuesday', 'Thursday'],
                 'frequency_of_interaction' => MentorshipFrequencyEnum::BI_WEEKLY->value,
-                'linkedin_url' => 'https://linkedin.com/in/nhef-mentee-1',
+                'socials' => [
+                    ['platform' => SocialPlatformEnum::LINKEDIN->value, 'value' => 'https://linkedin.com/in/nhef-mentee-1'],
+                ],
                 'consent_confirmed_at' => now()->subMonths(6),
             ]
         );
