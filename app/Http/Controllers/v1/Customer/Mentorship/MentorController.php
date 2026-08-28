@@ -68,7 +68,8 @@ class MentorController extends Controller
     public function index(MentorListRequest $request)
     {
         try {
-            $paginator = $this->mentorshipService->paginateMentors($request->validated());
+            $user = $this->requireCustomer($request);
+            $paginator = $this->mentorshipService->paginateMyMentors($user, $request->validated());
 
             return JsonResponser::send(false, 'Mentors retrieved.', $this->paginatedPayload($paginator), 200);
         } catch (\Throwable $th) {

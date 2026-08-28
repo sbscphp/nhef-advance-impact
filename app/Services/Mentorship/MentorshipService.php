@@ -27,6 +27,7 @@ use App\Services\Networking\NetworkingService;
 use App\Services\Notifications\NotificationDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\DB;
 
 class MentorshipService
@@ -261,13 +262,37 @@ class MentorshipService
     }
 
     /**
+     * Mentors matched to the current user (as a mentee), for their "My Mentors" list.
+     *
      * @param  array<string, mixed>  $filters
      */
-    public function paginateMentors(array $filters): LengthAwarePaginator
+    public function paginateMyMentors(User $user, array $filters): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $mentee = $this->menteeProfileRepository->findByUserId($user->id);
 
-        return $this->mentorProfileRepository->paginateApproved($filters, $perPage);
+        if (! $mentee instanceof MenteeProfile) {
+            return $this->emptyPaginator($perPage);
+        }
+
+        return $this->mentorProfileRepository->paginateForMentee($mentee->id, $filters, $perPage);
+    }
+
+    /**
+     * Mentees matched to the current user (as a mentor), for their "My Mentees" list.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateMyMentees(User $user, array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $mentor = $this->mentorProfileRepository->findByUserId($user->id);
+
+        if (! $mentor instanceof MentorProfile) {
+            return $this->emptyPaginator($perPage);
+        }
+
+        return $this->menteeProfileRepository->paginateForMentor($mentor->id, $filters, $perPage);
     }
 
     /**
@@ -675,5 +700,13 @@ class MentorshipService
         );
 
         $this->notificationDispatchService->notifyUsersByUuids([$mentor->user->uuid], $notification);
+    }
+
+    /** Matches the shape/URLs a real ->paginate() call would produce, just with zero results. */
+    private function emptyPaginator(int $perPage): LengthAwarePaginator
+    {
+        return new LengthAwarePaginator([], 0, $perPage, 1, [
+            'path' => Paginator::resolveCurrentPath(),
+        ]);
     }
 }

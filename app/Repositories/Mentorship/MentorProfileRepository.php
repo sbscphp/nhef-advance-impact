@@ -4,6 +4,7 @@ namespace App\Repositories\Mentorship;
 
 use App\Enums\MentorListingStatusEnum;
 use App\Enums\MentorReviewStatusEnum;
+use App\Enums\MentorshipMatchStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\MentorProfile;
 use App\Repositories\Contracts\Mentorship\MentorProfileRepositoryInterface;
@@ -27,12 +28,14 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
         return MentorProfile::query()->where('user_id', $userId)->first();
     }
 
-    public function paginateApproved(array $filters, int $perPage): LengthAwarePaginator
+    public function paginateForMentee(int $menteeProfileId, array $filters, int $perPage): LengthAwarePaginator
     {
         $query = MentorProfile::query()
             ->select('mentor_profiles.*')
             ->with(['user'])
-            ->where('mentor_profiles.review_status', MentorReviewStatusEnum::APPROVED->value)
+            ->whereHas('matches', fn ($matchQuery) => $matchQuery
+                ->where('mentee_profile_id', $menteeProfileId)
+                ->whereIn('status', [MentorshipMatchStatusEnum::ACTIVE->value, MentorshipMatchStatusEnum::COMPLETED->value]))
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery
