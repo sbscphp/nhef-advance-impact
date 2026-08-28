@@ -19,6 +19,7 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "laravel/wayfinder": "^0.1.9",
+        "phpoffice/phpword": "^1.4",
         "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-permission": "^6.24",
         "stripe/stripe-php": "^20.0"
