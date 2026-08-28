@@ -47,7 +47,8 @@ class MenteeController extends Controller
     public function index(MenteeListRequest $request)
     {
         try {
-            $paginator = $this->mentorshipService->paginateMentees($request->validated());
+            $user = $this->requireCustomer($request);
+            $paginator = $this->mentorshipService->paginateMyMentees($user, $request->validated());
 
             return JsonResponser::send(false, 'Mentees retrieved.', $this->paginatedPayload($paginator), 200);
         } catch (\Throwable $th) {

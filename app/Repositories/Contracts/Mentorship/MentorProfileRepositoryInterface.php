@@ -18,9 +18,11 @@ interface MentorProfileRepositoryInterface
     public function findByUserId(int $userId): ?MentorProfile;
 
     /**
+     * Mentors matched (active or completed) to this mentee, for their "My Mentors" list.
+     *
      * @param  array<string, mixed>  $filters
      */
-    public function paginateApproved(array $filters, int $perPage): LengthAwarePaginator;
+    public function paginateForMentee(int $menteeProfileId, array $filters, int $perPage): LengthAwarePaginator;
 
     /**
      * All mentors regardless of review status, for the admin "Applications" listing.

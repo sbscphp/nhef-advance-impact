@@ -27,4 +27,11 @@ interface MenteeProfileRepositoryInterface
      * @param  array<string, mixed>  $filters
      */
     public function paginateUnmatched(array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Mentees matched (active or completed) to this mentor, for their "My Mentees" list.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForMentor(int $mentorProfileId, array $filters, int $perPage): LengthAwarePaginator;
 }
