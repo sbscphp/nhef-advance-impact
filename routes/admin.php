@@ -4,6 +4,12 @@ use App\Http\Controllers\v1\Admin\AuditTrail\AuditTrailController;
 use App\Http\Controllers\v1\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\v1\Admin\Auth\PasswordController as AdminPasswordController;
 use App\Http\Controllers\v1\Admin\ConstituentManagement\ConstituentController;
+use App\Http\Controllers\v1\Admin\Crm\ProposalCollaboratorController;
+use App\Http\Controllers\v1\Admin\Crm\ProspectCallLogController;
+use App\Http\Controllers\v1\Admin\Crm\ProspectController;
+use App\Http\Controllers\v1\Admin\Crm\ProspectInviteController;
+use App\Http\Controllers\v1\Admin\Crm\ProspectMessageController;
+use App\Http\Controllers\v1\Admin\Crm\ProspectProposalController;
 use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
@@ -243,6 +249,70 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:mentorship.update']);
             Route::get('/matching/matches/{uuid}/chat', [AdminMentorshipMatchingController::class, 'chat'])
                 ->middleware(['permission:mentorship.read']);
+        });
+
+        Route::prefix('crm')->group(function () {
+            Route::get('/prospects', [ProspectController::class, 'index'])
+                ->middleware(['permission:crm.read']);
+            Route::post('/prospects', [ProspectController::class, 'store'])
+                ->middleware(['permission:crm.create']);
+            // Must be registered before /prospects/{uuid}; otherwise "list" would be swallowed
+            // as a wildcard prospect uuid by the route below (same caution as events/overview).
+            Route::get('/prospects/list', [ProspectController::class, 'list'])
+                ->middleware(['permission:crm.read']);
+            Route::get('/prospects/{uuid}', [ProspectController::class, 'show'])
+                ->middleware(['permission:crm.read']);
+            Route::patch('/prospects/{uuid}', [ProspectController::class, 'update'])
+                ->middleware(['permission:crm.update']);
+            Route::patch('/prospects/{uuid}/stage', [ProspectController::class, 'changeStage'])
+                ->middleware(['permission:crm.update']);
+
+            Route::get('/prospects/{uuid}/calls', [ProspectCallLogController::class, 'index'])
+                ->middleware(['permission:crm.read']);
+            Route::post('/prospects/{uuid}/calls', [ProspectCallLogController::class, 'store'])
+                ->middleware(['permission:crm.create']);
+            Route::get('/prospects/{uuid}/calls/{callUuid}', [ProspectCallLogController::class, 'show'])
+                ->middleware(['permission:crm.read']);
+
+            Route::get('/prospects/{uuid}/invites', [ProspectInviteController::class, 'index'])
+                ->middleware(['permission:crm.read']);
+            Route::post('/prospects/{uuid}/invites', [ProspectInviteController::class, 'store'])
+                ->middleware(['permission:crm.create']);
+            Route::get('/prospects/{uuid}/invites/{inviteUuid}', [ProspectInviteController::class, 'show'])
+                ->middleware(['permission:crm.read']);
+
+            Route::get('/prospects/{uuid}/proposals', [ProspectProposalController::class, 'index'])
+                ->middleware(['permission:crm.read']);
+            Route::post('/prospects/{uuid}/proposals', [ProspectProposalController::class, 'store'])
+                ->middleware(['permission:crm.create']);
+            Route::get('/prospects/{uuid}/proposals/{proposalUuid}', [ProspectProposalController::class, 'show'])
+                ->middleware(['permission:crm.read']);
+            Route::patch('/prospects/{uuid}/proposals/{proposalUuid}', [ProspectProposalController::class, 'update'])
+                ->middleware(['permission:crm.update']);
+            Route::delete('/prospects/{uuid}/proposals/{proposalUuid}', [ProspectProposalController::class, 'destroy'])
+                ->middleware(['permission:crm.delete']);
+            Route::post('/prospects/{uuid}/proposals/{proposalUuid}/duplicate', [ProspectProposalController::class, 'duplicate'])
+                ->middleware(['permission:crm.create']);
+            Route::get('/prospects/{uuid}/proposals/{proposalUuid}/download/pdf', [ProspectProposalController::class, 'downloadPdf'])
+                ->middleware(['permission:crm.read']);
+            Route::get('/prospects/{uuid}/proposals/{proposalUuid}/download/word', [ProspectProposalController::class, 'downloadWord'])
+                ->middleware(['permission:crm.read']);
+            Route::post('/prospects/{uuid}/proposals/{proposalUuid}/send', [ProspectProposalController::class, 'sendToClient'])
+                ->middleware(['permission:crm.update']);
+            Route::post('/prospects/{uuid}/proposals/{proposalUuid}/resend', [ProspectProposalController::class, 'resend'])
+                ->middleware(['permission:crm.update']);
+
+            Route::get('/prospects/{uuid}/proposals/{proposalUuid}/collaborators', [ProposalCollaboratorController::class, 'index'])
+                ->middleware(['permission:crm.read']);
+            Route::post('/prospects/{uuid}/proposals/{proposalUuid}/collaborators', [ProposalCollaboratorController::class, 'store'])
+                ->middleware(['permission:crm.create']);
+
+            Route::get('/prospects/{uuid}/messages', [ProspectMessageController::class, 'index'])
+                ->middleware(['permission:communications.read']);
+            Route::post('/prospects/{uuid}/messages', [ProspectMessageController::class, 'store'])
+                ->middleware(['permission:communications.create']);
+            Route::get('/prospects/{uuid}/messages/{messageUuid}', [ProspectMessageController::class, 'show'])
+                ->middleware(['permission:communications.read']);
         });
 
         Route::prefix('networking')->group(function () {
