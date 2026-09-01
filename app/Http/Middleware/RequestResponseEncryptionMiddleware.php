@@ -67,6 +67,8 @@ final readonly class RequestResponseEncryptionMiddleware
         '#^/api/v1/public/receipts/[^/]+/download$#i',
         '#^/api/v1/public/receipts/[^/]+/tax/download$#i',
         '#^/api/v1/public/blog/report/[^/]+/download$#i',
+        '#^/api/v1/public/mails/[^/]+/track/[^/]+$#i',
+        '#^/api/v1/public/mails/unsubscribe/[^/]+$#i',
     ];
 
     public function __construct(

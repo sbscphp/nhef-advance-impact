@@ -47,4 +47,27 @@ interface UserRepositoryInterface
      * @return array{all: int, active: int, access_revoked: int}
      */
     public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array;
+
+    /**
+     * Constituent picker for Communications: search plus university/department/graduation-year
+     * segmentation, all optional and AND'd together.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForSegment(array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Every user matching the given segment criteria, unpaginated, for resolving a mail's
+     * recipient list. Only `id` and `email` are selected.
+     *
+     * @param  array<string, mixed>  $segment
+     * @return Collection<int, User>
+     */
+    public function resolveSegmentMembers(array $segment): Collection;
+
+    /**
+     * @param  list<string>  $uuids
+     * @return Collection<int, User>
+     */
+    public function findManyByUuids(array $uuids): Collection;
 }

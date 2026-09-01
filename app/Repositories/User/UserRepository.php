@@ -7,6 +7,7 @@ use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\User;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -119,5 +120,71 @@ class UserRepository implements UserRepositoryInterface
             'active' => (int) $scoped()->where('status', ConstituentStatusEnum::ACTIVE->value)->count(),
             'access_revoked' => (int) $scoped()->where('status', ConstituentStatusEnum::ACCESS_REVOKED->value)->count(),
         ];
+    }
+
+    public function paginateForSegment(array $filters, int $perPage): LengthAwarePaginator
+    {
+        return $this->segmentQuery($filters)->paginate($perPage);
+    }
+
+    public function resolveSegmentMembers(array $segment): Collection
+    {
+        if (! $this->hasSegmentCriteria($segment)) {
+            return new Collection;
+        }
+
+        return $this->segmentQuery($segment)->select(['id', 'email'])->get();
+    }
+
+    public function findManyByUuids(array $uuids): Collection
+    {
+        if ($uuids === []) {
+            return new Collection;
+        }
+
+        return User::query()->whereIn('uuid', $uuids)->get();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function segmentQuery(array $filters): Builder
+    {
+        return User::query()
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->where(function ($query) use ($filters) {
+                    $query->where('firstname', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('lastname', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('email', 'like', '%'.$filters['search'].'%');
+                })
+            )
+            ->when(
+                filled($filters['university'] ?? null),
+                fn ($query) => $query->where('university', $filters['university'])
+            )
+            ->when(
+                filled($filters['department'] ?? null),
+                fn ($query) => $query->where('department', $filters['department'])
+            )
+            ->when(
+                filled($filters['graduation_year_from'] ?? null),
+                fn ($query) => $query->where('year_of_graduation', '>=', $filters['graduation_year_from'])
+            )
+            ->when(
+                filled($filters['graduation_year_to'] ?? null),
+                fn ($query) => $query->where('year_of_graduation', '<=', $filters['graduation_year_to'])
+            );
+    }
+
+    /**
+     * @param  array<string, mixed>  $segment
+     */
+    private function hasSegmentCriteria(array $segment): bool
+    {
+        return filled($segment['university'] ?? null)
+            || filled($segment['department'] ?? null)
+            || filled($segment['graduation_year_from'] ?? null)
+            || filled($segment['graduation_year_to'] ?? null);
     }
 }

@@ -1,0 +1,35 @@
+<?php
+
+namespace App\Http\Requests\Admin\Communications;
+
+use App\Enums\TaskPriorityEnum;
+use App\Enums\TaskRecurrenceIntervalUnitEnum;
+use App\Http\Requests\ApiFormRequest;
+use Illuminate\Validation\Rule;
+
+class AddCallFollowUpTaskRequest extends ApiFormRequest
+{
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    public function rules(): array
+    {
+        return [
+            'title' => ['required', 'string', 'max:255'],
+            'assigned_to' => ['required', 'uuid', 'exists:admins,uuid'],
+            'priority' => ['required', Rule::in(TaskPriorityEnum::values())],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'start_date' => ['required', 'date'],
+            'due_date' => ['required', 'date', 'after_or_equal:start_date'],
+            // Same single master toggle as the Log Call wizard's Follow Up Task step, no
+            // per-window breakdown here; fine-tune later via the standalone Edit Task screen.
+            'reminders_enabled' => ['sometimes', 'boolean'],
+            'is_recurring' => ['sometimes', 'boolean'],
+            'repeat_non_stop' => ['sometimes', 'boolean'],
+            'recurrence_interval_value' => [Rule::requiredIf(fn () => $this->boolean('is_recurring')), 'nullable', 'integer', 'min:1'],
+            'recurrence_interval_unit' => [Rule::requiredIf(fn () => $this->boolean('is_recurring')), 'nullable', Rule::in(TaskRecurrenceIntervalUnitEnum::values())],
+            // Not required when "Repeat Non Stop" is on: that means the task recurs forever.
+            'recurrence_end_date' => [Rule::requiredIf(fn () => $this->boolean('is_recurring') && ! $this->boolean('repeat_non_stop')), 'nullable', 'date', 'after:due_date'],
+        ];
+    }
+}

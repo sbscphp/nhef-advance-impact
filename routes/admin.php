@@ -3,6 +3,10 @@
 use App\Http\Controllers\v1\Admin\AuditTrail\AuditTrailController;
 use App\Http\Controllers\v1\Admin\Auth\AdminLoginController;
 use App\Http\Controllers\v1\Admin\Auth\PasswordController as AdminPasswordController;
+use App\Http\Controllers\v1\Admin\Communications\CallLogController;
+use App\Http\Controllers\v1\Admin\Communications\ConstituentPickerController;
+use App\Http\Controllers\v1\Admin\Communications\MailController;
+use App\Http\Controllers\v1\Admin\Communications\TaskController as CommunicationTaskController;
 use App\Http\Controllers\v1\Admin\ConstituentManagement\ConstituentController;
 use App\Http\Controllers\v1\Admin\Crm\ProposalCollaboratorController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectCallLogController;
@@ -313,6 +317,75 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:communications.create']);
             Route::get('/prospects/{uuid}/messages/{messageUuid}', [ProspectMessageController::class, 'show'])
                 ->middleware(['permission:communications.read']);
+        });
+
+        Route::prefix('communications')->group(function () {
+            // Must be registered before /mails/{uuid}; otherwise these would be swallowed as a
+            // wildcard mail uuid by the route below (same caution as events/overview).
+            Route::get('/mails/dashboard', [MailController::class, 'dashboard'])
+                ->middleware(['permission:communications.read']);
+            Route::get('/mails/unsubscribers', [MailController::class, 'unsubscribers'])
+                ->middleware(['permission:communications.read']);
+
+            Route::get('/mails', [MailController::class, 'index'])
+                ->middleware(['permission:communications.read']);
+            Route::post('/mails', [MailController::class, 'store'])
+                ->middleware(['permission:communications.create']);
+            Route::get('/mails/{uuid}', [MailController::class, 'show'])
+                ->middleware(['permission:communications.read']);
+            Route::patch('/mails/{uuid}', [MailController::class, 'update'])
+                ->middleware(['permission:communications.update']);
+            Route::delete('/mails/{uuid}', [MailController::class, 'destroy'])
+                ->middleware(['permission:communications.delete']);
+            Route::post('/mails/{uuid}/send', [MailController::class, 'send'])
+                ->middleware(['permission:communications.update']);
+            Route::post('/mails/{uuid}/resend', [MailController::class, 'resend'])
+                ->middleware(['permission:communications.update']);
+            Route::get('/mails/{uuid}/recipients', [MailController::class, 'recipients'])
+                ->middleware(['permission:communications.read']);
+            Route::get('/mails/{uuid}/analytics', [MailController::class, 'analytics'])
+                ->middleware(['permission:communications.read']);
+
+            Route::get('/constituents', [ConstituentPickerController::class, 'index'])
+                ->middleware(['permission:communications.read']);
+            Route::get('/assignable-admins', [CommunicationTaskController::class, 'assignableAdmins'])
+                ->middleware(['permission:communications.read']);
+
+            Route::get('/call-logs/overview', [CallLogController::class, 'overview'])
+                ->middleware(['permission:communications.read']);
+            Route::get('/call-logs', [CallLogController::class, 'index'])
+                ->middleware(['permission:communications.read']);
+            Route::post('/call-logs', [CallLogController::class, 'store'])
+                ->middleware(['permission:communications.create']);
+            Route::get('/call-logs/{uuid}', [CallLogController::class, 'show'])
+                ->middleware(['permission:communications.read']);
+            Route::post('/call-logs/{uuid}/tasks', [CallLogController::class, 'addTask'])
+                ->middleware(['permission:communications.create']);
+
+            Route::get('/tasks/overview', [CommunicationTaskController::class, 'overview'])
+                ->middleware(['permission:communications.read']);
+            Route::get('/tasks', [CommunicationTaskController::class, 'index'])
+                ->middleware(['permission:communications.read']);
+            Route::post('/tasks', [CommunicationTaskController::class, 'store'])
+                ->middleware(['permission:communications.create']);
+            Route::get('/tasks/{uuid}', [CommunicationTaskController::class, 'show'])
+                ->middleware(['permission:communications.read']);
+            Route::patch('/tasks/{uuid}', [CommunicationTaskController::class, 'update'])
+                ->middleware(['permission:communications.update']);
+            Route::delete('/tasks/{uuid}', [CommunicationTaskController::class, 'destroy'])
+                ->middleware(['permission:communications.delete']);
+            Route::patch('/tasks/{uuid}/mark-done', [CommunicationTaskController::class, 'markDone'])
+                ->middleware(['permission:communications.update']);
+            Route::patch('/tasks/{uuid}/recurrence/pause', [CommunicationTaskController::class, 'pauseRecurrence'])
+                ->middleware(['permission:communications.update']);
+            Route::patch('/tasks/{uuid}/recurrence/resume', [CommunicationTaskController::class, 'resumeRecurrence'])
+                ->middleware(['permission:communications.update']);
+            Route::patch('/tasks/{uuid}/recurrence/disable', [CommunicationTaskController::class, 'disableRecurrence'])
+                ->middleware(['permission:communications.update']);
+            Route::get('/tasks/{uuid}/instances', [CommunicationTaskController::class, 'instances'])
+                ->middleware(['permission:communications.read']);
+            Route::post('/tasks/{uuid}/notes', [CommunicationTaskController::class, 'addNote'])
+                ->middleware(['permission:communications.create']);
         });
 
         Route::prefix('networking')->group(function () {
