@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\v1\Communications\MailTrackingController;
+use App\Http\Controllers\v1\Communications\MailUnsubscribeController;
 use App\Http\Controllers\v1\Events\EventController;
 use App\Http\Controllers\v1\Events\EventRegistrationPaymentController;
 use App\Http\Controllers\v1\Fundraising\CampaignController;
@@ -49,4 +51,13 @@ Route::prefix('v1')->group(function () {
         ->name('receipts.download');
 
     Route::get('public/recognition/leaderboard', [LeaderboardController::class, 'index']);
+
+    // Matches RequestResponseEncryptionMiddleware::BYPASS_REGEX: opened directly from an emailed
+    // link/image with no X-ClientKey header, so the `signed` middleware's signature is the credential.
+    Route::get('public/mails/{mailUuid}/track/{recipientUuid}', [MailTrackingController::class, 'track'])
+        ->middleware('signed')
+        ->name('mails.track');
+    Route::get('public/mails/unsubscribe/{recipientUuid}', [MailUnsubscribeController::class, 'unsubscribe'])
+        ->middleware('signed')
+        ->name('mails.unsubscribe');
 });
