@@ -16,3 +16,6 @@ Schedule::command('donations:charge-recurring')->dailyAt('02:00');
 // Early enough that a today-due instance exists before the reminder command runs.
 Schedule::command('communications:generate-recurring-tasks')->dailyAt('00:30');
 Schedule::command('communications:send-task-reminders')->dailyAt('07:00');
+
+// Nigeria's bank list barely changes; weekly keeps it fresh without hammering Paystack daily.
+Schedule::command('banks:sync')->weeklyOn(1, '03:00');
