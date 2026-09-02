@@ -14,6 +14,7 @@ use App\Http\Controllers\v1\Admin\Crm\ProspectController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectInviteController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectMessageController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectProposalController;
+use App\Http\Controllers\v1\Admin\Donation\DonationController as AdminDonationController;
 use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
@@ -239,6 +240,19 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:constituents.read']);
             Route::post('/{uuid}/pledges/{pledgeUuid}/send-reminder', [ConstituentController::class, 'sendPledgeReminder'])
                 ->middleware(['permission:constituents.update']);
+        });
+
+        Route::prefix('donation')->group(function () {
+            // Must be registered before /{uuid}; otherwise "overview"/"leaderboard" would be
+            // swallowed as a wildcard payment uuid by the route below (same caution as events/overview).
+            Route::get('/overview', [AdminDonationController::class, 'overview'])
+                ->middleware(['permission:donations.read']);
+            Route::get('/leaderboard', [AdminDonationController::class, 'leaderboard'])
+                ->middleware(['permission:donations.read']);
+            Route::get('/', [AdminDonationController::class, 'index'])
+                ->middleware(['permission:donations.read']);
+            Route::get('/{uuid}', [AdminDonationController::class, 'show'])
+                ->middleware(['permission:donations.read']);
         });
 
         Route::prefix('mentorship')->group(function () {

@@ -72,4 +72,32 @@ interface DonationPaymentRepositoryInterface
      * the given institution name; feeds a National Giving Day campaign's per-institution progress.
      */
     public function sumSuccessfulForCampaignAndUniversity(int $campaignId, string $university): string;
+
+    /**
+     * Org-wide payment listing (not scoped to a user or campaign), for the admin Donation module.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Same filters as {@see self::paginateForAdmin()} but capped instead of paginated.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, DonationPayment>, 1: bool}
+     */
+    public function exportForAdmin(array $filters): array;
+
+    public function findByUuidForAdmin(string $uuid): ?DonationPayment;
+
+    /**
+     * Org-wide sum of successful NGN payments, optionally date-scoped.
+     */
+    public function sumSuccessfulForAdmin(?string $from, ?string $to): string;
+
+    /**
+     * Sum of goal_amount across every campaign that has ever received a successful NGN payment;
+     * the org-wide equivalent of {@see self::distinctCampaignGoalTotalForUser()}.
+     */
+    public function distinctCampaignGoalTotalForAdmin(): string;
 }

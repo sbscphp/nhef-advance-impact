@@ -16,6 +16,7 @@ class LeaderboardEntryResource extends JsonResource
         return [
             'rank' => $this->rank,
             'donor_name' => $this->donor_name,
+            'avatar_url' => $this->avatar_url,
             'tier' => $this->tier,
             'total' => $this->total,
             'total_formatted' => Money::format($this->total, 'NGN'),

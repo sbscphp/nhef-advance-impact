@@ -614,6 +614,52 @@ class DonationService
     }
 
     /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginatePaymentsForAdmin(array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->paymentRepository->paginateForAdmin($filters, $perPage);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, DonationPayment>, 1: bool}
+     */
+    public function exportPaymentsForAdmin(array $filters): array
+    {
+        return $this->paymentRepository->exportForAdmin($filters);
+    }
+
+    public function findPaymentForAdmin(string $uuid): DonationPayment
+    {
+        $payment = $this->paymentRepository->findByUuidForAdmin($uuid);
+
+        if (! $payment instanceof DonationPayment) {
+            throw new ApiException('Donation payment not found.', 404);
+        }
+
+        return $payment;
+    }
+
+    /**
+     * @return array{target: string, target_formatted: string, received: string, received_formatted: string}
+     */
+    public function adminHistoryOverview(?string $from, ?string $to): array
+    {
+        $target = $this->paymentRepository->distinctCampaignGoalTotalForAdmin();
+        $received = $this->paymentRepository->sumSuccessfulForAdmin($from, $to);
+
+        return [
+            'target' => $target,
+            'target_formatted' => Money::format($target, 'NGN'),
+            'received' => $received,
+            'received_formatted' => Money::format($received, 'NGN'),
+        ];
+    }
+
+    /**
      * Kicks off payment for one donation cycle: mints our own reference, asks the gateway for
      * a checkout link, and records a *pending* DonationPayment row for verifyPayment() to
      * find later; nothing is marked paid until the gateway confirms it.
