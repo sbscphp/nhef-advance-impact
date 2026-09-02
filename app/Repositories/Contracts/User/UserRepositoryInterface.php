@@ -49,6 +49,15 @@ interface UserRepositoryInterface
     public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array;
 
     /**
+     * Same filters as {@see self::paginateForAdmin()} but capped instead of paginated, for
+     * CSV/PDF export of the Alumni Management list.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, User>, 1: bool}
+     */
+    public function exportForAdmin(array $filters): array;
+
+    /**
      * Constituent picker for Communications: search plus university/department/graduation-year
      * segmentation, all optional and AND'd together.
      *
