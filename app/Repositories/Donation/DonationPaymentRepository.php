@@ -153,7 +153,7 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
                 $query->where(function ($inner) use ($search): void {
                     $inner->where('donations.guest_name', 'like', '%'.$search.'%')
                         ->orWhere('donations.guest_email', 'like', '%'.$search.'%')
-                        ->orWhereHas('donation.user', fn ($u) => $u->where('name', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
+                        ->orWhereHas('donation.user', fn ($u) => $u->where('firstname', 'like', '%'.$search.'%')->orWhere('lastname', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
                 });
             });
 
@@ -200,5 +200,91 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
             ->where('users.university', $university)
             ->sum('donation_payments.amount');
+    }
+
+    public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator
+    {
+        return $this->adminPaymentsQuery($filters)->paginate($perPage);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, DonationPayment>, 1: bool}
+     */
+    public function exportForAdmin(array $filters): array
+    {
+        $query = $this->adminPaymentsQuery($filters);
+        $total = (clone $query)->count();
+        $truncated = $total > self::MAX_EXPORT_ROWS;
+        $rows = $query->limit(self::MAX_EXPORT_ROWS)->get();
+
+        return [$rows, $truncated];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Builder<DonationPayment>
+     */
+    private function adminPaymentsQuery(array $filters): Builder
+    {
+        $query = DonationPayment::query()
+            ->select('donation_payments.*')
+            ->with(['donation.campaign', 'donation.user'])
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->when(
+                filled($filters['status'] ?? null),
+                fn ($query) => $query->where('donation_payments.status', $filters['status'])
+            )
+            ->when(filled($filters['search'] ?? null), function ($query) use ($filters): void {
+                $search = $filters['search'];
+                $query->where(function ($inner) use ($search): void {
+                    $inner->where('donations.guest_name', 'like', '%'.$search.'%')
+                        ->orWhere('donations.guest_email', 'like', '%'.$search.'%')
+                        ->orWhere('donation_payments.gateway_reference', 'like', '%'.$search.'%')
+                        ->orWhereHas('donation.campaign', fn ($q) => $q->where('title', 'like', '%'.$search.'%'))
+                        ->orWhereHas('donation.user', fn ($u) => $u->where('firstname', 'like', '%'.$search.'%')->orWhere('lastname', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
+                });
+            });
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'donation_payments.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+                ->orderBy('campaigns.title', $direction),
+            'value' => fn ($query, string $direction) => $query->orderBy('donation_payments.amount', $direction),
+        ], 'donation_payments.created_at');
+
+        return $query;
+    }
+
+    public function findByUuidForAdmin(string $uuid): ?DonationPayment
+    {
+        return DonationPayment::query()
+            ->with(['donation.campaign', 'donation.user'])
+            ->where('uuid', $uuid)
+            ->first();
+    }
+
+    public function sumSuccessfulForAdmin(?string $from, ?string $to): string
+    {
+        return (string) DonationPayment::query()
+            ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('currency', 'NGN')
+            ->when($from !== null, fn ($query) => $query->whereDate('paid_at', '>=', $from))
+            ->when($to !== null, fn ($query) => $query->whereDate('paid_at', '<=', $to))
+            ->sum('amount');
+    }
+
+    public function distinctCampaignGoalTotalForAdmin(): string
+    {
+        $campaignIds = DonationPayment::query()
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donation_payments.currency', 'NGN')
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->distinct()
+            ->pluck('donations.campaign_id');
+
+        return (string) Campaign::query()->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
     }
 }

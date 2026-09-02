@@ -66,7 +66,7 @@ class PledgeRepository implements PledgeRepositoryInterface
                 $query->where(function ($inner) use ($search): void {
                     $inner->where('pledges.guest_name', 'like', '%'.$search.'%')
                         ->orWhere('pledges.guest_email', 'like', '%'.$search.'%')
-                        ->orWhereHas('user', fn ($u) => $u->where('name', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
+                        ->orWhereHas('user', fn ($u) => $u->where('firstname', 'like', '%'.$search.'%')->orWhere('lastname', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'));
                 });
             });
 
@@ -75,7 +75,8 @@ class PledgeRepository implements PledgeRepositoryInterface
         ListingFilterRules::applySort($query, $filters, [
             'name' => fn ($query, string $direction) => $query
                 ->leftJoin('users', 'users.id', '=', 'pledges.user_id')
-                ->orderBy('users.name', $direction),
+                ->orderBy('users.firstname', $direction)
+                ->orderBy('users.lastname', $direction),
             'value' => fn ($query, string $direction) => $query->orderBy('pledges.total_amount', $direction),
         ], 'pledges.created_at');
 

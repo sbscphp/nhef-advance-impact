@@ -47,6 +47,7 @@ class RecognitionService
             return (object) [
                 'rank' => $startRank + $index,
                 'donor_name' => $user?->displayName() ?? 'Donor',
+                'avatar_url' => $user?->profile_picture_url,
                 'tier' => $this->tierFor($tiers, (string) $row->total)?->name,
                 'total' => (string) $row->total,
             ];
