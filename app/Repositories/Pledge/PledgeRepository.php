@@ -109,4 +109,15 @@ class PledgeRepository implements PledgeRepositoryInterface
             ->where('users.university', $university)
             ->sum('pledges.amount_paid');
     }
+
+    public function overviewForUser(int $userId): array
+    {
+        $query = Pledge::query()->where('user_id', $userId);
+
+        return [
+            'count' => (int) (clone $query)->count(),
+            'total_pledged' => (string) (clone $query)->sum('total_amount'),
+            'total_fulfilled' => (string) (clone $query)->sum('amount_paid'),
+        ];
+    }
 }

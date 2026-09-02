@@ -2,12 +2,12 @@
 
 namespace App\Http\Requests\Admin\ConstituentManagement;
 
-use App\Enums\ConstituentStatusEnum;
+use App\Enums\PaymentStatusEnum;
 use App\Http\Requests\ApiFormRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use Illuminate\Validation\Rule;
 
-class ConstituentListRequest extends ApiFormRequest
+class ConstituentPaymentListRequest extends ApiFormRequest
 {
     protected function prepareForValidation(): void
     {
@@ -24,9 +24,9 @@ class ConstituentListRequest extends ApiFormRequest
     public function rules(): array
     {
         return array_merge(
-            ListingFilterRules::rules(['name']),
+            ListingFilterRules::rules(['name', 'value']),
             [
-                'filters.status' => ['sometimes', 'nullable', Rule::in(ConstituentStatusEnum::values())],
+                'status' => ['sometimes', 'nullable', Rule::in(PaymentStatusEnum::values())],
                 'export' => ['sometimes', 'nullable', 'string', Rule::in(['csv', 'pdf'])],
             ]
         );
@@ -35,7 +35,6 @@ class ConstituentListRequest extends ApiFormRequest
     public function messages(): array
     {
         return array_merge(parent::messages(), ListingFilterRules::listingMessages(), [
-            'filters.status.in' => 'Status filter is invalid.',
             'export.in' => "Export format must be either 'csv' or 'pdf'.",
         ]);
     }

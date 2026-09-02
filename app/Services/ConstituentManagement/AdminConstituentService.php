@@ -10,18 +10,31 @@ use App\Exceptions\ApiException;
 use App\Helpers\GeneralHelper;
 use App\Jobs\SendConstituentInviteEmailJob;
 use App\Models\Admin;
+use App\Models\DonationPayment;
+use App\Models\Pledge;
 use App\Models\User;
+use App\Notifications\GenericDatabaseNotification;
+use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
+use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
+use App\Services\Notifications\NotificationDispatchService;
+use App\Support\Money;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class AdminConstituentService
 {
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly DonationRepositoryInterface $donationRepository,
+        private readonly DonationPaymentRepositoryInterface $paymentRepository,
+        private readonly PledgeRepositoryInterface $pledgeRepository,
+        private readonly DonorTierRepositoryInterface $donorTierRepository,
+        private readonly NotificationDispatchService $notificationDispatchService,
     ) {}
 
     /**
@@ -81,6 +94,15 @@ class AdminConstituentService
     }
 
     /**
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, User>, 1: bool}
+     */
+    public function exportForAdmin(array $filters): array
+    {
+        return $this->userRepository->exportForAdmin($filters);
+    }
+
+    /**
      * @return array{all: int, active: int, access_revoked: int}
      */
     public function overview(?CarbonInterface $start, ?CarbonInterface $end): array
@@ -97,6 +119,27 @@ class AdminConstituentService
         }
 
         return $user;
+    }
+
+    /**
+     * Same as {@see self::findForAdmin()} but attaches the donor tier as a transient, non-column
+     * attribute for ConstituentDetailResource to read; never call this on a User that will be
+     * saved afterwards.
+     */
+    public function showForAdmin(string $uuid): User
+    {
+        $user = $this->findForAdmin($uuid);
+        $user->setAttribute('tier', $this->resolveTierLabel($user));
+
+        return $user;
+    }
+
+    public function resolveTierLabel(User $user): ?string
+    {
+        $total = $this->paymentRepository->sumSuccessfulForUser($user->id, null, null);
+        $tier = $this->donorTierRepository->findForAmount($total);
+
+        return $tier?->name;
     }
 
     /**
@@ -243,5 +286,118 @@ class AdminConstituentService
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         return $this->donationRepository->paginateForUser($user->id, $filters, $perPage);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginatePayments(User $user, array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->paymentRepository->paginateForUser($user->id, $filters, $perPage);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{0: Collection<int, DonationPayment>, 1: bool}
+     */
+    public function exportPayments(User $user, array $filters): array
+    {
+        return $this->paymentRepository->exportForUser($user->id, $filters);
+    }
+
+    public function findPaymentForAdmin(User $user, string $uuid): DonationPayment
+    {
+        $payment = $this->paymentRepository->findByUuidForUser($user->id, $uuid);
+
+        if (! $payment instanceof DonationPayment) {
+            throw new ApiException('Donation payment not found.', 404);
+        }
+
+        return $payment;
+    }
+
+    /**
+     * @return array{target: string, target_formatted: string, received: string, received_formatted: string}
+     */
+    public function paymentsOverview(User $user, ?string $from, ?string $to): array
+    {
+        $target = $this->paymentRepository->distinctCampaignGoalTotalForUser($user->id);
+        $received = $this->paymentRepository->sumSuccessfulForUser($user->id, $from, $to);
+
+        return [
+            'target' => $target,
+            'target_formatted' => Money::format($target, 'NGN'),
+            'received' => $received,
+            'received_formatted' => Money::format($received, 'NGN'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginatePledges(User $user, array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->pledgeRepository->paginateForUser($user->id, $filters, $perPage);
+    }
+
+    public function findPledgeForAdmin(User $user, string $uuid): Pledge
+    {
+        $pledge = $this->pledgeRepository->findByUuidForUser($user->id, $uuid);
+
+        if (! $pledge instanceof Pledge) {
+            throw new ApiException('Pledge not found.', 404);
+        }
+
+        return $pledge;
+    }
+
+    /**
+     * @return array{count: int, total_pledged: string, total_pledged_formatted: string, total_fulfilled: string, total_fulfilled_formatted: string}
+     */
+    public function pledgesOverview(User $user): array
+    {
+        $overview = $this->pledgeRepository->overviewForUser($user->id);
+
+        return [
+            'count' => $overview['count'],
+            'total_pledged' => $overview['total_pledged'],
+            'total_pledged_formatted' => Money::format($overview['total_pledged'], 'NGN'),
+            'total_fulfilled' => $overview['total_fulfilled'],
+            'total_fulfilled_formatted' => Money::format($overview['total_fulfilled'], 'NGN'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function sendPledgeReminder(Pledge $pledge, User $user, array $payload, Admin $actor, Request $request): void
+    {
+        $notification = new GenericDatabaseNotification(
+            module: ModuleEnums::fundraising->value,
+            event: 'pledge_reminder',
+            title: $payload['title'],
+            message: $payload['message'],
+            meta: ['pledge_uuid' => $pledge->uuid],
+            sendMail: true,
+        );
+
+        $this->notificationDispatchService->notifyUsersByUuids([$user->uuid], $notification);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::CONSTITUENT_PLEDGE_REMINDER_SENT,
+            $request,
+            $actor->uuid,
+            ['pledge_uuid' => $pledge->uuid, 'user_uuid' => $user->uuid],
+            $actor->displayName().' sent a pledge reminder to '.$user->displayName().'.',
+            Pledge::class,
+            $pledge->uuid,
+            ModuleEnums::constituent_management,
+            200,
+        );
     }
 }

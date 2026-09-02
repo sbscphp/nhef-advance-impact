@@ -221,6 +221,24 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:constituents.update']);
             Route::get('/{uuid}/donations', [ConstituentController::class, 'donations'])
                 ->middleware(['permission:constituents.read']);
+
+            // Payment-level donations (Alumni Management's "Donations" tab); separate from
+            // /{uuid}/donations above, which stays donation/subscription-level for its own consumers.
+            Route::get('/{uuid}/payments/overview', [ConstituentController::class, 'paymentsOverview'])
+                ->middleware(['permission:constituents.read']);
+            Route::get('/{uuid}/payments', [ConstituentController::class, 'payments'])
+                ->middleware(['permission:constituents.read']);
+            Route::get('/{uuid}/payments/{paymentUuid}', [ConstituentController::class, 'showPayment'])
+                ->middleware(['permission:constituents.read']);
+
+            Route::get('/{uuid}/pledges/overview', [ConstituentController::class, 'pledgesOverview'])
+                ->middleware(['permission:constituents.read']);
+            Route::get('/{uuid}/pledges', [ConstituentController::class, 'pledges'])
+                ->middleware(['permission:constituents.read']);
+            Route::get('/{uuid}/pledges/{pledgeUuid}', [ConstituentController::class, 'showPledge'])
+                ->middleware(['permission:constituents.read']);
+            Route::post('/{uuid}/pledges/{pledgeUuid}/send-reminder', [ConstituentController::class, 'sendPledgeReminder'])
+                ->middleware(['permission:constituents.update']);
         });
 
         Route::prefix('mentorship')->group(function () {

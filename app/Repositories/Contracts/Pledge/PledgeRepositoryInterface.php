@@ -43,4 +43,9 @@ interface PledgeRepositoryInterface
      * the given institution name; feeds a National Giving Day campaign's per-institution progress.
      */
     public function sumReceivedForCampaignAndUniversity(int $campaignId, string $university): string;
+
+    /**
+     * @return array{count: int, total_pledged: string, total_fulfilled: string}
+     */
+    public function overviewForUser(int $userId): array;
 }

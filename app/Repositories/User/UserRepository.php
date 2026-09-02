@@ -13,6 +13,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class UserRepository implements UserRepositoryInterface
 {
+    private const MAX_EXPORT_ROWS = 5000;
+
     public function create(array $data): User
     {
         return User::create($data);
@@ -86,6 +88,25 @@ class UserRepository implements UserRepositoryInterface
 
     public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator
     {
+        return $this->adminListQuery($filters)->paginate($perPage);
+    }
+
+    public function exportForAdmin(array $filters): array
+    {
+        $query = $this->adminListQuery($filters);
+        $total = (clone $query)->count();
+        $truncated = $total > self::MAX_EXPORT_ROWS;
+        $rows = $query->limit(self::MAX_EXPORT_ROWS)->get();
+
+        return [$rows, $truncated];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Builder<User>
+     */
+    private function adminListQuery(array $filters): Builder
+    {
         $query = User::query()
             ->when(
                 filled($filters['search'] ?? null),
@@ -106,7 +127,7 @@ class UserRepository implements UserRepositoryInterface
             'name' => fn ($query, string $direction) => $query->orderBy('firstname', $direction)->orderBy('lastname', $direction),
         ], 'created_at');
 
-        return $query->paginate($perPage);
+        return $query;
     }
 
     public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array
