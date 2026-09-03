@@ -26,6 +26,7 @@ use App\Http\Controllers\v1\Admin\Networking\AlumniSearchController;
 use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkingChannelController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
+use App\Http\Controllers\v1\Admin\SystemConfiguration\DonorTierController;
 use App\Http\Controllers\v1\Admin\UserManagement\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
@@ -253,6 +254,23 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:donations.read']);
             Route::get('/{uuid}', [AdminDonationController::class, 'show'])
                 ->middleware(['permission:donations.read']);
+        });
+
+        Route::prefix('donation-tiers')->group(function () {
+            Route::post('/', [DonorTierController::class, 'store'])
+                ->middleware(['permission:system_configuration.create']);
+            Route::get('/', [DonorTierController::class, 'index'])
+                ->middleware(['permission:system_configuration.read']);
+            Route::get('/{uuid}', [DonorTierController::class, 'show'])
+                ->middleware(['permission:system_configuration.read']);
+            Route::patch('/{uuid}', [DonorTierController::class, 'update'])
+                ->middleware(['permission:system_configuration.update']);
+            Route::patch('/{uuid}/toggle-status', [DonorTierController::class, 'toggleStatus'])
+                ->middleware(['permission:system_configuration.update']);
+            Route::delete('/{uuid}', [DonorTierController::class, 'destroy'])
+                ->middleware(['permission:system_configuration.delete']);
+            Route::get('/{uuid}/alumni', [DonorTierController::class, 'alumni'])
+                ->middleware(['permission:system_configuration.read']);
         });
 
         Route::prefix('mentorship')->group(function () {

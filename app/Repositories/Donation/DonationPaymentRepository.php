@@ -7,6 +7,7 @@ use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Campaign;
 use App\Models\DonationPayment;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -286,5 +287,26 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->pluck('donations.campaign_id');
 
         return (string) Campaign::query()->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
+    }
+
+    public function resolveTierUpgradeDate(int $userId, string $thresholdAmount): ?CarbonInterface
+    {
+        $running = '0';
+
+        $payments = DonationPayment::query()
+            ->where('user_id', $userId)
+            ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('currency', 'NGN')
+            ->orderBy('paid_at')
+            ->get(['amount', 'paid_at']);
+
+        foreach ($payments as $payment) {
+            $running = bcadd($running, (string) $payment->amount, 2);
+            if (bccomp($running, $thresholdAmount, 2) >= 0) {
+                return $payment->paid_at;
+            }
+        }
+
+        return null;
     }
 }
