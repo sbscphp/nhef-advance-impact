@@ -9,6 +9,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Admin;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
+use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Support\PasswordRules;
 use Illuminate\Support\Facades\Hash;
@@ -29,6 +30,7 @@ class AccountSettingsService
 
     public function __construct(
         private readonly NotificationDispatchService $notificationDispatchService,
+        private readonly TertiaryInstitutionRepositoryInterface $institutionRepository,
     ) {}
 
     /**
@@ -117,10 +119,18 @@ class AccountSettingsService
     {
         $updates = [];
 
-        foreach (['firstname', 'lastname', 'middlename', 'phone_number', 'country_code', 'university', 'year_of_graduation'] as $field) {
+        foreach (['firstname', 'lastname', 'middlename', 'phone_number', 'country_code', 'year_of_graduation'] as $field) {
             if (array_key_exists($field, $data)) {
                 $updates[$field] = $data[$field];
             }
+        }
+
+        // Resolves against (or adds to) the tertiary_institutions reference list, so a picked
+        // suggestion and a free-typed value both end up as the same canonical name over time.
+        if (array_key_exists('university', $data) && $data['university'] !== null && trim((string) $data['university']) !== '') {
+            $updates['university'] = $this->institutionRepository->findOrCreateByName($data['university'])->name;
+        } elseif (array_key_exists('university', $data)) {
+            $updates['university'] = $data['university'];
         }
 
         if (array_key_exists('profile_picture', $data)) {
