@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             DonationSeeder::class,
             PledgeSeeder::class,
             DonorTierSeeder::class,
+            TertiaryInstitutionSeeder::class,
             EventSeeder::class,
             MentorshipSeeder::class,
             NetworkingSeeder::class,

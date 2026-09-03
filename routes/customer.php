@@ -18,6 +18,7 @@ use App\Http\Controllers\v1\Customer\Notification\NotificationController;
 use App\Http\Controllers\v1\Customer\Recognition\RecognitionController;
 use App\Http\Controllers\v1\Customer\Settings\PaymentMethodController;
 use App\Http\Controllers\v1\Customer\Settings\SettingsController;
+use App\Http\Controllers\v1\Customer\TertiaryInstitutionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -40,6 +41,9 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware('auth:sanctum')->post('logout', [LoginController::class, 'logout']);
     });
+
+    // No auth: needed on the signup form (before an account exists), not just Settings.
+    Route::get('tertiary-institutions', [TertiaryInstitutionController::class, 'index'])->middleware('throttle:60,1');
 
     Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
