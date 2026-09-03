@@ -23,6 +23,14 @@ class DonorTierSeeder extends Seeder
             ['name' => 'Diamond Fellow', 'minimum_amount' => 20_000_000, 'sort_order' => 6],
         ];
 
+        // maximum_amount is display-only (see App\Models\DonorTier docblock); each tier's max is
+        // simply the next tier's minimum, with the top tier left open-ended (null), matching the
+        // bracket logic already used for tier resolution and the "Alumni List" tab.
+        foreach ($tiers as $index => $tier) {
+            $tiers[$index]['maximum_amount'] = $tiers[$index + 1]['minimum_amount'] ?? null;
+            $tiers[$index]['is_active'] = true;
+        }
+
         foreach ($tiers as $tier) {
             DonorTier::updateOrCreate(['name' => $tier['name']], $tier);
         }

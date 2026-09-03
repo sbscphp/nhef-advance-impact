@@ -3,6 +3,7 @@
 namespace App\Repositories\Contracts\Donation;
 
 use App\Models\DonationPayment;
+use Carbon\CarbonInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -100,4 +101,11 @@ interface DonationPaymentRepositoryInterface
      * the org-wide equivalent of {@see self::distinctCampaignGoalTotalForUser()}.
      */
     public function distinctCampaignGoalTotalForAdmin(): string;
+
+    /**
+     * The paid_at of the earliest successful NGN payment after which this user's running
+     * lifetime total first reached $thresholdAmount; null if it never does. Feeds a donor
+     * tier's "Date of Upgrade" column without needing a separate tier-change history table.
+     */
+    public function resolveTierUpgradeDate(int $userId, string $thresholdAmount): ?CarbonInterface;
 }
