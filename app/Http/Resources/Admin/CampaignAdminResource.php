@@ -30,6 +30,10 @@ class CampaignAdminResource extends JsonResource
             'status' => $this->status,
             'starts_at' => $this->starts_at?->toDateString(),
             'ends_at' => $this->ends_at?->toDateString(),
+            'creator' => $this->whenLoaded('creator', fn () => $this->creator === null ? null : [
+                'admin_id' => $this->creator->uuid,
+                'name' => $this->creator->displayName(),
+            ]),
             'allocated_admin' => $this->whenLoaded('allocatedAdmin', fn () => [
                 'admin_id' => $this->allocatedAdmin->uuid,
                 'name' => $this->allocatedAdmin->displayName(),
