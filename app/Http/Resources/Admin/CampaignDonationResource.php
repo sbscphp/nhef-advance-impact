@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Admin;
 
 use App\Enums\PaymentMethodEnum;
+use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\DonationPayment;
 use App\Support\Money;
 use Illuminate\Http\Request;
@@ -21,7 +22,9 @@ class CampaignDonationResource extends JsonResource
             'date' => ($this->paid_at ?? $this->created_at)?->toIso8601String(),
             'donor_name' => $this->whenLoaded('donation', fn () => $this->donation->donorName()),
             'donor_email' => $this->whenLoaded('donation', fn () => $this->donation->donorEmail()),
-            'institution' => $this->whenLoaded('donation', fn () => $this->donation->user?->university),
+            'institution' => $this->whenLoaded('donation', fn () => $this->donation->user?->tertiaryInstitution
+                ? TertiaryInstitutionResource::make($this->donation->user->tertiaryInstitution)
+                : null),
             'amount' => (string) $this->amount,
             'amount_formatted' => Money::format($this->amount, $this->currency),
             'method' => $this->method,

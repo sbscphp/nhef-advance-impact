@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Mentorship;
 
+use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\MenteeProfile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -26,7 +27,7 @@ class MenteeProfileResource extends JsonResource
                 'country_code' => $this->user->country_code,
                 'profile_picture_url' => $this->user->profile_picture_url,
                 'matric_no' => $this->user->matric_no,
-                'university' => $this->user->university,
+                'university' => $this->user->tertiaryInstitution ? TertiaryInstitutionResource::make($this->user->tertiaryInstitution) : null,
                 'department' => $this->user->department,
                 'year_of_graduation' => $this->user->year_of_graduation,
                 'degree_earned' => $this->user->degree_earned,

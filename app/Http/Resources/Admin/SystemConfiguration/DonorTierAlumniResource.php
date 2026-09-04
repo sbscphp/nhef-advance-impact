@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin\SystemConfiguration;
 
+use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\User;
 use App\Support\Money;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class DonorTierAlumniResource extends JsonResource
         return [
             'uuid' => $this->uuid,
             'name' => $this->displayName(),
-            'institution' => $this->university,
+            'institution' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : TertiaryInstitutionResource::make($this->tertiaryInstitution)),
             'email' => $this->email,
             'donations_count' => (int) $this->payments_count,
             'lifetime_total' => (string) $this->lifetime_total,

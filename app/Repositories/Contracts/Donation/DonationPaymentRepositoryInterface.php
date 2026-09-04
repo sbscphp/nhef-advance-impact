@@ -69,10 +69,10 @@ interface DonationPaymentRepositoryInterface
     public function sumSuccessfulForCampaign(int $campaignId, ?string $from, ?string $to): string;
 
     /**
-     * Sum of successful payments for a campaign from donors whose profile `university` matches
-     * the given institution name; feeds a National Giving Day campaign's per-institution progress.
+     * Sum of successful payments for a campaign from donors linked to the given tertiary
+     * institution; feeds a National Giving Day campaign's per-institution progress.
      */
-    public function sumSuccessfulForCampaignAndUniversity(int $campaignId, string $university): string;
+    public function sumSuccessfulForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): string;
 
     /**
      * Org-wide payment listing (not scoped to a user or campaign), for the admin Donation module.

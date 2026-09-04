@@ -6,6 +6,7 @@ use App\Notifications\Auth\ResetPasswordMail;
 use App\Traits\HasUuid;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -47,6 +48,11 @@ class User extends Authenticatable
             'invited_at' => 'datetime',
             'onboarded_at' => 'datetime',
         ];
+    }
+
+    public function tertiaryInstitution(): BelongsTo
+    {
+        return $this->belongsTo(TertiaryInstitution::class);
     }
 
     public function displayName(): string

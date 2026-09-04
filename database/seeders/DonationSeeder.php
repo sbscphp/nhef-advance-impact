@@ -20,8 +20,9 @@ use Illuminate\Support\Str;
 
 /**
  * Depends on CampaignSeeder, InstitutionSeeder, and NationalGivingDayCampaignSeeder. National
- * Giving Day donations are attributed to an institution by the donor's `university` matching
- * the institution's name (see CampaignService::nationalGivingDayTotals()).
+ * Giving Day donations are attributed to an institution by the donor's `tertiary_institution_id`
+ * matching the institution's own linked tertiary institution (see
+ * CampaignService::nationalGivingDayTotals()).
  *
  * php artisan db:seed --class=DonationSeeder
  */
@@ -76,7 +77,7 @@ class DonationSeeder extends Seeder
                 'donor.'.Str::slug($institution->name).'@yopmail.com',
                 'Alumni',
                 $institution->name,
-                $institution->name,
+                $institution->tertiaryInstitution->name,
             );
 
             $amount = round(max((float) $campaignInstitution->goal_amount * 0.35, 1000), 2);

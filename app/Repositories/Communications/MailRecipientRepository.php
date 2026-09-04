@@ -93,10 +93,10 @@ class MailRecipientRepository implements MailRecipientRepositoryInterface
     {
         return MailRecipient::query()
             ->join('users', 'users.id', '=', 'mail_recipients.user_id')
+            ->join('tertiary_institutions', 'tertiary_institutions.id', '=', 'users.tertiary_institution_id')
             ->where('mail_recipients.mail_id', $mailId)
-            ->selectRaw('users.university as university, count(*) as total')
-            ->whereNotNull('users.university')
-            ->groupBy('users.university')
+            ->selectRaw('tertiary_institutions.name as university, count(*) as total')
+            ->groupBy('tertiary_institutions.name')
             ->pluck('total', 'university');
     }
 

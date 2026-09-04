@@ -162,7 +162,7 @@ class NetworkingService
 
         $perPage = max(1, min((int) ($filters['per_page'] ?? 20), 100));
 
-        return $channel->members()->paginate($perPage);
+        return $channel->members()->with('tertiaryInstitution')->paginate($perPage);
     }
 
     /**
@@ -414,7 +414,7 @@ class NetworkingService
 
     /**
      * @return bool true if the alumni was an active member and got removed, false if they were
-     *               already not a member of this channel.
+     *              already not a member of this channel.
      */
     public function removeMemberForAdmin(Admin $actor, string $uuid, string $memberUuid, Request $request): bool
     {
@@ -544,7 +544,7 @@ class NetworkingService
         $channel = $this->findChannelOrFail($uuid);
         $perPage = max(1, min((int) ($filters['per_page'] ?? 20), 100));
 
-        return $channel->members()->paginate($perPage);
+        return $channel->members()->with('tertiaryInstitution')->paginate($perPage);
     }
 
     /**

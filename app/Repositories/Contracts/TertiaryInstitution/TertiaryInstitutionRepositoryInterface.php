@@ -7,6 +7,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface TertiaryInstitutionRepositoryInterface
 {
+    public function findByUuid(string $uuid): ?TertiaryInstitution;
+
     /**
      * @param  array<string, mixed>  $filters
      */

@@ -22,7 +22,7 @@ class MailResource extends JsonResource
             'status' => $this->status,
             'recipient_count' => $this->whenCounted('recipients'),
             'segment' => [
-                'university' => $this->segment_criteria['university'] ?? null,
+                'tertiary_institution_uuid' => $this->segment_criteria['tertiary_institution_uuid'] ?? null,
                 'department' => $this->segment_criteria['department'] ?? null,
                 'graduation_year_from' => $this->segment_criteria['graduation_year_from'] ?? null,
                 'graduation_year_to' => $this->segment_criteria['graduation_year_to'] ?? null,

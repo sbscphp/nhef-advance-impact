@@ -8,6 +8,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class TertiaryInstitutionRepository implements TertiaryInstitutionRepositoryInterface
 {
+    public function findByUuid(string $uuid): ?TertiaryInstitution
+    {
+        return TertiaryInstitution::query()->where('uuid', $uuid)->first();
+    }
+
     public function paginate(array $filters, int $perPage): LengthAwarePaginator
     {
         return TertiaryInstitution::query()

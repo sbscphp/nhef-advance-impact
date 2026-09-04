@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Networking;
 
+use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -21,7 +22,7 @@ class NetworkingChannelMemberResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone_number,
             'department' => $this->department,
-            'university' => $this->university,
+            'university' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : TertiaryInstitutionResource::make($this->tertiaryInstitution)),
             'year_of_graduation' => $this->year_of_graduation,
             'organisation_name' => $this->organisation_name,
             'avatar_url' => $this->profile_picture_url,

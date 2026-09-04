@@ -9,7 +9,9 @@ use App\Exceptions\ApiException;
 use App\Helpers\GeneralHelper;
 use App\Models\Admin;
 use App\Models\Institution;
+use App\Models\TertiaryInstitution;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
+use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -17,6 +19,7 @@ class InstitutionService
 {
     public function __construct(
         private readonly InstitutionRepositoryInterface $institutionRepository,
+        private readonly TertiaryInstitutionRepositoryInterface $tertiaryInstitutionRepository,
     ) {}
 
     /**
@@ -32,12 +35,19 @@ class InstitutionService
      */
     public function create(array $payload, Admin $actor, Request $request): Institution
     {
-        if ($this->institutionRepository->nameExists((string) $payload['name'])) {
-            throw new ApiException('An institution with this name already exists.', 422);
+        $tertiaryInstitution = $this->tertiaryInstitutionRepository->findByUuid((string) $payload['tertiary_institution_uuid']);
+
+        if (! $tertiaryInstitution instanceof TertiaryInstitution) {
+            throw new ApiException('Tertiary institution not found.', 404);
+        }
+
+        if ($this->institutionRepository->nameExists($tertiaryInstitution->name)) {
+            throw new ApiException('This institution has already been added.', 422);
         }
 
         $institution = $this->institutionRepository->create([
-            'name' => $payload['name'],
+            'name' => $tertiaryInstitution->name,
+            'tertiary_institution_id' => $tertiaryInstitution->id,
             'is_active' => true,
         ]);
 

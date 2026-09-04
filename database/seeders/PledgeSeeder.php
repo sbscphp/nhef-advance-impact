@@ -25,7 +25,7 @@ use Illuminate\Support\Str;
 /**
  * Depends on CampaignSeeder, InstitutionSeeder, and NationalGivingDayCampaignSeeder. Run after
  * DonationSeeder so `raised_amount` reflects both. Reuses DonationSeeder's per-institution
- * donors, since National Giving Day attribution is by the pledgor's `university` field.
+ * donors, since National Giving Day attribution is by the pledgor's `tertiary_institution_id`.
  *
  * php artisan db:seed --class=PledgeSeeder
  */
@@ -79,7 +79,7 @@ class PledgeSeeder extends Seeder
                 'donor.'.Str::slug($institution->name).'@yopmail.com',
                 'Alumni',
                 $institution->name,
-                $institution->name,
+                $institution->tertiaryInstitution->name,
             );
 
             $amount = round(max((float) $campaignInstitution->goal_amount * 0.15, 1000), 2);

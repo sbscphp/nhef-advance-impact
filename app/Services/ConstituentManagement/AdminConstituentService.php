@@ -129,6 +129,7 @@ class AdminConstituentService
     public function showForAdmin(string $uuid): User
     {
         $user = $this->findForAdmin($uuid);
+        $user->loadMissing('tertiaryInstitution');
         $user->setAttribute('tier', $this->resolveTierLabel($user));
 
         return $user;

@@ -58,8 +58,8 @@ interface UserRepositoryInterface
     public function exportForAdmin(array $filters): array;
 
     /**
-     * Constituent picker for Communications: search plus university/department/graduation-year
-     * segmentation, all optional and AND'd together.
+     * Constituent picker for Communications: search plus tertiary institution/department/
+     * graduation-year segmentation, all optional and AND'd together.
      *
      * @param  array<string, mixed>  $filters
      */

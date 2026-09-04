@@ -12,6 +12,7 @@ use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Support\PasswordRules;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 
 class AccountSettingsService
@@ -38,7 +39,7 @@ class AccountSettingsService
      */
     public function customerProfile(User $user): array
     {
-        $user->loadMissing(['roles']);
+        $user->loadMissing(['roles', 'tertiaryInstitution']);
 
         return UserResource::make($user)->resolve();
     }
@@ -125,14 +126,6 @@ class AccountSettingsService
             }
         }
 
-        // Resolves against (or adds to) the tertiary_institutions reference list, so a picked
-        // suggestion and a free-typed value both end up as the same canonical name over time.
-        if (array_key_exists('university', $data) && $data['university'] !== null && trim((string) $data['university']) !== '') {
-            $updates['university'] = $this->institutionRepository->findOrCreateByName($data['university'])->name;
-        } elseif (array_key_exists('university', $data)) {
-            $updates['university'] = $data['university'];
-        }
-
         if (array_key_exists('profile_picture', $data)) {
             $picture = $data['profile_picture'];
             $updates['profile_picture_url'] = ($picture === null || $picture === '')
@@ -140,11 +133,20 @@ class AccountSettingsService
                 : FileUploadHelper::smartSingleFileUpload($picture, 'avatars');
         }
 
+        $universityChange = null;
+        if (array_key_exists('university', $data)) {
+            $universityChange = $this->resolveUniversityUpdate($user, $updates, $data['university']);
+        }
+
         if ($updates === []) {
             throw new ApiException('No profile fields to update.', 422);
         }
 
-        $changes = $this->resolveCustomerProfileChanges($user, $updates);
+        $changes = $this->resolveCustomerProfileChanges($user, Arr::except($updates, ['tertiary_institution_id']));
+        if ($universityChange !== null) {
+            $changes[] = $universityChange;
+        }
+
         $user->forceFill($updates)->save();
 
         if ($changes !== []) {
@@ -329,6 +331,37 @@ class AccountSettingsService
         }
 
         return $changes;
+    }
+
+    /**
+     * Resolves the submitted university name against (or into) the tertiary_institutions
+     * reference list, sets `tertiary_institution_id` on $updates, and returns a display-ready
+     * change entry (by name, not ID) for the profile-updated notification - or null if unchanged.
+     *
+     * @param  array<string, mixed>  $updates
+     * @return array{field: string, label: string, from: ?string, to: ?string}|null
+     */
+    private function resolveUniversityUpdate(User $user, array &$updates, mixed $rawValue): ?array
+    {
+        $oldName = $user->tertiaryInstitution?->name;
+
+        $newInstitution = ($rawValue !== null && trim((string) $rawValue) !== '')
+            ? $this->institutionRepository->findOrCreateByName((string) $rawValue)
+            : null;
+
+        $updates['tertiary_institution_id'] = $newInstitution?->id;
+        $newName = $newInstitution?->name;
+
+        if ($oldName === $newName) {
+            return null;
+        }
+
+        return [
+            'field' => 'tertiary_institution_id',
+            'label' => self::PROFILE_FIELD_LABELS['university'],
+            'from' => $oldName,
+            'to' => $newName,
+        ];
     }
 
     private function formatProfileFieldValue(mixed $value): ?string

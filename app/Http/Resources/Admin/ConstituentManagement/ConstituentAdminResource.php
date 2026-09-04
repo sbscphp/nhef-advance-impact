@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin\ConstituentManagement;
 
+use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -20,7 +21,7 @@ class ConstituentAdminResource extends JsonResource
             'name' => $this->displayName(),
             'email' => $this->email,
             'avatar_url' => $this->profile_picture_url,
-            'university' => $this->university,
+            'university' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : TertiaryInstitutionResource::make($this->tertiaryInstitution)),
             'department' => $this->department,
             'year_of_graduation' => $this->year_of_graduation,
             'status' => $this->status,

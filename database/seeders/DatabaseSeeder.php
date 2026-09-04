@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolesAndPermissionsSeeder::class,
             CountrySeeder::class,
+            TertiaryInstitutionSeeder::class,
             AdminSeeder::class,
             CustomerSeeder::class,
             ThemeSeeder::class,
@@ -22,7 +23,6 @@ class DatabaseSeeder extends Seeder
             DonationSeeder::class,
             PledgeSeeder::class,
             DonorTierSeeder::class,
-            TertiaryInstitutionSeeder::class,
             EventSeeder::class,
             MentorshipSeeder::class,
             NetworkingSeeder::class,

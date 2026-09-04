@@ -17,7 +17,7 @@ class CreateMailRequest extends ApiFormRequest
             'body' => ['required', 'string'],
             'send_at' => ['sometimes', 'nullable', 'date'],
             'segment' => ['sometimes', 'nullable', 'array'],
-            'segment.university' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'segment.tertiary_institution_uuid' => ['sometimes', 'nullable', 'uuid', 'exists:tertiary_institutions,uuid'],
             'segment.department' => ['sometimes', 'nullable', 'string', 'max:255'],
             'segment.graduation_year_from' => ['sometimes', 'nullable', 'integer', 'digits:4'],
             'segment.graduation_year_to' => ['sometimes', 'nullable', 'integer', 'digits:4', 'gte:segment.graduation_year_from'],
