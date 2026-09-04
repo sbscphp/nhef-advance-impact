@@ -14,6 +14,7 @@ use App\Models\Donation;
 use App\Models\DonationPayment;
 use App\Models\Institution;
 use App\Models\Pledge;
+use App\Models\TertiaryInstitution;
 use App\Models\User;
 use App\Services\Fundraising\CampaignService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -160,11 +161,12 @@ class NationalGivingDayCampaignTest extends TestCase
         $this->assertSame(CampaignTypeEnum::NATIONAL_GIVING_DAY->value, $paginator->items()[0]->type);
     }
 
-    public function test_institution_progress_is_derived_from_donations_and_pledges_by_donor_university(): void
+    public function test_institution_progress_is_derived_from_donations_and_pledges_by_donor_tertiary_institution(): void
     {
         $admin = $this->makeAdmin();
         $campaign = $this->makeNationalGivingDayCampaign($admin);
-        $institution = Institution::create(['name' => 'University of Lagos', 'is_active' => true]);
+        $tertiaryInstitution = TertiaryInstitution::create(['name' => 'University of Lagos, Lagos', 'is_verified' => true]);
+        $institution = Institution::create(['name' => 'University of Lagos', 'is_active' => true, 'tertiary_institution_id' => $tertiaryInstitution->id]);
         $bankAccount = $this->makeBankAccount($admin);
         $campaign->campaignInstitutions()->create([
             'institution_id' => $institution->id,
@@ -173,7 +175,7 @@ class NationalGivingDayCampaignTest extends TestCase
             'bank_account_id' => $bankAccount->id,
         ]);
 
-        $donor = User::factory()->create(['university' => 'University of Lagos']);
+        $donor = User::factory()->create(['tertiary_institution_id' => $tertiaryInstitution->id]);
         $donation = Donation::create([
             'campaign_id' => $campaign->id,
             'user_id' => $donor->id,
@@ -194,7 +196,7 @@ class NationalGivingDayCampaignTest extends TestCase
             'paid_at' => now(),
         ]);
 
-        $pledger = User::factory()->create(['university' => 'University of Lagos']);
+        $pledger = User::factory()->create(['tertiary_institution_id' => $tertiaryInstitution->id]);
         Pledge::create([
             'campaign_id' => $campaign->id,
             'user_id' => $pledger->id,

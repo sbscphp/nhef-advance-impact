@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Reference list of Nigerian universities, polytechnics, colleges of education, and other
- * tertiary institutions, used as a search-and-select source for the free-text `users.university`
- * field (never a foreign key; see TertiaryInstitutionRepository::findOrCreateByName()). Seeded
- * from a merged snapshot of public datasets, and grows organically from unmatched user input.
+ * tertiary institutions. `users.tertiary_institution_id` and `institutions.tertiary_institution_id`
+ * both link here (see TertiaryInstitutionRepository::findOrCreateByName() for how a free-typed
+ * name gets resolved to, or registered as, a row here). Seeded from a merged snapshot of public
+ * datasets, and grows organically from unmatched user input.
  */
 class TertiaryInstitution extends Model
 {

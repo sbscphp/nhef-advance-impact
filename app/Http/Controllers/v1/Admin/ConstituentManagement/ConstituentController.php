@@ -129,7 +129,7 @@ class ConstituentController extends Controller
         return [
             $user->displayName(),
             $user->email,
-            $user->university ?? '',
+            $user->tertiaryInstitution?->name ?? '',
             $user->department ?? '',
             $user->year_of_graduation !== null ? (string) $user->year_of_graduation : '',
             $user->status,

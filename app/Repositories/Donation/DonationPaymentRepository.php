@@ -142,7 +142,7 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
     {
         $query = DonationPayment::query()
             ->select('donation_payments.*')
-            ->with(['donation.user'])
+            ->with(['donation.user.tertiaryInstitution'])
             ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
             ->where('donations.campaign_id', $campaignId)
             ->when(
@@ -192,14 +192,14 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->sum('donation_payments.amount');
     }
 
-    public function sumSuccessfulForCampaignAndUniversity(int $campaignId, string $university): string
+    public function sumSuccessfulForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): string
     {
         return (string) DonationPayment::query()
             ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
             ->join('users', 'users.id', '=', 'donations.user_id')
             ->where('donations.campaign_id', $campaignId)
             ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
-            ->where('users.university', $university)
+            ->where('users.tertiary_institution_id', $tertiaryInstitutionId)
             ->sum('donation_payments.amount');
     }
 

@@ -12,14 +12,7 @@ class CreateInstitutionRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:institutions,name'],
+            'tertiary_institution_uuid' => ['required', 'uuid', 'exists:tertiary_institutions,uuid'],
         ];
-    }
-
-    public function messages(): array
-    {
-        return array_merge(parent::messages(), [
-            'name.unique' => 'An institution with this name already exists.',
-        ]);
     }
 }

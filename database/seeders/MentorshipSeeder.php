@@ -15,6 +15,7 @@ use App\Models\MentorProfile;
 use App\Models\MentorshipMatch;
 use App\Models\MentorshipReview;
 use App\Models\User;
+use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -123,6 +124,13 @@ class MentorshipSeeder extends Seeder
      */
     private function createCustomer(string $email, string $firstname, string $lastname, array $alumniFields = []): User
     {
+        if (array_key_exists('university', $alumniFields)) {
+            $university = $alumniFields['university'];
+            unset($alumniFields['university']);
+            $alumniFields['tertiary_institution_id'] = app(TertiaryInstitutionRepositoryInterface::class)
+                ->findOrCreateByName($university)->id;
+        }
+
         $user = User::firstOrCreate(
             ['email' => $email],
             array_merge([

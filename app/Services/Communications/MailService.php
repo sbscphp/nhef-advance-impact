@@ -458,7 +458,7 @@ class MailService
         $segment = $payload['segment'] ?? [];
 
         return array_filter([
-            'university' => $segment['university'] ?? $existing['university'] ?? null,
+            'tertiary_institution_uuid' => $segment['tertiary_institution_uuid'] ?? $existing['tertiary_institution_uuid'] ?? null,
             'department' => $segment['department'] ?? $existing['department'] ?? null,
             'graduation_year_from' => $segment['graduation_year_from'] ?? $existing['graduation_year_from'] ?? null,
             'graduation_year_to' => $segment['graduation_year_to'] ?? $existing['graduation_year_to'] ?? null,

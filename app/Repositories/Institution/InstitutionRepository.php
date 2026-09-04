@@ -11,6 +11,7 @@ class InstitutionRepository implements InstitutionRepositoryInterface
     public function all(bool $activeOnly): Collection
     {
         return Institution::query()
+            ->with('tertiaryInstitution')
             ->when($activeOnly, fn ($query) => $query->active())
             ->orderBy('name')
             ->get();
@@ -18,7 +19,7 @@ class InstitutionRepository implements InstitutionRepositoryInterface
 
     public function findByUuid(string $uuid): ?Institution
     {
-        return Institution::query()->where('uuid', $uuid)->first();
+        return Institution::query()->with('tertiaryInstitution')->where('uuid', $uuid)->first();
     }
 
     public function nameExists(string $name): bool
@@ -28,6 +29,9 @@ class InstitutionRepository implements InstitutionRepositoryInterface
 
     public function create(array $data): Institution
     {
-        return Institution::query()->create($data);
+        $institution = Institution::query()->create($data);
+        $institution->load('tertiaryInstitution');
+
+        return $institution;
     }
 }

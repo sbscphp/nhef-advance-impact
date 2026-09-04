@@ -39,10 +39,10 @@ interface PledgeRepositoryInterface
     public function loadFresh(Pledge $pledge, array $relations): Pledge;
 
     /**
-     * Sum of amount_paid for a campaign's pledges from donors whose profile `university` matches
-     * the given institution name; feeds a National Giving Day campaign's per-institution progress.
+     * Sum of amount_paid for a campaign's pledges from donors linked to the given tertiary
+     * institution; feeds a National Giving Day campaign's per-institution progress.
      */
-    public function sumReceivedForCampaignAndUniversity(int $campaignId, string $university): string;
+    public function sumReceivedForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): string;
 
     /**
      * @return array{count: int, total_pledged: string, total_fulfilled: string}

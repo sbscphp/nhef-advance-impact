@@ -19,6 +19,7 @@ use App\Models\Country;
 use App\Models\User;
 use App\Notifications\Auth\CustomerVerifyEmailMail;
 use App\Notifications\GenericDatabaseNotification;
+use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Theme\ThemeResolver;
@@ -43,6 +44,7 @@ class AuthService
         private readonly ChallengeTokenService $challengeTokenService,
         private readonly NotificationDispatchService $notificationDispatchService,
         private readonly PasswordResetService $passwordResetService,
+        private readonly TertiaryInstitutionRepositoryInterface $institutionRepository,
     ) {}
 
     public function register(array $data)
@@ -70,9 +72,10 @@ class AuthService
                 'phone_number' => $validated['phone_number'],
                 'country_code' => $validated['country_code'] ?? Country::defaultDialCode(),
                 'matric_no' => $validated['matric_no'] ?? null,
-                'department' => $validated['department'],
-                'year_of_graduation' => $validated['year_of_graduation'],
-                'degree_earned' => $validated['degree_earned'],
+                'tertiary_institution_id' => $this->institutionRepository->findByUuid($validated['tertiary_institution_uuid'])?->id,
+                'department' => $validated['department'] ?? null,
+                'year_of_graduation' => $validated['year_of_graduation'] ?? null,
+                'degree_earned' => $validated['degree_earned'] ?? null,
                 'employment_status' => $validated['employment_status'],
                 'organisation_name' => $validated['organisation_name'] ?? null,
                 'position' => $validated['position'] ?? null,

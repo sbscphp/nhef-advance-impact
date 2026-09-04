@@ -9,6 +9,7 @@ use App\Models\Admin;
 use App\Models\NetworkingChannel;
 use App\Models\NetworkingMessage;
 use App\Models\User;
+use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -107,6 +108,9 @@ class NetworkingSeeder extends Seeder
 
     private function createCustomer(string $email, string $firstname, string $lastname): User
     {
+        $tertiaryInstitutionId = app(TertiaryInstitutionRepositoryInterface::class)
+            ->findOrCreateByName('University of Lagos')->id;
+
         $user = User::firstOrCreate(
             ['email' => $email],
             [
@@ -114,7 +118,7 @@ class NetworkingSeeder extends Seeder
                 'lastname' => $lastname,
                 'phone_number' => '198765432',
                 'country_code' => '+234',
-                'university' => 'University of Lagos',
+                'tertiary_institution_id' => $tertiaryInstitutionId,
                 'department' => 'Computer Science',
                 'year_of_graduation' => 2021,
                 'email_verified_at' => now(),

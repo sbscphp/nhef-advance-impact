@@ -8,6 +8,7 @@ use App\Jobs\SendMailCampaignJob;
 use App\Mail\BulkCampaignMail;
 use App\Models\Admin;
 use App\Models\User;
+use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use App\Services\Communications\MailService;
 use App\Services\Theme\ThemeResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -47,7 +48,7 @@ class AdminMailLifecycleTest extends TestCase
         $mail = $service->create([
             'title' => 'Segment Send',
             'body' => '<p>Hi</p>',
-            'segment' => ['university' => 'Test University'],
+            'segment' => ['tertiary_institution_uuid' => $this->tertiaryInstitutionUuid('Test University')],
             'recipient_user_ids' => [$alsoPicked->uuid],
         ], $admin, Request::create('/'));
 
@@ -67,7 +68,7 @@ class AdminMailLifecycleTest extends TestCase
         $mail = $service->create([
             'title' => 'Empty Segment',
             'body' => '<p>Hi</p>',
-            'segment' => ['university' => 'Nonexistent University'],
+            'segment' => ['tertiary_institution_uuid' => $this->tertiaryInstitutionUuid('Nonexistent University')],
         ], $admin, Request::create('/'));
 
         $this->expectException(ApiException::class);
@@ -86,7 +87,7 @@ class AdminMailLifecycleTest extends TestCase
         $mail = $service->create([
             'title' => 'Two Recipients',
             'body' => '<p>Hi</p>',
-            'segment' => ['university' => 'Test University'],
+            'segment' => ['tertiary_institution_uuid' => $this->tertiaryInstitutionUuid('Test University')],
         ], $admin, Request::create('/'));
         $mail = $service->send($mail->uuid, [], $admin, Request::create('/'));
 
@@ -109,7 +110,7 @@ class AdminMailLifecycleTest extends TestCase
         $mail = $service->create([
             'title' => 'Track Me',
             'body' => '<p>Hi</p>',
-            'segment' => ['university' => 'Test University'],
+            'segment' => ['tertiary_institution_uuid' => $this->tertiaryInstitutionUuid('Test University')],
         ], $admin, Request::create('/'));
         $mail = $service->send($mail->uuid, [], $admin, Request::create('/'));
         app(SendMailCampaignJob::class, ['mailUuid' => $mail->uuid])->handle(app(ThemeResolver::class));
@@ -137,7 +138,7 @@ class AdminMailLifecycleTest extends TestCase
         $first = $service->create([
             'title' => 'First Send',
             'body' => '<p>Hi</p>',
-            'segment' => ['university' => 'Test University'],
+            'segment' => ['tertiary_institution_uuid' => $this->tertiaryInstitutionUuid('Test University')],
         ], $admin, Request::create('/'));
         $first = $service->send($first->uuid, [], $admin, Request::create('/'));
         $recipient = $first->recipients()->sole();
@@ -148,7 +149,7 @@ class AdminMailLifecycleTest extends TestCase
         $second = $service->create([
             'title' => 'Second Send',
             'body' => '<p>Hi</p>',
-            'segment' => ['university' => 'Test University'],
+            'segment' => ['tertiary_institution_uuid' => $this->tertiaryInstitutionUuid('Test University')],
         ], $admin, Request::create('/'));
 
         $this->expectException(ApiException::class);
@@ -171,7 +172,7 @@ class AdminMailLifecycleTest extends TestCase
         $mail = $service->create([
             'title' => 'Partial Failure',
             'body' => '<p>Hi</p>',
-            'segment' => ['university' => 'Test University'],
+            'segment' => ['tertiary_institution_uuid' => $this->tertiaryInstitutionUuid('Test University')],
         ], $admin, Request::create('/'));
         $mail = $service->send($mail->uuid, [], $admin, Request::create('/'));
 
@@ -202,7 +203,7 @@ class AdminMailLifecycleTest extends TestCase
         $mail = $service->create([
             'title' => 'Locked Once Sent',
             'body' => '<p>Hi</p>',
-            'segment' => ['university' => 'Test University'],
+            'segment' => ['tertiary_institution_uuid' => $this->tertiaryInstitutionUuid('Test University')],
         ], $admin, Request::create('/'));
         $mail = $service->send($mail->uuid, [], $admin, Request::create('/'));
 
@@ -217,8 +218,18 @@ class AdminMailLifecycleTest extends TestCase
             'lastname' => 'Constituent',
             'email' => $email,
             'password' => Hash::make('password'),
-            'university' => $university,
+            'tertiary_institution_id' => $this->tertiaryInstitutionId($university),
         ]);
+    }
+
+    private function tertiaryInstitutionId(string $university): int
+    {
+        return app(TertiaryInstitutionRepositoryInterface::class)->findOrCreateByName($university)->id;
+    }
+
+    private function tertiaryInstitutionUuid(string $university): string
+    {
+        return app(TertiaryInstitutionRepositoryInterface::class)->findOrCreateByName($university)->uuid;
     }
 
     private function makeAdmin(): Admin

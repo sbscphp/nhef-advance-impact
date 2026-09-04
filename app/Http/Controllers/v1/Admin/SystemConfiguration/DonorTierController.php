@@ -251,7 +251,7 @@ class DonorTierController extends Controller
     {
         return [
             $user->displayName(),
-            $user->university ?? '',
+            $user->tertiaryInstitution?->name ?? '',
             $user->email,
             (string) $user->payments_count,
             (string) $user->lifetime_total,

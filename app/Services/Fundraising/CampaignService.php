@@ -114,8 +114,8 @@ class CampaignService
         $goalAmount = (string) $rows->sum(fn (CampaignInstitution $row) => (float) $row->goal_amount);
 
         $raisedAmount = (string) $rows->sum(function (CampaignInstitution $row) use ($campaign) {
-            return (float) $this->paymentRepository->sumSuccessfulForCampaignAndUniversity($campaign->id, $row->institution->name)
-                + (float) $this->pledgeRepository->sumReceivedForCampaignAndUniversity($campaign->id, $row->institution->name);
+            return (float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id)
+                + (float) $this->pledgeRepository->sumReceivedForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id);
         });
 
         return [
@@ -391,7 +391,7 @@ class CampaignService
     }
 
     /**
-     * `raised_amount` is computed live from donors whose `university` matches the institution.
+     * `raised_amount` is computed live from donors linked to the same tertiary institution.
      *
      * @param  array<string, mixed>  $filters
      */
@@ -404,8 +404,8 @@ class CampaignService
 
         foreach ($paginator->items() as $row) {
             /** @var CampaignInstitution $row */
-            $raised = (float) $this->paymentRepository->sumSuccessfulForCampaignAndUniversity($campaign->id, $row->institution->name)
-                + (float) $this->pledgeRepository->sumReceivedForCampaignAndUniversity($campaign->id, $row->institution->name);
+            $raised = (float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id)
+                + (float) $this->pledgeRepository->sumReceivedForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id);
             $row->setAttribute('raised_amount', (string) $raised);
         }
 

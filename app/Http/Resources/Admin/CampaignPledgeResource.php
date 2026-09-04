@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\Pledge;
 use App\Support\Money;
 use Illuminate\Http\Request;
@@ -18,7 +19,9 @@ class CampaignPledgeResource extends JsonResource
         return [
             'pledge_id' => $this->uuid,
             'donor_name' => $this->donorName(),
-            'institution' => $this->whenLoaded('user', fn () => $this->user?->university),
+            'institution' => $this->whenLoaded('user', fn () => $this->user?->tertiaryInstitution
+                ? TertiaryInstitutionResource::make($this->user->tertiaryInstitution)
+                : null),
             'total_pledge' => (string) $this->total_amount,
             'total_pledge_formatted' => Money::format($this->total_amount, $this->currency),
             'received' => (string) $this->amount_paid,

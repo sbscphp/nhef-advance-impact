@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Communications;
 
+use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,7 +19,7 @@ class ConstituentResource extends JsonResource
             'uuid' => $this->uuid,
             'name' => $this->displayName(),
             'email' => $this->email,
-            'university' => $this->university,
+            'university' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : TertiaryInstitutionResource::make($this->tertiaryInstitution)),
             'department' => $this->department,
             'year_of_graduation' => $this->year_of_graduation,
         ];

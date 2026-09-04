@@ -104,9 +104,9 @@ class DonorTierRepository implements DonorTierRepositoryInterface
             'alumni_count' => $userIds->count(),
             'institution_count' => User::query()
                 ->whereIn('id', $userIds)
-                ->whereNotNull('university')
-                ->distinct('university')
-                ->count('university'),
+                ->whereNotNull('tertiary_institution_id')
+                ->distinct('tertiary_institution_id')
+                ->count('tertiary_institution_id'),
         ];
     }
 
@@ -139,6 +139,7 @@ class DonorTierRepository implements DonorTierRepositoryInterface
 
         return User::query()
             ->select('users.*')
+            ->with('tertiaryInstitution')
             ->joinSub($aggregate, 'donor_totals', 'donor_totals.user_id', '=', 'users.id')
             ->addSelect(['donor_totals.total as lifetime_total', 'donor_totals.payments_count as payments_count'])
             ->when(filled($filters['search'] ?? null), function ($query) use ($filters): void {
@@ -150,8 +151,8 @@ class DonorTierRepository implements DonorTierRepositoryInterface
                 });
             })
             ->when(
-                filled($filters['institution'] ?? null),
-                fn ($query) => $query->where('users.university', $filters['institution'])
+                filled($filters['tertiary_institution_uuid'] ?? null),
+                fn ($query) => $query->whereHas('tertiaryInstitution', fn ($q) => $q->where('uuid', $filters['tertiary_institution_uuid']))
             )
             ->orderByDesc('donor_totals.total');
     }

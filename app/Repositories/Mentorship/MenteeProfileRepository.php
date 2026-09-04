@@ -17,7 +17,7 @@ class MenteeProfileRepository implements MenteeProfileRepositoryInterface
 
     public function findByUuid(string $uuid): ?MenteeProfile
     {
-        return MenteeProfile::query()->with(['user', 'activeMatch.mentorProfile.user'])->where('uuid', $uuid)->first();
+        return MenteeProfile::query()->with(['user.tertiaryInstitution', 'activeMatch.mentorProfile.user'])->where('uuid', $uuid)->first();
     }
 
     public function findByUserId(int $userId): ?MenteeProfile
@@ -29,7 +29,7 @@ class MenteeProfileRepository implements MenteeProfileRepositoryInterface
     {
         $query = MenteeProfile::query()
             ->select('mentee_profiles.*')
-            ->with(['user', 'activeMatch.mentorProfile.user'])
+            ->with(['user.tertiaryInstitution', 'activeMatch.mentorProfile.user'])
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery
@@ -53,7 +53,7 @@ class MenteeProfileRepository implements MenteeProfileRepositoryInterface
     {
         $query = MenteeProfile::query()
             ->select('mentee_profiles.*')
-            ->with(['user'])
+            ->with(['user.tertiaryInstitution'])
             ->whereDoesntHave('matches', fn ($matchQuery) => $matchQuery->where('status', MentorshipMatchStatusEnum::ACTIVE->value))
             ->when(
                 filled($filters['search'] ?? null),
@@ -78,7 +78,7 @@ class MenteeProfileRepository implements MenteeProfileRepositoryInterface
     {
         $query = MenteeProfile::query()
             ->select('mentee_profiles.*')
-            ->with(['user'])
+            ->with(['user.tertiaryInstitution'])
             ->whereHas('matches', fn ($matchQuery) => $matchQuery
                 ->where('mentor_profile_id', $mentorProfileId)
                 ->whereIn('status', [MentorshipMatchStatusEnum::ACTIVE->value, MentorshipMatchStatusEnum::COMPLETED->value]))

@@ -21,7 +21,7 @@ class DonorTierAlumniListRequest extends ApiFormRequest
     {
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'institution' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'tertiary_institution_uuid' => ['sometimes', 'nullable', 'uuid', 'exists:tertiary_institutions,uuid'],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'export' => ['sometimes', 'nullable', 'string', Rule::in(['csv', 'pdf'])],

@@ -25,7 +25,7 @@ class UserResource extends JsonResource
                 : CustomerRegistrationStepEnum::AWAITING_OTP->value,
             'phone_number' => $this->phone_number,
             'country_code' => $this->country_code,
-            'university' => $this->university,
+            'university' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : TertiaryInstitutionResource::make($this->tertiaryInstitution)),
             'year_of_graduation' => $this->year_of_graduation,
             '2fa' => $this->{'2fa'},
             'email_notifications_enabled' => (bool) $this->email_notifications_enabled,

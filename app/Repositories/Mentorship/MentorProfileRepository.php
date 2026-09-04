@@ -20,7 +20,7 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
 
     public function findByUuid(string $uuid): ?MentorProfile
     {
-        return MentorProfile::query()->with(['user', 'reviewer', 'suspendedBy'])->where('uuid', $uuid)->first();
+        return MentorProfile::query()->with(['user.tertiaryInstitution', 'reviewer', 'suspendedBy'])->where('uuid', $uuid)->first();
     }
 
     public function findByUserId(int $userId): ?MentorProfile
@@ -32,7 +32,7 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
     {
         $query = MentorProfile::query()
             ->select('mentor_profiles.*')
-            ->with(['user'])
+            ->with(['user.tertiaryInstitution'])
             ->whereHas('matches', fn ($matchQuery) => $matchQuery
                 ->where('mentee_profile_id', $menteeProfileId)
                 ->whereIn('status', [MentorshipMatchStatusEnum::ACTIVE->value, MentorshipMatchStatusEnum::COMPLETED->value]))
@@ -59,7 +59,7 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
     {
         $query = MentorProfile::query()
             ->select('mentor_profiles.*')
-            ->with(['user'])
+            ->with(['user.tertiaryInstitution'])
             ->when(
                 filled($filters['filters']['status'] ?? null),
                 fn ($query) => $query->where('mentor_profiles.review_status', $filters['filters']['status'])

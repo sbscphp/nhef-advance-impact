@@ -14,7 +14,7 @@ class ConstituentSegmentListRequest extends ApiFormRequest
     {
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'university' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'tertiary_institution_uuid' => ['sometimes', 'nullable', 'uuid', 'exists:tertiary_institutions,uuid'],
             'department' => ['sometimes', 'nullable', 'string', 'max:255'],
             'graduation_year_from' => ['sometimes', 'nullable', 'integer', 'digits:4'],
             'graduation_year_to' => ['sometimes', 'nullable', 'integer', 'digits:4', 'gte:graduation_year_from'],

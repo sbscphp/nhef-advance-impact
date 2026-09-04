@@ -54,7 +54,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function paginateAlumniSearch(array $filters, int $perPage): LengthAwarePaginator
     {
-        $query = User::query();
+        $query = User::query()->with('tertiaryInstitution');
 
         if (! empty($filters['search'])) {
             $search = $filters['search'];
@@ -108,6 +108,7 @@ class UserRepository implements UserRepositoryInterface
     private function adminListQuery(array $filters): Builder
     {
         $query = User::query()
+            ->with('tertiaryInstitution')
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where(function ($query) use ($filters) {
@@ -145,7 +146,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function paginateForSegment(array $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->segmentQuery($filters)->paginate($perPage);
+        return $this->segmentQuery($filters)->with('tertiaryInstitution')->paginate($perPage);
     }
 
     public function resolveSegmentMembers(array $segment): Collection
@@ -181,8 +182,8 @@ class UserRepository implements UserRepositoryInterface
                 })
             )
             ->when(
-                filled($filters['university'] ?? null),
-                fn ($query) => $query->where('university', $filters['university'])
+                filled($filters['tertiary_institution_uuid'] ?? null),
+                fn ($query) => $query->whereHas('tertiaryInstitution', fn ($q) => $q->where('uuid', $filters['tertiary_institution_uuid']))
             )
             ->when(
                 filled($filters['department'] ?? null),
@@ -203,7 +204,7 @@ class UserRepository implements UserRepositoryInterface
      */
     private function hasSegmentCriteria(array $segment): bool
     {
-        return filled($segment['university'] ?? null)
+        return filled($segment['tertiary_institution_uuid'] ?? null)
             || filled($segment['department'] ?? null)
             || filled($segment['graduation_year_from'] ?? null)
             || filled($segment['graduation_year_to'] ?? null);

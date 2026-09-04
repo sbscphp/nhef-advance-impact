@@ -55,7 +55,7 @@ class PledgeRepository implements PledgeRepositoryInterface
     {
         $query = Pledge::query()
             ->select('pledges.*')
-            ->with(['user', 'nextPendingInstallment'])
+            ->with(['user.tertiaryInstitution', 'nextPendingInstallment'])
             ->where('pledges.campaign_id', $campaignId)
             ->when(
                 filled($filters['status'] ?? null),
@@ -102,12 +102,12 @@ class PledgeRepository implements PledgeRepositoryInterface
         return $pledge->fresh($relations);
     }
 
-    public function sumReceivedForCampaignAndUniversity(int $campaignId, string $university): string
+    public function sumReceivedForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): string
     {
         return (string) Pledge::query()
             ->join('users', 'users.id', '=', 'pledges.user_id')
             ->where('pledges.campaign_id', $campaignId)
-            ->where('users.university', $university)
+            ->where('users.tertiary_institution_id', $tertiaryInstitutionId)
             ->sum('pledges.amount_paid');
     }
 
