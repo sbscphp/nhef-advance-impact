@@ -28,7 +28,7 @@ class PaymentGatewayService
 
     /**
      * @param  array<string, mixed>  $meta
-     * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
+     * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway_transaction_id: ?string, gateway: string}
      */
     public function initialize(string $reference, string $amount, string $currency, string $email, array $meta = []): array
     {
@@ -56,6 +56,7 @@ class PaymentGatewayService
             'client_secret' => null,
             'publishable_key' => null,
             'reference' => $reference,
+            'gateway_transaction_id' => null,
             'gateway' => $gateway,
         ];
     }
@@ -63,10 +64,10 @@ class PaymentGatewayService
     /**
      * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
      */
-    public function verify(string $reference, string $gateway): array
+    public function verify(string $reference, string $gateway, ?string $gatewayTransactionId = null): array
     {
         if (PaymentMode::isLive()) {
-            return $this->gatewayResolver->make($gateway)->verify($reference);
+            return $this->gatewayResolver->make($gateway)->verify($reference, $gatewayTransactionId);
         }
 
         if (PaymentMode::current() === PaymentMode::LOG) {

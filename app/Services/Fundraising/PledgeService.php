@@ -212,7 +212,7 @@ class PledgeService
             return ['payment' => $payment, 'pledge' => $payment->pledge];
         }
 
-        $result = $this->paymentGatewayService->verify($reference, $payment->gateway);
+        $result = $this->paymentGatewayService->verify($reference, $payment->gateway, $payment->gateway_transaction_id);
 
         return DB::transaction(function () use ($reference, $result, $request): array {
             // Re-fetch under a row lock: the gateway call above is a slow network round trip,
@@ -430,6 +430,7 @@ class PledgeService
             'currency' => $pledge->currency,
             'gateway' => $initialization['gateway'],
             'gateway_reference' => $initialization['reference'],
+            'gateway_transaction_id' => $initialization['gateway_transaction_id'],
             'status' => PaymentStatusEnum::PENDING->value,
         ]);
 

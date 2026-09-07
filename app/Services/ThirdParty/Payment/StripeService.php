@@ -17,11 +17,12 @@ use Stripe\Webhook;
  * inline via `client_secret`/`publishable_key`, no redirect); hosted uses a Checkout Session
  * (donor redirected via `authorization_url`, same shape as Paystack's flow).
  *
- * Either way, `verify()` looks the PaymentIntent up by our own `reference` (stamped into its
- * metadata at creation) via the Search API, since Stripe won't let us pick our own PaymentIntent
- * ID and Sessions aren't searchable. Search is only eventually consistent, so the webhook
- * (server-to-server, no search) is the reliable settlement path regardless, matching the
- * dual-path lifecycle on {@see PaymentGatewayService}.
+ * Either way, `initialize()` hands back the gateway's own object id (PaymentIntent id for
+ * embedded, Checkout Session id for hosted) as `gateway_transaction_id`, which the caller
+ * persists; `verify()` then retrieve()s that id directly, a strongly-consistent read. This
+ * deliberately does not fall back to Stripe's PaymentIntent Search API (metadata['reference']),
+ * which is only eventually consistent and was the cause of intermittent "Unable to verify
+ * payment with the gateway" failures.
  */
 class StripeService implements PaymentGatewayInterface
 {
@@ -53,8 +54,8 @@ class StripeService implements PaymentGatewayInterface
                 'receipt_email' => $email,
                 'automatic_payment_methods' => ['enabled' => true],
                 'setup_future_usage' => 'off_session',
-                // Only field the PaymentIntent Search API can find this by later; Stripe
-                // doesn't accept a caller-supplied PaymentIntent ID.
+                // StripeWebhookController reads this back out of the event payload to route to
+                // the right service (Donation/Pledge/EventTicket) by reference prefix.
                 'metadata' => [...$meta, 'reference' => $reference],
             ], ['idempotency_key' => $reference]);
         } catch (ApiErrorException $exception) {
@@ -69,6 +70,7 @@ class StripeService implements PaymentGatewayInterface
             'client_secret' => (string) $paymentIntent->client_secret,
             'publishable_key' => (string) config('services.stripe.publishable_key'),
             'reference' => $reference,
+            'gateway_transaction_id' => $paymentIntent->id,
         ];
     }
 
@@ -92,8 +94,8 @@ class StripeService implements PaymentGatewayInterface
                 ]],
                 'payment_intent_data' => [
                     'setup_future_usage' => 'off_session',
-                    // Only field the PaymentIntent Search API can find this by later; Checkout
-                    // Session's own `client_reference_id` isn't searchable.
+                    // StripeWebhookController reads this back out of the event payload to route
+                    // to the right service (Donation/Pledge/EventTicket) by reference prefix.
                     'metadata' => ['reference' => $reference],
                 ],
                 'success_url' => rtrim((string) config('app.frontend_url'), '/').'/donations/callback?reference='.$reference,
@@ -112,6 +114,7 @@ class StripeService implements PaymentGatewayInterface
             'client_secret' => null,
             'publishable_key' => null,
             'reference' => $reference,
+            'gateway_transaction_id' => $session->id,
         ];
     }
 
@@ -121,32 +124,52 @@ class StripeService implements PaymentGatewayInterface
     }
 
     /**
-     * Step 3 of 3. `expand` pulls the card details back in the same round trip instead of a
-     * separate PaymentMethod retrieve.
+     * Step 3 of 3. Retrieves by the gateway's own id (captured at initialize() time), a direct,
+     * strongly-consistent read; see class docblock for why this is not Search-backed.
      */
-    public function verify(string $reference): array
+    public function verify(string $reference, ?string $gatewayTransactionId = null): array
+    {
+        if ($gatewayTransactionId === null) {
+            Log::error('Stripe verify called without a gateway_transaction_id', ['reference' => $reference]);
+
+            throw new ApiException('Unable to verify payment with the gateway. Please try again.', 502);
+        }
+
+        return $this->mapPaymentIntentToResult($this->retrieveByGatewayTransactionId($gatewayTransactionId, $reference));
+    }
+
+    /**
+     * A Checkout Session id (hosted mode, prefixed `cs_`) has its PaymentIntent created
+     * up front by Stripe as soon as the Session exists, so retrieving the Session and expanding
+     * `payment_intent` is just as immediate as retrieving a PaymentIntent id directly.
+     */
+    private function retrieveByGatewayTransactionId(string $gatewayTransactionId, string $reference): PaymentIntent
     {
         try {
-            $results = $this->client()->paymentIntents->search([
-                'query' => "metadata['reference']:'{$reference}'",
-                'limit' => 1,
-                'expand' => ['data.payment_method'],
-            ]);
+            if (str_starts_with($gatewayTransactionId, 'cs_')) {
+                $session = $this->client()->checkout->sessions->retrieve($gatewayTransactionId, [
+                    'expand' => ['payment_intent.payment_method'],
+                ]);
+
+                $paymentIntent = $session->payment_intent;
+            } else {
+                $paymentIntent = $this->client()->paymentIntents->retrieve($gatewayTransactionId, [
+                    'expand' => ['payment_method'],
+                ]);
+            }
         } catch (ApiErrorException $exception) {
-            Log::error('Stripe verify failed', ['reference' => $reference, 'message' => $exception->getMessage()]);
+            Log::error('Stripe verify failed', ['reference' => $reference, 'gateway_transaction_id' => $gatewayTransactionId, 'message' => $exception->getMessage()]);
 
             throw new ApiException('Unable to verify payment with the gateway. Please try again.', 502);
         }
-
-        $paymentIntent = $results->data[0] ?? null;
 
         if (! $paymentIntent instanceof PaymentIntent) {
-            Log::error('Stripe verify found no matching payment intent', ['reference' => $reference]);
+            Log::error('Stripe verify found no payment intent on the checkout session', ['reference' => $reference, 'gateway_transaction_id' => $gatewayTransactionId]);
 
             throw new ApiException('Unable to verify payment with the gateway. Please try again.', 502);
         }
 
-        return $this->mapPaymentIntentToResult($paymentIntent);
+        return $paymentIntent;
     }
 
     /**

@@ -50,6 +50,9 @@ class PaystackService implements PaymentGatewayInterface
             'client_secret' => null,
             'publishable_key' => $isEmbedded ? (string) config('services.paystack.public_key') : null,
             'reference' => (string) ($data['reference'] ?? $reference),
+            // Paystack's own /transaction/verify/:reference lookup is already immediately
+            // consistent, so there's no separate id worth capturing here.
+            'gateway_transaction_id' => null,
         ];
     }
 
@@ -64,7 +67,7 @@ class PaystackService implements PaymentGatewayInterface
      * browser redirect) or PaystackWebhookController; both funnel into the idempotent
      * PledgeService::verifyPayment(), so a second call is a harmless no-op.
      */
-    public function verify(string $reference): array
+    public function verify(string $reference, ?string $gatewayTransactionId = null): array
     {
         $response = $this->client()->get('/transaction/verify/'.rawurlencode($reference));
 
@@ -216,11 +219,20 @@ class PaystackService implements PaymentGatewayInterface
         return hash_equals($expected, $signature);
     }
 
+    /**
+     * `retry()` only catches a genuine connection failure (timeout, DNS, refused) - a real
+     * response from Paystack, even a 4xx/5xx or `status: false`, is returned as-is and still
+     * surfaces as the normal error path below, so a transient network blip no longer fails a
+     * donor's payment outright. Mirrors StripeService::client()'s `max_network_retries`.
+     */
     private function client()
     {
         return Http::baseUrl((string) config('services.paystack.base_url'))
             ->withToken((string) config('services.paystack.secret_key'))
-            ->acceptJson();
+            ->acceptJson()
+            ->timeout(15)
+            ->connectTimeout(5)
+            ->retry(3, 500);
     }
 
     private function toSubunit(string $amount): int
