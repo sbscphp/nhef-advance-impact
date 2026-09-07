@@ -16,14 +16,24 @@ use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 interface PaymentGatewayInterface
 {
     /**
-     * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string}
+     * `gateway_transaction_id` is the gateway's own object id (e.g. Stripe's PaymentIntent or
+     * Checkout Session id), when the gateway has one available at creation time; null gateways
+     * (Paystack) look themselves up by `reference` well enough that verify() needs nothing else.
+     * Persisted by the caller so verify() can be passed it back for a direct, consistent lookup.
+     *
+     * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway_transaction_id: ?string}
      */
     public function initialize(string $reference, string $amount, string $currency, string $email, array $meta = []): array;
 
     /**
+     * `$gatewayTransactionId`, when the gateway needs one (Stripe: required, retrieves the
+     * payment directly by its own id rather than searching by `reference`), is whatever
+     * initialize() returned as `gateway_transaction_id`; null for a gateway that doesn't need it
+     * (Paystack, which looks itself up by `reference` well enough already).
+     *
      * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}
      */
-    public function verify(string $reference): array;
+    public function verify(string $reference, ?string $gatewayTransactionId = null): array;
 
     /**
      * Charges a previously-saved, reusable payment method off-session (no donor present), for
