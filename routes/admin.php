@@ -14,6 +14,7 @@ use App\Http\Controllers\v1\Admin\Crm\ProspectController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectInviteController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectMessageController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectProposalController;
+use App\Http\Controllers\v1\Admin\CustomFields\CustomFieldDefinitionController;
 use App\Http\Controllers\v1\Admin\Donation\DonationController as AdminDonationController;
 use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
@@ -271,6 +272,22 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:system_configuration.delete']);
             Route::get('/{uuid}/alumni', [DonorTierController::class, 'alumni'])
                 ->middleware(['permission:system_configuration.read']);
+        });
+
+        Route::prefix('custom-fields')->group(function () {
+            // Must come before /{uuid} or "metadata" gets swallowed as a wildcard uuid.
+            Route::get('/metadata', [CustomFieldDefinitionController::class, 'metadata'])
+                ->middleware(['permission:custom_fields.read']);
+            Route::post('/', [CustomFieldDefinitionController::class, 'store'])
+                ->middleware(['permission:custom_fields.create']);
+            Route::get('/', [CustomFieldDefinitionController::class, 'index'])
+                ->middleware(['permission:custom_fields.read']);
+            Route::get('/{uuid}', [CustomFieldDefinitionController::class, 'show'])
+                ->middleware(['permission:custom_fields.read']);
+            Route::patch('/{uuid}', [CustomFieldDefinitionController::class, 'update'])
+                ->middleware(['permission:custom_fields.update']);
+            Route::patch('/{uuid}/archive', [CustomFieldDefinitionController::class, 'archive'])
+                ->middleware(['permission:custom_fields.delete']);
         });
 
         Route::prefix('mentorship')->group(function () {

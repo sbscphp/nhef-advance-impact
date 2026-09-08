@@ -76,4 +76,22 @@ enum ModuleEnums: string
     {
         return array_column(self::cases(), 'value');
     }
+
+    /**
+     * Modules a Custom Field definition may target; excludes unbuilt/nonexistent ones like
+     * `reporting` and the Advance-Impact-only Project/Proposal/Research group.
+     *
+     * @return list<string>
+     */
+    public static function customFieldModules(): array
+    {
+        return [
+            self::crm->value,
+            self::constituent_management->value,
+            self::communications->value,
+            self::donation->value,
+            self::events->value,
+            self::user_management->value,
+        ];
+    }
 }
