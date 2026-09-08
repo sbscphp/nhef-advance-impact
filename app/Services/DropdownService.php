@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\CustomFieldTypeEnum;
 use App\Enums\DegreeEnum;
 use App\Enums\EmploymentStatusEnum;
+use App\Enums\ModuleEnums;
 use App\Enums\OtpChannelEnum;
 use App\Http\Resources\CountryResource;
 use App\Models\Country;
@@ -51,6 +53,28 @@ final class DropdownService
             'graduation_years' => $this->graduationYears(),
             'default_country_uuid' => $defaultCountry->uuid,
             'default_dial_code' => $defaultCountry->dial_code,
+        ];
+    }
+
+    /**
+     * Options for the admin "Create Custom Field" wizard.
+     *
+     * @return array{
+     *     applicable_modules: list<array{value: string, label: string}>,
+     *     field_types: list<array{value: string, label: string}>,
+     * }
+     */
+    public function customFieldMetadata(): array
+    {
+        return [
+            'applicable_modules' => array_map(
+                static fn (string $module): array => ['value' => $module, 'label' => ModuleEnums::from($module)->label()],
+                ModuleEnums::customFieldModules()
+            ),
+            'field_types' => array_map(
+                static fn (CustomFieldTypeEnum $type): array => ['value' => $type->value, 'label' => $type->label()],
+                CustomFieldTypeEnum::cases()
+            ),
         ];
     }
 
