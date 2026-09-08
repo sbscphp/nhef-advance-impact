@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 final class ListingFilterRules
 {
@@ -18,17 +19,50 @@ final class ListingFilterRules
     public static function periodValues(): array
     {
         return [
+            'today',
+            'yesterday',
             '1day',
             '3days',
             '7days',
             '14days',
             '30days',
+            'quarter',
             '3months',
             '6months',
             '1year',
             'lastyear',
             'custom',
         ];
+    }
+
+    /**
+     * Human-readable label per {@see self::periodValues()} entry, for a frontend to populate a
+     * period picker without hardcoding the list.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public static function periodOptions(): array
+    {
+        $labels = [
+            'today' => 'Today',
+            'yesterday' => 'Yesterday',
+            '1day' => 'Last 24 Hours',
+            '3days' => 'Last 3 Days',
+            '7days' => 'Last 7 Days',
+            '14days' => 'Last 14 Days',
+            '30days' => 'Last 30 Days',
+            'quarter' => 'Last Quarter',
+            '3months' => 'Last 3 Months',
+            '6months' => 'Last 6 Months',
+            '1year' => 'Last 12 Months',
+            'lastyear' => 'Last Year',
+            'custom' => 'Custom Date',
+        ];
+
+        return array_map(
+            fn (string $value): array => ['value' => $value, 'label' => $labels[$value]],
+            self::periodValues()
+        );
     }
 
     /**
@@ -101,11 +135,14 @@ final class ListingFilterRules
         $now = now();
 
         [$start, $end] = match ($value) {
+            'today' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+            'yesterday' => [$now->copy()->subDay()->startOfDay(), $now->copy()->subDay()->endOfDay()],
             '1day' => [$now->copy()->subDay()->startOfDay(), $now->copy()->endOfDay()],
             '3days' => [$now->copy()->subDays(3)->startOfDay(), $now->copy()->endOfDay()],
             '7days' => [$now->copy()->subDays(7)->startOfDay(), $now->copy()->endOfDay()],
             '14days' => [$now->copy()->subDays(14)->startOfDay(), $now->copy()->endOfDay()],
             '30days' => [$now->copy()->subDays(30)->startOfDay(), $now->copy()->endOfDay()],
+            'quarter' => [$now->copy()->subQuarter()->startOfQuarter(), $now->copy()->subQuarter()->endOfQuarter()],
             '3months' => [$now->copy()->subMonths(3)->startOfDay(), $now->copy()->endOfDay()],
             '6months' => [$now->copy()->subMonths(6)->startOfDay(), $now->copy()->endOfDay()],
             '1year' => [$now->copy()->subYear()->startOfDay(), $now->copy()->endOfDay()],
@@ -217,6 +254,9 @@ final class ListingFilterRules
         ];
     }
 
+    /**
+     * @throws ValidationException  If a period preset is combined with an explicit start_date/end_date.
+     */
     public static function applyPeriodDateRangeToRequest(Request|FormRequest $request): void
     {
         self::prepareListingRequest($request);
@@ -224,6 +264,12 @@ final class ListingFilterRules
         $period = strtolower((string) $request->input('period', ''));
         if ($period === '' || $period === 'custom') {
             return;
+        }
+
+        if (filled($request->input('start_date')) || filled($request->input('end_date'))) {
+            throw ValidationException::withMessages([
+                'period' => 'Do not send start_date/end_date together with a period preset; use period=custom for a custom range instead.',
+            ]);
         }
 
         $range = self::dateRangeFromPeriod($period);
