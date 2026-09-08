@@ -24,6 +24,7 @@ use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use App\Repositories\Contracts\Event\EventTicketTypeRepositoryInterface;
 use App\Repositories\Contracts\Event\EventWaitlistEntryRepositoryInterface;
+use App\Services\CustomFields\CustomFieldValueService;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Settings\PaymentMethodService;
 use App\Services\Theme\ThemeResolver;
@@ -48,6 +49,7 @@ class EventTicketService
         private readonly PaymentGatewayService $paymentGatewayService,
         private readonly NotificationDispatchService $notificationDispatchService,
         private readonly PaymentMethodService $paymentMethodService,
+        private readonly CustomFieldValueService $customFieldValueService,
     ) {}
 
     /**
@@ -157,6 +159,10 @@ class EventTicketService
                 ],
                 $ticketTypes
             ));
+
+            if (! empty($validated['custom_field_values'])) {
+                $this->customFieldValueService->updateForFieldable($registration, ModuleEnums::events->value, $validated['custom_field_values']);
+            }
 
             $attendeeName = $user?->displayName() ?? $validated['full_name'];
 

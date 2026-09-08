@@ -3,6 +3,7 @@
 namespace App\Repositories\Contracts\CustomField;
 
 use App\Models\CustomFieldDefinition;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 interface CustomFieldDefinitionRepositoryInterface
@@ -23,4 +24,12 @@ interface CustomFieldDefinitionRepositoryInterface
      * @param  array<string, mixed>  $filters
      */
     public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Active definitions applicable to the given module; feeds a consumer's "which custom
+     * fields apply to me" listing (e.g. a customer's own profile).
+     *
+     * @return Collection<int, CustomFieldDefinition>
+     */
+    public function activeForModule(string $module): Collection;
 }

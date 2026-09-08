@@ -4,6 +4,7 @@ use App\Http\Controllers\v1\Customer\Auth\EmailVerificationController;
 use App\Http\Controllers\v1\Customer\Auth\LoginController;
 use App\Http\Controllers\v1\Customer\Auth\PasswordController;
 use App\Http\Controllers\v1\Customer\Auth\RegisterController;
+use App\Http\Controllers\v1\Customer\CustomFields\CustomFieldValueController;
 use App\Http\Controllers\v1\Customer\Events\EventRegistrationController;
 use App\Http\Controllers\v1\Customer\Fundraising\DonationController;
 use App\Http\Controllers\v1\Customer\Fundraising\PledgeController;
@@ -45,6 +46,9 @@ Route::prefix('v1')->group(function () {
     // No auth: needed on the signup form (before an account exists), not just Settings.
     Route::get('tertiary-institutions', [TertiaryInstitutionController::class, 'index'])->middleware('throttle:60,1');
 
+    // No auth: needed on donation/event-registration forms, which guests can also submit.
+    Route::get('custom-fields', [CustomFieldValueController::class, 'forModule'])->middleware('throttle:60,1');
+
     Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::post('/read-all', [NotificationController::class, 'markAllRead']);
@@ -65,6 +69,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/payment-methods', [PaymentMethodController::class, 'index']);
         Route::patch('/payment-methods/{uuid}/default', [PaymentMethodController::class, 'setDefault']);
         Route::delete('/payment-methods/{uuid}', [PaymentMethodController::class, 'destroy']);
+
+        Route::get('/custom-fields', [CustomFieldValueController::class, 'index']);
+        Route::match(['patch', 'post'], '/custom-fields', [CustomFieldValueController::class, 'update']);
     });
 
     Route::middleware('auth:sanctum')->prefix('pledges')->group(function () {

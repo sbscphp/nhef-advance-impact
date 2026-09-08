@@ -94,4 +94,20 @@ enum ModuleEnums: string
             self::user_management->value,
         ];
     }
+
+    /**
+     * Subset of {@see self::customFieldModules()} a customer/guest may use; `crm` and
+     * `user_management` records aren't customer-owned, and `communications` has no
+     * customer-facing form to fill in.
+     *
+     * @return list<string>
+     */
+    public static function customerCustomFieldModules(): array
+    {
+        return [
+            self::constituent_management->value,
+            self::donation->value,
+            self::events->value,
+        ];
+    }
 }

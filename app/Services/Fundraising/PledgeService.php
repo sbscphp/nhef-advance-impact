@@ -22,6 +22,7 @@ use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgePaymentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
+use App\Services\CustomFields\CustomFieldValueService;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Settings\PaymentMethodService;
 use App\Services\Theme\ThemeResolver;
@@ -45,6 +46,7 @@ class PledgeService
         private readonly PaymentGatewayService $paymentGatewayService,
         private readonly NotificationDispatchService $notificationDispatchService,
         private readonly PaymentMethodService $paymentMethodService,
+        private readonly CustomFieldValueService $customFieldValueService,
     ) {}
 
     /**
@@ -98,6 +100,10 @@ class PledgeService
                 'end_date' => $frequency->isRecurring() ? $validated['end_date'] : null,
                 'next_installment_due_at' => $schedule[0]['due_date'],
             ]);
+
+            if (! empty($validated['custom_field_values'])) {
+                $this->customFieldValueService->updateForFieldable($pledge, ModuleEnums::donation->value, $validated['custom_field_values']);
+            }
 
             foreach ($schedule as $item) {
                 $this->installmentRepository->create([

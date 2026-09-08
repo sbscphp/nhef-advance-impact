@@ -2,10 +2,12 @@
 
 namespace App\Repositories\CustomField;
 
+use App\Enums\CustomFieldStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\CustomFieldDefinition;
 use App\Repositories\Contracts\CustomField\CustomFieldDefinitionRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class CustomFieldDefinitionRepository implements CustomFieldDefinitionRepositoryInterface
@@ -33,6 +35,15 @@ class CustomFieldDefinitionRepository implements CustomFieldDefinitionRepository
     public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator
     {
         return $this->adminListQuery($filters)->paginate($perPage);
+    }
+
+    public function activeForModule(string $module): Collection
+    {
+        return CustomFieldDefinition::query()
+            ->where('status', CustomFieldStatusEnum::ACTIVE->value)
+            ->whereJsonContains('applicable_modules', $module)
+            ->orderBy('name')
+            ->get();
     }
 
     /**
