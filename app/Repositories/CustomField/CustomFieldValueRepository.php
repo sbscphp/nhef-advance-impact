@@ -29,4 +29,16 @@ class CustomFieldValueRepository implements CustomFieldValueRepositoryInterface
             ['value' => $value]
         );
     }
+
+    public function valuesForFieldableIds(string $fieldableType, array $fieldableIds): Collection
+    {
+        if ($fieldableIds === []) {
+            return new Collection();
+        }
+
+        return CustomFieldValue::query()
+            ->where('fieldable_type', $fieldableType)
+            ->whereIn('fieldable_id', $fieldableIds)
+            ->get();
+    }
 }

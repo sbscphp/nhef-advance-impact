@@ -32,4 +32,12 @@ interface CustomFieldDefinitionRepositoryInterface
      * @return Collection<int, CustomFieldDefinition>
      */
     public function activeForModule(string $module): Collection;
+
+    /**
+     * Same as {@see self::activeForModule()}, further restricted to `show_in_reports`; feeds
+     * the Reporting module's "Choose Custom Field" step.
+     *
+     * @return Collection<int, CustomFieldDefinition>
+     */
+    public function reportableForModule(string $module): Collection;
 }

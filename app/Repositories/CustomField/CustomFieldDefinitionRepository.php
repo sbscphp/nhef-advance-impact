@@ -46,6 +46,16 @@ class CustomFieldDefinitionRepository implements CustomFieldDefinitionRepository
             ->get();
     }
 
+    public function reportableForModule(string $module): Collection
+    {
+        return CustomFieldDefinition::query()
+            ->where('status', CustomFieldStatusEnum::ACTIVE->value)
+            ->where('show_in_reports', true)
+            ->whereJsonContains('applicable_modules', $module)
+            ->orderBy('name')
+            ->get();
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      * @return Builder<CustomFieldDefinition>

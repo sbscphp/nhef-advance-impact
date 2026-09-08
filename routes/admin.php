@@ -26,6 +26,7 @@ use App\Http\Controllers\v1\Admin\Mentorship\MentorController as AdminMentorship
 use App\Http\Controllers\v1\Admin\Networking\AlumniSearchController;
 use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkingChannelController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
+use App\Http\Controllers\v1\Admin\Reporting\ReportController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
 use App\Http\Controllers\v1\Admin\SystemConfiguration\DonorTierController;
 use App\Http\Controllers\v1\Admin\UserManagement\UserManagementController;
@@ -288,6 +289,27 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:custom_fields.update']);
             Route::patch('/{uuid}/archive', [CustomFieldDefinitionController::class, 'archive'])
                 ->middleware(['permission:custom_fields.delete']);
+        });
+
+        Route::prefix('reports')->group(function () {
+            // Must come before /{uuid}; otherwise "metadata"/"preview" would be swallowed as a
+            // wildcard uuid by the routes below (same caution as custom-fields/metadata above).
+            Route::get('/metadata', [ReportController::class, 'metadata'])
+                ->middleware(['permission:reports.read']);
+            Route::get('/datasets/{dataset}/fields', [ReportController::class, 'fields'])
+                ->middleware(['permission:reports.read']);
+            Route::get('/datasets/{dataset}/distribution', [ReportController::class, 'distribution'])
+                ->middleware(['permission:reports.read']);
+            Route::post('/preview', [ReportController::class, 'preview'])
+                ->middleware(['permission:reports.read']);
+            Route::post('/', [ReportController::class, 'store'])
+                ->middleware(['permission:reports.create']);
+            Route::get('/', [ReportController::class, 'index'])
+                ->middleware(['permission:reports.read']);
+            Route::get('/{uuid}/preview', [ReportController::class, 'showPreview'])
+                ->middleware(['permission:reports.read']);
+            Route::get('/{uuid}/download', [ReportController::class, 'download'])
+                ->middleware(['permission:reports.read']);
         });
 
         Route::prefix('mentorship')->group(function () {
