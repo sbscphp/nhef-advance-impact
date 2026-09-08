@@ -20,6 +20,7 @@ use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Services\CustomFields\CustomFieldValueService;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Settings\PaymentMethodService;
 use App\Services\Theme\ThemeResolver;
@@ -43,6 +44,7 @@ class DonationService
         private readonly NotificationDispatchService $notificationDispatchService,
         private readonly PaymentMethodService $paymentMethodService,
         private readonly DonorTierRepositoryInterface $donorTierRepository,
+        private readonly CustomFieldValueService $customFieldValueService,
     ) {}
 
     /**
@@ -87,6 +89,10 @@ class DonationService
                 'is_anonymous' => (bool) ($validated['is_anonymous'] ?? false),
                 'next_charge_at' => null,
             ]);
+
+            if (! empty($validated['custom_field_values'])) {
+                $this->customFieldValueService->updateForFieldable($donation, ModuleEnums::donation->value, $validated['custom_field_values']);
+            }
 
             $initialization = $this->initializePaymentFor($user, $donation, $validated['email'] ?? null);
 

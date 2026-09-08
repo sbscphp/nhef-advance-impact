@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Customer\Events;
 
 use App\Http\Requests\ApiFormRequest;
+use App\Http\Requests\Concerns\CustomFieldValuesRules;
 use Illuminate\Validation\Rule;
 
 class RegisterForEventRequest extends ApiFormRequest
@@ -12,10 +13,10 @@ class RegisterForEventRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'tickets' => ['required', 'array', 'min:1'],
             'tickets.*.ticket_type_uuid' => ['required', 'uuid', Rule::exists('event_ticket_types', 'uuid')],
             'tickets.*.quantity' => ['required', 'integer', 'min:1'],
-        ];
+        ], CustomFieldValuesRules::rules());
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Customer\Donations;
 
 use App\Enums\DonationFrequencyEnum;
 use App\Http\Requests\ApiFormRequest;
+use App\Http\Requests\Concerns\CustomFieldValuesRules;
 use Illuminate\Validation\Rule;
 
 class MakeDonationRequest extends ApiFormRequest
@@ -13,11 +14,11 @@ class MakeDonationRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'campaign_uuid' => ['required', 'uuid', Rule::exists('campaigns', 'uuid')],
             'frequency' => ['required', Rule::in(DonationFrequencyEnum::values())],
             'amount' => ['required', 'numeric', 'min:100'],
             'is_anonymous' => ['sometimes', 'boolean'],
-        ];
+        ], CustomFieldValuesRules::rules());
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Customer\Pledges;
 
 use App\Enums\PledgeFrequencyEnum;
 use App\Http\Requests\ApiFormRequest;
+use App\Http\Requests\Concerns\CustomFieldValuesRules;
 use Illuminate\Validation\Rule;
 
 class MakePledgeRequest extends ApiFormRequest
@@ -13,7 +14,7 @@ class MakePledgeRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return [
+        return array_merge([
             'campaign_uuid' => ['required', 'uuid', Rule::exists('campaigns', 'uuid')],
             'frequency' => ['required', Rule::in(PledgeFrequencyEnum::values())],
             'total_amount' => ['required', 'numeric', 'min:100'],
@@ -39,6 +40,6 @@ class MakePledgeRequest extends ApiFormRequest
                 'after_or_equal:today',
             ],
             'is_anonymous' => ['sometimes', 'boolean'],
-        ];
+        ], CustomFieldValuesRules::rules());
     }
 }
