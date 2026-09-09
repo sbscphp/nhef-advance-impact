@@ -144,6 +144,15 @@ class UserRepository implements UserRepositoryInterface
         ];
     }
 
+    public function countVerified(?CarbonInterface $start, ?CarbonInterface $end): int
+    {
+        return (int) User::query()
+            ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
+            ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
+            ->whereNotNull('email_verified_at')
+            ->count();
+    }
+
     public function paginateForSegment(array $filters, int $perPage): LengthAwarePaginator
     {
         return $this->segmentQuery($filters)->with('tertiaryInstitution')->paginate($perPage);

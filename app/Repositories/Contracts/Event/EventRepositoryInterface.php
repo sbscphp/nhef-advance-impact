@@ -42,7 +42,7 @@ interface EventRepositoryInterface
     public function slugExists(string $slug): bool;
 
     /**
-     * @return array{all: int, ongoing: int, completed: int, archived: int}
+     * @return array{all: int, scheduled: int, ongoing: int, completed: int, archived: int}
      */
     public function countByStatusBuckets(?CarbonInterface $start, ?CarbonInterface $end): array;
 }

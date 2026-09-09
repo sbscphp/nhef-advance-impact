@@ -23,6 +23,7 @@ class DonationPaymentAdminResource extends JsonResource
             'donor_name' => $this->whenLoaded('donation', fn () => $this->donation->donorName()),
             'donor_email' => $this->whenLoaded('donation', fn () => $this->donation->donorEmail()),
             'avatar_url' => $this->whenLoaded('donation', fn () => $this->donation->user?->profile_picture_url),
+            'institution' => $this->whenLoaded('donation', fn () => $this->donation->user?->tertiaryInstitution?->name),
             'amount' => (string) $this->amount,
             'amount_formatted' => Money::format($this->amount, $this->currency),
             'currency' => $this->currency,

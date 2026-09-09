@@ -114,4 +114,12 @@ class MentorProfileRepository implements MentorProfileRepositoryInterface
 
         return $mentor;
     }
+
+    public function countActive(): int
+    {
+        return (int) MentorProfile::query()
+            ->where('review_status', MentorReviewStatusEnum::APPROVED->value)
+            ->where('listing_status', MentorListingStatusEnum::ACTIVE->value)
+            ->count();
+    }
 }

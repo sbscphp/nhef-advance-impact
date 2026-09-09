@@ -46,4 +46,7 @@ interface MentorProfileRepositoryInterface
     public function incrementMenteeCount(MentorProfile $mentor, int $by = 1): MentorProfile;
 
     public function decrementMenteeCount(MentorProfile $mentor, int $by = 1): MentorProfile;
+
+    /** Approved and actively listed mentors, i.e. the real, usable mentor population. */
+    public function countActive(): int;
 }
