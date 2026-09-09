@@ -105,4 +105,19 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->distinct()
             ->count(DB::raw('COALESCE(user_id, guest_email)'));
     }
+
+    public function countActive(): int
+    {
+        return Campaign::query()->active()->count();
+    }
+
+    public function countOngoing(): int
+    {
+        return Campaign::query()
+            ->active()
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>=', now());
+            })
+            ->count();
+    }
 }

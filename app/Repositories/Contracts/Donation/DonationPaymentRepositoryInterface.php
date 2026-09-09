@@ -97,6 +97,14 @@ interface DonationPaymentRepositoryInterface
     public function sumSuccessfulForAdmin(?string $from, ?string $to): string;
 
     /**
+     * Org-wide equivalent of {@see self::distinctSuccessfulDonorUserIdsForCampaign()}; feeds
+     * the Fundraising Management dashboard's "Total Donors" card.
+     *
+     * @return list<int>
+     */
+    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to): array;
+
+    /**
      * Sum of goal_amount across every campaign that has ever received a successful NGN payment;
      * the org-wide equivalent of {@see self::distinctCampaignGoalTotalForUser()}.
      */

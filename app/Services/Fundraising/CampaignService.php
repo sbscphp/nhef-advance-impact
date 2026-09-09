@@ -607,6 +607,30 @@ class CampaignService
      * @param  array<string, mixed>  $filters
      * @return array{period: ?string, start_date: ?string, end_date: ?string, target_amount: string, target_amount_formatted: string, received_amount: string, received_amount_formatted: string}
      */
+    /**
+     * Org-wide stat cards for the Fundraising Management dashboard; donations only, no
+     * admin-facing pledge aggregation exists yet.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function adminOverview(array $filters): array
+    {
+        $window = ListingFilterRules::resolveDateWindow($filters);
+        $start = $window['start']?->toDateString();
+        $end = $window['end']?->toDateString();
+
+        $totalRaised = $this->paymentRepository->sumSuccessfulForAdmin($start, $end);
+        $totalDonors = count($this->paymentRepository->distinctSuccessfulDonorUserIdsForAdmin($start, $end));
+
+        return array_merge(ListingFilterRules::periodMeta($filters), [
+            'active_campaigns' => $this->campaignRepository->countActive(),
+            'ongoing_campaigns' => $this->campaignRepository->countOngoing(),
+            'total_raised' => $totalRaised,
+            'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
+            'total_donors' => $totalDonors,
+        ]);
+    }
+
     public function donationsOverview(string $uuid, array $filters): array
     {
         $campaign = $this->findForAdmin($uuid);
