@@ -12,6 +12,8 @@ interface InstitutionRepositoryInterface
      */
     public function all(bool $activeOnly): Collection;
 
+    public function count(bool $activeOnly): int;
+
     public function findByUuid(string $uuid): ?Institution;
 
     public function nameExists(string $name): bool;

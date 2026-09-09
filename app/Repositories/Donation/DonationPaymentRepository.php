@@ -230,7 +230,7 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
     {
         $query = DonationPayment::query()
             ->select('donation_payments.*')
-            ->with(['donation.campaign', 'donation.user'])
+            ->with(['donation.campaign', 'donation.user.tertiaryInstitution'])
             ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
             ->when(
                 filled($filters['status'] ?? null),
@@ -262,7 +262,7 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
     public function findByUuidForAdmin(string $uuid): ?DonationPayment
     {
         return DonationPayment::query()
-            ->with(['donation.campaign', 'donation.user'])
+            ->with(['donation.campaign', 'donation.user.tertiaryInstitution'])
             ->where('uuid', $uuid)
             ->first();
     }
@@ -275,6 +275,16 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->when($from !== null, fn ($query) => $query->whereDate('paid_at', '>=', $from))
             ->when($to !== null, fn ($query) => $query->whereDate('paid_at', '<=', $to))
             ->sum('amount');
+    }
+
+    public function countSuccessfulForAdmin(?string $from, ?string $to): int
+    {
+        return (int) DonationPayment::query()
+            ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('currency', 'NGN')
+            ->when($from !== null, fn ($query) => $query->whereDate('paid_at', '>=', $from))
+            ->when($to !== null, fn ($query) => $query->whereDate('paid_at', '<=', $to))
+            ->count();
     }
 
     public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to): array

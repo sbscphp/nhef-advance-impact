@@ -15,6 +15,7 @@ use App\Http\Controllers\v1\Admin\Crm\ProspectInviteController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectMessageController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectProposalController;
 use App\Http\Controllers\v1\Admin\CustomFields\CustomFieldDefinitionController;
+use App\Http\Controllers\v1\Admin\Dashboard\AdminDashboardController;
 use App\Http\Controllers\v1\Admin\Donation\DonationController as AdminDonationController;
 use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
@@ -293,6 +294,11 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:custom_fields.update']);
             Route::patch('/{uuid}/archive', [CustomFieldDefinitionController::class, 'archive'])
                 ->middleware(['permission:custom_fields.delete']);
+        });
+
+        Route::prefix('dashboard')->group(function () {
+            Route::get('/overview', [AdminDashboardController::class, 'overview'])
+                ->middleware(['permission:dashboard.read']);
         });
 
         Route::prefix('reports')->group(function () {

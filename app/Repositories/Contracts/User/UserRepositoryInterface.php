@@ -48,6 +48,8 @@ interface UserRepositoryInterface
      */
     public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array;
 
+    public function countVerified(?CarbonInterface $start, ?CarbonInterface $end): int;
+
     /**
      * Same filters as {@see self::paginateForAdmin()} but capped instead of paginated, for
      * CSV/PDF export of the Alumni Management list.

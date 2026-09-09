@@ -17,6 +17,13 @@ class InstitutionRepository implements InstitutionRepositoryInterface
             ->get();
     }
 
+    public function count(bool $activeOnly): int
+    {
+        return (int) Institution::query()
+            ->when($activeOnly, fn ($query) => $query->active())
+            ->count();
+    }
+
     public function findByUuid(string $uuid): ?Institution
     {
         return Institution::query()->with('tertiaryInstitution')->where('uuid', $uuid)->first();

@@ -97,6 +97,12 @@ interface DonationPaymentRepositoryInterface
     public function sumSuccessfulForAdmin(?string $from, ?string $to): string;
 
     /**
+     * Count of successful NGN payments, optionally date-scoped; feeds the dashboard's average
+     * donation figure alongside {@see self::sumSuccessfulForAdmin()}.
+     */
+    public function countSuccessfulForAdmin(?string $from, ?string $to): int;
+
+    /**
      * Org-wide equivalent of {@see self::distinctSuccessfulDonorUserIdsForCampaign()}; feeds
      * the Fundraising Management dashboard's "Total Donors" card.
      *

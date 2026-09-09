@@ -104,6 +104,10 @@ class EventRepository implements EventRepositoryInterface
 
         return [
             'all' => (int) $scoped()->count(),
+            'scheduled' => (int) $scoped()
+                ->where('status', EventStatusEnum::PUBLISHED->value)
+                ->where('starts_at', '>', $now)
+                ->count(),
             'ongoing' => (int) $scoped()
                 ->where('status', EventStatusEnum::PUBLISHED->value)
                 ->where('starts_at', '<=', $now)

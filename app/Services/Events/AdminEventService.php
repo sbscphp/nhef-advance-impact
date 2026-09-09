@@ -258,9 +258,9 @@ class AdminEventService
     }
 
     /**
-     * Feeds the dashboard "All Event / Ongoing / Completed / Archived" stat cards.
+     * Feeds the dashboard "All Event / Scheduled / Ongoing / Completed / Archived" stat cards.
      *
-     * @return array{all: int, ongoing: int, completed: int, archived: int}
+     * @return array{all: int, scheduled: int, ongoing: int, completed: int, archived: int}
      */
     public function overview(?CarbonInterface $start, ?CarbonInterface $end): array
     {
