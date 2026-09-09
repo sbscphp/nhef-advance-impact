@@ -38,4 +38,10 @@ interface CampaignRepositoryInterface
 
     /** Distinct donor count (registered users by id, guests by email) across the campaign's donations. */
     public function countDistinctDonors(Campaign $campaign): int;
+
+    /** Count of campaigns currently marked active, regardless of their start/end dates. */
+    public function countActive(): int;
+
+    /** Count of active campaigns actually within their donation window right now. */
+    public function countOngoing(): int;
 }

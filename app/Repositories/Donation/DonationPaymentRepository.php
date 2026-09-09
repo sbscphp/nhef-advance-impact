@@ -277,6 +277,18 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->sum('amount');
     }
 
+    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to): array
+    {
+        return DonationPayment::query()
+            ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->whereNotNull('user_id')
+            ->when($from !== null, fn ($query) => $query->whereDate('paid_at', '>=', $from))
+            ->when($to !== null, fn ($query) => $query->whereDate('paid_at', '<=', $to))
+            ->distinct()
+            ->pluck('user_id')
+            ->all();
+    }
+
     public function distinctCampaignGoalTotalForAdmin(): string
     {
         $campaignIds = DonationPayment::query()

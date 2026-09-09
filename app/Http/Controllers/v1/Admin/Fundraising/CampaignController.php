@@ -16,6 +16,7 @@ use App\Http\Requests\Admin\Campaigns\SyncCampaignInstitutionsRequest;
 use App\Http\Requests\Admin\Campaigns\UpdateCampaignInstitutionRequest;
 use App\Http\Requests\Admin\Campaigns\UpdateCampaignRequest;
 use App\Http\Requests\Admin\DateRangeStatsRequest;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Http\Resources\Admin\CampaignAdminResource;
 use App\Http\Resources\Admin\CampaignDetailResource;
 use App\Http\Resources\Admin\CampaignDonationResource;
@@ -73,6 +74,17 @@ class CampaignController extends Controller
             return JsonResponser::send(false, 'Campaigns retrieved.', $this->paginatedPayload($paginator, CampaignAdminResource::class));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@index');
+        }
+    }
+
+    public function overview(DateRangeStatsRequest $request)
+    {
+        try {
+            $overview = $this->campaignService->adminOverview($request->validated());
+
+            return JsonResponser::send(false, 'Campaigns overview retrieved.', $overview);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@overview');
         }
     }
 

@@ -141,6 +141,10 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.create']);
             Route::get('/', [AdminCampaignController::class, 'index'])
                 ->middleware(['permission:campaigns.read']);
+            // Must be registered before /{uuid}; otherwise "overview" would be swallowed as a
+            // wildcard campaign uuid by the route below (same caution as events/overview).
+            Route::get('/overview', [AdminCampaignController::class, 'overview'])
+                ->middleware(['permission:campaigns.read']);
             Route::get('/{uuid}', [AdminCampaignController::class, 'show'])
                 ->middleware(['permission:campaigns.read']);
             Route::patch('/{uuid}', [AdminCampaignController::class, 'update'])
