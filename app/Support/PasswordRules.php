@@ -12,7 +12,6 @@ class PasswordRules
             ->mixedCase()
             ->letters()
             ->numbers()
-            ->symbols()
-            ->uncompromised();
+            ->symbols();
     }
 }
