@@ -92,6 +92,11 @@ class CampaignService
         return $this->campaignRepository->countDistinctDonors($campaign);
     }
 
+    public function recentDonors(Campaign $campaign, int $perPage): LengthAwarePaginator
+    {
+        return $this->paymentRepository->paginateRecentDonorsForCampaign($campaign->id, $perPage);
+    }
+
     public function daysRemaining(Campaign $campaign): ?int
     {
         if ($campaign->ends_at === null) {

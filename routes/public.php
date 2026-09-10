@@ -30,6 +30,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('campaigns')->group(function () {
         Route::get('/', [CampaignController::class, 'index']);
         Route::get('/{uuid}', [CampaignController::class, 'show']);
+        Route::get('/{uuid}/donors', [CampaignController::class, 'donors']);
     });
 
     Route::post('pledges/payments/{reference}/verify', [PaymentController::class, 'verify']);
