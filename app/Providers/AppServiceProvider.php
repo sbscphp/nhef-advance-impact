@@ -184,7 +184,6 @@ class AppServiceProvider extends ServiceProvider
                 ->mixedCase()
                 ->numbers()
                 ->symbols()
-                ->uncompromised()
             : null
         );
     }
