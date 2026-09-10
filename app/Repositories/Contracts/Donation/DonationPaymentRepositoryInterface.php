@@ -55,6 +55,12 @@ interface DonationPaymentRepositoryInterface
     public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator;
 
     /**
+     * Public "Recent Donors" feed for a campaign's donation page: successful payments only,
+     * excluding donations marked anonymous, most recent first.
+     */
+    public function paginateRecentDonorsForCampaign(int $campaignId, int $perPage): LengthAwarePaginator;
+
+    /**
      * Registered donors with a successful payment to this campaign, optionally date-scoped;
      * feeds the "Donor Breakdown" chart (tiers are lifetime, the window only decides who's counted).
      *

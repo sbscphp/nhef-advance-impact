@@ -4,7 +4,9 @@ namespace App\Http\Controllers\v1\Fundraising;
 
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Campaigns\CampaignDonorListRequest;
 use App\Http\Requests\Campaigns\CampaignListRequest;
+use App\Http\Resources\Fundraising\CampaignDonorResource;
 use App\Http\Resources\Fundraising\CampaignResource;
 use App\Responser\JsonResponser;
 use App\Services\Fundraising\CampaignService;
@@ -41,6 +43,19 @@ class CampaignController extends Controller
         }
     }
 
+    public function donors(CampaignDonorListRequest $request, string $uuid)
+    {
+        try {
+            $campaign = $this->campaignService->findActiveByUuid($uuid);
+            $perPage = (int) ($request->validated('per_page') ?? 10);
+            $paginator = $this->campaignService->recentDonors($campaign, $perPage);
+
+            return JsonResponser::send(false, 'Recent donors retrieved.', $this->donorsPayload($paginator), 200);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Fundraising\CampaignController@donors');
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -48,6 +63,17 @@ class CampaignController extends Controller
     {
         $payload = $paginator->toArray();
         $payload['data'] = CampaignResource::collection($paginator)->resolve();
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function donorsPayload(LengthAwarePaginator $paginator): array
+    {
+        $payload = $paginator->toArray();
+        $payload['data'] = CampaignDonorResource::collection($paginator)->resolve();
 
         return $payload;
     }

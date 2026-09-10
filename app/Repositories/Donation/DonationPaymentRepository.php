@@ -167,6 +167,19 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
         return $query->paginate($perPage);
     }
 
+    public function paginateRecentDonorsForCampaign(int $campaignId, int $perPage): LengthAwarePaginator
+    {
+        return DonationPayment::query()
+            ->select('donation_payments.*')
+            ->with('donation.user')
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->where('donations.campaign_id', $campaignId)
+            ->where('donations.is_anonymous', false)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->orderByDesc('donation_payments.paid_at')
+            ->paginate($perPage);
+    }
+
     public function distinctSuccessfulDonorUserIdsForCampaign(int $campaignId, ?string $from, ?string $to): array
     {
         return DonationPayment::query()
