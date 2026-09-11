@@ -72,7 +72,9 @@ class AuthService
                 'phone_number' => $validated['phone_number'],
                 'country_code' => $validated['country_code'] ?? Country::defaultDialCode(),
                 'matric_no' => $validated['matric_no'] ?? null,
-                'tertiary_institution_id' => $this->institutionRepository->findByUuid($validated['tertiary_institution_uuid'])?->id,
+                'tertiary_institution_id' => filled($validated['tertiary_institution_uuid'] ?? null)
+                    ? $this->institutionRepository->findByUuid($validated['tertiary_institution_uuid'])?->id
+                    : null,
                 'department' => $validated['department'] ?? null,
                 'year_of_graduation' => $validated['year_of_graduation'] ?? null,
                 'degree_earned' => $validated['degree_earned'] ?? null,
