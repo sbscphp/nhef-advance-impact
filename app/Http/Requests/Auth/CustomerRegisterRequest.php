@@ -33,7 +33,7 @@ class CustomerRegisterRequest extends ApiFormRequest
             'country_code' => ['nullable', 'string', 'max:10'],
             'client' => ['nullable', Rule::in(eClientType::values())],
             'matric_no' => ['nullable', 'string', 'max:50'],
-            'tertiary_institution_uuid' => ['required', 'uuid', Rule::exists('tertiary_institutions', 'uuid')],
+            'tertiary_institution_uuid' => ['nullable', 'uuid', Rule::exists('tertiary_institutions', 'uuid')],
             'department' => ['nullable', 'string', 'max:255'],
             'year_of_graduation' => ['nullable', 'integer', 'min:1960', 'max:'.now()->year],
             'degree_earned' => ['nullable', Rule::in(DegreeEnum::values())],
