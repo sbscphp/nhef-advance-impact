@@ -3,6 +3,7 @@
 namespace App\Services\Audit;
 
 use App\Models\AuditLog;
+use App\Models\Project;
 use App\Support\ListingQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -107,6 +108,17 @@ class AuditTrailQueryService
         $httpStatus = $filters['http_status'] ?? null;
         if (is_numeric($httpStatus)) {
             $query->where('audit_logs.http_status', (int) $httpStatus);
+        }
+
+        $projectUuid = $filters['project_uuid'] ?? null;
+        if (is_string($projectUuid) && $projectUuid !== '') {
+            $query->where(function (Builder $w) use ($projectUuid): void {
+                $w->where('audit_logs.metadata->data->project_uuid', $projectUuid)
+                    ->orWhere(function (Builder $w2) use ($projectUuid): void {
+                        $w2->where('audit_logs.model', Project::class)
+                            ->where('audit_logs.model_id', $projectUuid);
+                    });
+            });
         }
     }
 

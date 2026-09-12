@@ -27,6 +27,7 @@ use App\Http\Controllers\v1\Admin\Mentorship\MentorController as AdminMentorship
 use App\Http\Controllers\v1\Admin\Networking\AlumniSearchController;
 use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkingChannelController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
+use App\Http\Controllers\v1\Admin\Projects\ProjectController;
 use App\Http\Controllers\v1\Admin\Reporting\ReportController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
 use App\Http\Controllers\v1\Admin\SystemConfiguration\DonorTierController;
@@ -320,6 +321,130 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:reports.read']);
             Route::get('/{uuid}/download', [ReportController::class, 'download'])
                 ->middleware(['permission:reports.read']);
+        });
+
+        Route::prefix('projects')->group(function () {
+            // Must come before /{uuid}; otherwise "overview"/"metadata" would be swallowed
+            // as a wildcard project uuid by the route below (same caution as events/overview).
+            Route::get('/overview', [ProjectController::class, 'overview'])
+                ->middleware(['permission:projects.read']);
+            Route::get('/issues', [ProjectController::class, 'issues'])
+                ->middleware(['permission:projects.read']);
+            Route::get('/metadata', [ProjectController::class, 'metadata'])
+                ->middleware(['permission:projects.read']);
+            Route::get('/', [ProjectController::class, 'index'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/', [ProjectController::class, 'store'])
+                ->middleware(['permission:projects.create']);
+            Route::get('/{uuid}', [ProjectController::class, 'show'])
+                ->middleware(['permission:projects.read']);
+            Route::patch('/{uuid}', [ProjectController::class, 'update'])
+                ->middleware(['permission:projects.update']);
+            Route::patch('/{uuid}/activate', [ProjectController::class, 'activate'])
+                ->middleware(['permission:projects.update']);
+            Route::patch('/{uuid}/hold', [ProjectController::class, 'putOnHold'])
+                ->middleware(['permission:projects.update']);
+            Route::patch('/{uuid}/archive', [ProjectController::class, 'archive'])
+                ->middleware(['permission:projects.update']);
+            Route::get('/{uuid}/report', [ProjectController::class, 'generateReport'])
+                ->middleware(['permission:projects.read']);
+            Route::get('/{uuid}/upcoming-deadlines', [ProjectController::class, 'upcomingDeadlines'])
+                ->middleware(['permission:projects.read']);
+            Route::get('/{uuid}/audit-log', [ProjectController::class, 'auditLog'])
+                ->middleware(['permission:projects.read']);
+
+            Route::get('/{uuid}/objectives', [ProjectController::class, 'objectives'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/objectives', [ProjectController::class, 'storeObjective'])
+                ->middleware(['permission:projects.update']);
+            Route::patch('/{uuid}/objectives/{objectiveUuid}', [ProjectController::class, 'updateObjective'])
+                ->middleware(['permission:projects.update']);
+
+            Route::get('/{uuid}/milestones', [ProjectController::class, 'milestones'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/milestones', [ProjectController::class, 'storeMilestone'])
+                ->middleware(['permission:projects.update']);
+            Route::get('/{uuid}/milestones/{milestoneUuid}', [ProjectController::class, 'showMilestone'])
+                ->middleware(['permission:projects.read']);
+            Route::patch('/{uuid}/milestones/{milestoneUuid}', [ProjectController::class, 'updateMilestone'])
+                ->middleware(['permission:projects.update']);
+            Route::patch('/{uuid}/milestones/{milestoneUuid}/complete', [ProjectController::class, 'completeMilestone'])
+                ->middleware(['permission:projects.update']);
+            Route::delete('/{uuid}/milestones/{milestoneUuid}', [ProjectController::class, 'destroyMilestone'])
+                ->middleware(['permission:projects.update']);
+
+            Route::get('/{uuid}/deliverables', [ProjectController::class, 'deliverables'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/deliverables', [ProjectController::class, 'storeDeliverable'])
+                ->middleware(['permission:projects.update']);
+            Route::get('/{uuid}/deliverables/{deliverableUuid}', [ProjectController::class, 'showDeliverable'])
+                ->middleware(['permission:projects.read']);
+            Route::patch('/{uuid}/deliverables/{deliverableUuid}', [ProjectController::class, 'updateDeliverable'])
+                ->middleware(['permission:projects.update']);
+            Route::patch('/{uuid}/deliverables/{deliverableUuid}/complete', [ProjectController::class, 'completeDeliverable'])
+                ->middleware(['permission:projects.update']);
+            Route::delete('/{uuid}/deliverables/{deliverableUuid}', [ProjectController::class, 'destroyDeliverable'])
+                ->middleware(['permission:projects.update']);
+
+            Route::get('/{uuid}/budget-overview', [ProjectController::class, 'budgetOverview'])
+                ->middleware(['permission:projects.read']);
+            Route::get('/{uuid}/budget-lines', [ProjectController::class, 'budgetLines'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/budget-lines', [ProjectController::class, 'storeBudgetLine'])
+                ->middleware(['permission:projects.update']);
+            Route::get('/{uuid}/budget-lines/{budgetLineUuid}', [ProjectController::class, 'showBudgetLine'])
+                ->middleware(['permission:projects.read']);
+            Route::patch('/{uuid}/budget-lines/{budgetLineUuid}', [ProjectController::class, 'updateBudgetLine'])
+                ->middleware(['permission:projects.update']);
+
+            Route::get('/{uuid}/expenditures', [ProjectController::class, 'expenditures'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/expenditures', [ProjectController::class, 'storeExpenditure'])
+                ->middleware(['permission:projects.update']);
+            Route::get('/{uuid}/expenditures/{expenditureUuid}', [ProjectController::class, 'showExpenditure'])
+                ->middleware(['permission:projects.read']);
+            Route::patch('/{uuid}/expenditures/{expenditureUuid}', [ProjectController::class, 'updateExpenditure'])
+                ->middleware(['permission:projects.update']);
+            Route::delete('/{uuid}/expenditures/{expenditureUuid}', [ProjectController::class, 'destroyExpenditure'])
+                ->middleware(['permission:projects.update']);
+
+            Route::get('/{uuid}/impact-reports', [ProjectController::class, 'impactReports'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/impact-reports', [ProjectController::class, 'storeImpactReport'])
+                ->middleware(['permission:projects.update']);
+            Route::get('/{uuid}/impact-reports/{reportUuid}', [ProjectController::class, 'showImpactReport'])
+                ->middleware(['permission:projects.read']);
+            Route::patch('/{uuid}/impact-reports/{reportUuid}', [ProjectController::class, 'updateImpactReport'])
+                ->middleware(['permission:projects.update']);
+            Route::delete('/{uuid}/impact-reports/{reportUuid}', [ProjectController::class, 'destroyImpactReport'])
+                ->middleware(['permission:projects.update']);
+
+            Route::get('/{uuid}/documents', [ProjectController::class, 'documents'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/documents', [ProjectController::class, 'storeDocument'])
+                ->middleware(['permission:projects.update']);
+            Route::delete('/{uuid}/documents/{documentUuid}', [ProjectController::class, 'destroyDocument'])
+                ->middleware(['permission:projects.update']);
+
+            Route::get('/{uuid}/broadcasts', [ProjectController::class, 'broadcasts'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/broadcasts', [ProjectController::class, 'storeBroadcast'])
+                ->middleware(['permission:projects.update']);
+            Route::get('/{uuid}/broadcasts/{broadcastUuid}', [ProjectController::class, 'showBroadcast'])
+                ->middleware(['permission:projects.read']);
+            Route::patch('/{uuid}/broadcasts/{broadcastUuid}', [ProjectController::class, 'updateBroadcast'])
+                ->middleware(['permission:projects.update']);
+
+            Route::get('/{uuid}/risks', [ProjectController::class, 'risks'])
+                ->middleware(['permission:projects.read']);
+            Route::post('/{uuid}/risks', [ProjectController::class, 'storeRisk'])
+                ->middleware(['permission:projects.update']);
+            Route::get('/{uuid}/risks/{riskUuid}', [ProjectController::class, 'showRisk'])
+                ->middleware(['permission:projects.read']);
+            Route::patch('/{uuid}/risks/{riskUuid}', [ProjectController::class, 'updateRisk'])
+                ->middleware(['permission:projects.update']);
+            Route::patch('/{uuid}/risks/{riskUuid}/resolve', [ProjectController::class, 'resolveRisk'])
+                ->middleware(['permission:projects.update']);
         });
 
         Route::prefix('mentorship')->group(function () {

@@ -238,9 +238,13 @@ return [
         'queryParameters' => [
             ...Defaults::QUERY_PARAMETERS_STRATEGIES,
         ],
-        'bodyParameters' => [
-            ...Defaults::BODY_PARAMETERS_STRATEGIES,
-        ],
+        // GET has no request body; without this exclusion, Scribe still dumps a GET route's
+        // FormRequest rules (search/period/filters/etc.) into "Body Parameters" instead of
+        // "Query Parameters", which is where they actually belong on the wire.
+        'bodyParameters' => configureStrategy(
+            Defaults::BODY_PARAMETERS_STRATEGIES,
+            Strategies\BodyParameters\GetFromFormRequest::wrapWithSettings(except: ['GET *', 'HEAD *'])
+        ),
         'responses' => configureStrategy(
             Defaults::RESPONSES_STRATEGIES,
             Strategies\Responses\ResponseCalls::withSettings(

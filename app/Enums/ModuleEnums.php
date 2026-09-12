@@ -45,6 +45,9 @@ enum ModuleEnums: string
     case custom_field = 'custom_field';
     case system_configuration = 'system_configuration';
 
+    /** Advance-Impact-only: projects, milestones, deliverables, budgets, and impact reports. */
+    case project_management = 'project_management';
+
     public function label(): string
     {
         return match ($this) {
@@ -66,6 +69,7 @@ enum ModuleEnums: string
             self::networking => 'Networking',
             self::custom_field => 'Custom field',
             self::system_configuration => 'System configuration',
+            self::project_management => 'Project management',
         };
     }
 

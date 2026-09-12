@@ -84,6 +84,12 @@ enum ePermission: string
     // Read-only; there is no create/update/delete for the audit trail itself.
     case AUDIT_TRAIL_READ = 'audit_trail.read';
 
+    // Advance-Impact-only: projects, milestones, deliverables, budgets, expenditures, impact reports, documents.
+    case PROJECTS_CREATE = 'projects.create';
+    case PROJECTS_READ = 'projects.read';
+    case PROJECTS_UPDATE = 'projects.update';
+    case PROJECTS_DELETE = 'projects.delete';
+
     public static function values(): array
     {
         return array_column(self::cases(), 'value');

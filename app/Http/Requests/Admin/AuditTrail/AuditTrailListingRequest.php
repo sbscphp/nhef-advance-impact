@@ -26,6 +26,7 @@ class AuditTrailListingRequest extends ApiFormRequest
                 'filters.action' => ['sometimes', 'nullable', Rule::in(AuditActionEnum::values())],
                 'filters.model' => ['sometimes', 'nullable', 'string', 'max:255'],
                 'filters.http_status' => ['sometimes', 'nullable', 'integer', 'between:100,599'],
+                'filters.project_uuid' => ['sometimes', 'nullable', 'uuid', 'exists:projects,uuid'],
             ]
         );
     }
@@ -40,6 +41,7 @@ class AuditTrailListingRequest extends ApiFormRequest
             'filters.model.max' => 'Model filter may not be longer than 255 characters.',
             'filters.http_status.integer' => 'HTTP status filter must be an integer.',
             'filters.http_status.between' => 'HTTP status filter must be between 100 and 599.',
+            'filters.project_uuid.exists' => 'Project filter is invalid.',
         ]);
     }
 
