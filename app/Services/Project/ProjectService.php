@@ -839,10 +839,9 @@ class ProjectService
     }
 
     /**
-     * Guards a nested route (/projects/{uuid}/{childType}/{childUuid}) against a mismatched pair:
-     * a real child uuid combined with a project uuid it doesn't actually belong to. Responds 404,
-     * not 422/403, so it reads identically to "doesn't exist" rather than confirming the child
-     * exists under some other project.
+     * Guards a nested route against a real child uuid paired with a project it doesn't belong to.
+     * Responds 404 rather than 422/403, so it reads as "doesn't exist" instead of confirming the
+     * child exists under a different project.
      */
     private function assertOwnedByProject(int $entityProjectId, int $projectId, string $notFoundMessage): void
     {
@@ -1385,10 +1384,8 @@ class ProjectService
     }
 
     /**
-     * Public-facing version of {@see self::projectBudgetOverview()} for the "Budget & Funding"
-     * tab's overview cards: resolves the project, adds formatted amounts and the percent/over-budget
-     * figures that are honestly derivable from current state. Does NOT include a "vs last 30 days"
-     * style trend, since that needs a historical snapshot this schema doesn't keep.
+     * Adds formatted amounts and percent/over-budget figures on top of {@see self::projectBudgetOverview()}.
+     * No "vs last 30 days" trend, since that needs a historical snapshot this schema doesn't keep.
      *
      * @return array{
      *     approved_budget: string, approved_budget_formatted: string,
@@ -1519,11 +1516,8 @@ class ProjectService
 
         if (array_key_exists('evidence_url', $validated)) {
             if ($validated['evidence_url'] === null || $validated['evidence_url'] === '') {
-                // Laravel's ConvertEmptyStringsToNull middleware turns a present-but-blank
-                // multipart field into null before it ever reaches here, making that
-                // indistinguishable from an intentional "clear this" request. Since nothing
-                // needs to explicitly clear evidence_url, treat either as "left untouched"
-                // rather than risk silently wiping real evidence on an unrelated field update.
+                // A blank multipart field arrives here as null too (ConvertEmptyStringsToNull),
+                // indistinguishable from an intentional clear, so treat both as "leave untouched".
                 unset($validated['evidence_url']);
             } else {
                 $validated['evidence_url'] = FileUploadHelper::smartSingleFileUpload($validated['evidence_url'], 'projects/expenditure-evidence');
@@ -1688,9 +1682,8 @@ class ProjectService
         }
 
         if (array_key_exists('evidence_urls', $validated)) {
-            // Unlike the single-file evidence_url on expenditures, this is an array field: an
-            // explicit [] unambiguously means "clear all evidence" (arrays aren't touched by
-            // ConvertEmptyStringsToNull), and omitting the key entirely leaves the list as-is.
+            // Unlike expenditure's single evidence_url, [] here unambiguously means "clear all"
+            // (arrays aren't touched by ConvertEmptyStringsToNull); omitting the key leaves it as-is.
             $validated['evidence_urls'] = FileUploadHelper::smartMultipleFileUpload($validated['evidence_urls'], 'projects/impact-report-evidence');
         }
 

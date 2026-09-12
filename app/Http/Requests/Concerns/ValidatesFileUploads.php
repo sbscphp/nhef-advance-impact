@@ -8,8 +8,7 @@ trait ValidatesFileUploads
 {
     /**
      * Accepts a multipart UploadedFile, an existing http(s) URL, or a base64/data-URI string,
-     * matching what {@see \App\Helpers\FileUploadHelper::smartSingleFileUpload()} (and its
-     * multi-file counterpart) can actually turn into a stored Cloudinary URL.
+     * matching {@see \App\Helpers\FileUploadHelper::smartSingleFileUpload()}.
      *
      * @param  list<string>  $allowedMimeTypes
      */
