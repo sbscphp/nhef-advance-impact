@@ -24,6 +24,10 @@ use App\Services\Reporting\Datasets\ProjectReportDataset;
 use App\Services\Reporting\Datasets\ProjectRiskReportDataset;
 use App\Services\Reporting\Datasets\ProspectReportDataset;
 use App\Services\Reporting\Datasets\ReportDatasetInterface;
+use App\Services\Reporting\Datasets\ResearchDeliverableReportDataset;
+use App\Services\Reporting\Datasets\ResearchMilestoneReportDataset;
+use App\Services\Reporting\Datasets\ResearchObjectiveReportDataset;
+use App\Services\Reporting\Datasets\ResearchReportDataset;
 
 /**
  * Maps a dataset key to its {@see ReportDatasetInterface} implementation; the one place that
@@ -51,6 +55,10 @@ class ReportDatasetResolver
         private readonly ProjectImpactReportReportDataset $projectImpactReportDataset,
         private readonly ProjectRiskReportDataset $projectRiskDataset,
         private readonly ProjectBroadcastReportDataset $projectBroadcastDataset,
+        private readonly ResearchReportDataset $researchDataset,
+        private readonly ResearchObjectiveReportDataset $researchObjectiveDataset,
+        private readonly ResearchMilestoneReportDataset $researchMilestoneDataset,
+        private readonly ResearchDeliverableReportDataset $researchDeliverableDataset,
     ) {}
 
     public function make(string $dataset): ReportDatasetInterface
@@ -75,6 +83,10 @@ class ReportDatasetResolver
             ReportDatasetEnum::PROJECT_IMPACT_REPORT => $this->projectImpactReportDataset,
             ReportDatasetEnum::PROJECT_RISK => $this->projectRiskDataset,
             ReportDatasetEnum::PROJECT_BROADCAST => $this->projectBroadcastDataset,
+            ReportDatasetEnum::RESEARCH => $this->researchDataset,
+            ReportDatasetEnum::RESEARCH_OBJECTIVE => $this->researchObjectiveDataset,
+            ReportDatasetEnum::RESEARCH_MILESTONE => $this->researchMilestoneDataset,
+            ReportDatasetEnum::RESEARCH_DELIVERABLE => $this->researchDeliverableDataset,
             null => throw new ApiException("Unsupported report dataset: {$dataset}", 422),
         };
     }

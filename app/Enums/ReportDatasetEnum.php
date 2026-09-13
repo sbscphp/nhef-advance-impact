@@ -23,6 +23,10 @@ enum ReportDatasetEnum: string
     case PROJECT_IMPACT_REPORT = 'project_impact_report';
     case PROJECT_RISK = 'project_risk';
     case PROJECT_BROADCAST = 'project_broadcast';
+    case RESEARCH = 'research';
+    case RESEARCH_OBJECTIVE = 'research_objective';
+    case RESEARCH_MILESTONE = 'research_milestone';
+    case RESEARCH_DELIVERABLE = 'research_deliverable';
 
     public function label(): string
     {
@@ -46,6 +50,10 @@ enum ReportDatasetEnum: string
             self::PROJECT_IMPACT_REPORT => 'Project Impact Report',
             self::PROJECT_RISK => 'Project Risk',
             self::PROJECT_BROADCAST => 'Project Broadcast',
+            self::RESEARCH => 'Research',
+            self::RESEARCH_OBJECTIVE => 'Research Objective',
+            self::RESEARCH_MILESTONE => 'Research Milestone',
+            self::RESEARCH_DELIVERABLE => 'Research Deliverable',
         };
     }
 
@@ -71,6 +79,10 @@ enum ReportDatasetEnum: string
             self::PROJECT_IMPACT_REPORT => 'Impact reports submitted for tracked projects.',
             self::PROJECT_RISK => 'Risks raised against tracked projects.',
             self::PROJECT_BROADCAST => 'Broadcasts sent to project teams.',
+            self::RESEARCH => 'Research initiatives tracked under Research Management.',
+            self::RESEARCH_OBJECTIVE => 'Objectives raised against tracked research initiatives.',
+            self::RESEARCH_MILESTONE => 'Milestones raised against tracked research initiatives.',
+            self::RESEARCH_DELIVERABLE => 'Deliverables raised against tracked research initiatives.',
         };
     }
 
@@ -90,7 +102,8 @@ enum ReportDatasetEnum: string
             self::ADMIN_USER => ModuleEnums::user_management->value,
             self::CAMPAIGN, self::MENTORSHIP, self::NETWORKING, self::EVENT_WAITLIST,
             self::PROJECT, self::PROJECT_MILESTONE, self::PROJECT_DELIVERABLE, self::PROJECT_BUDGET_LINE,
-            self::PROJECT_EXPENDITURE, self::PROJECT_IMPACT_REPORT, self::PROJECT_RISK, self::PROJECT_BROADCAST => null,
+            self::PROJECT_EXPENDITURE, self::PROJECT_IMPACT_REPORT, self::PROJECT_RISK, self::PROJECT_BROADCAST,
+            self::RESEARCH, self::RESEARCH_OBJECTIVE, self::RESEARCH_MILESTONE, self::RESEARCH_DELIVERABLE => null,
         };
     }
 

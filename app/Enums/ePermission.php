@@ -90,6 +90,12 @@ enum ePermission: string
     case PROJECTS_UPDATE = 'projects.update';
     case PROJECTS_DELETE = 'projects.delete';
 
+    // Advance-Impact-only: research initiatives, objectives, milestones, deliverables.
+    case RESEARCH_CREATE = 'research.create';
+    case RESEARCH_READ = 'research.read';
+    case RESEARCH_UPDATE = 'research.update';
+    case RESEARCH_DELETE = 'research.delete';
+
     public static function values(): array
     {
         return array_column(self::cases(), 'value');

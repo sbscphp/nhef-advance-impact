@@ -48,6 +48,9 @@ enum ModuleEnums: string
     /** Advance-Impact-only: projects, milestones, deliverables, budgets, and impact reports. */
     case project_management = 'project_management';
 
+    /** Advance-Impact-only: research initiatives, objectives, milestones, and deliverables. */
+    case research_management = 'research_management';
+
     public function label(): string
     {
         return match ($this) {
@@ -70,6 +73,7 @@ enum ModuleEnums: string
             self::custom_field => 'Custom field',
             self::system_configuration => 'System configuration',
             self::project_management => 'Project management',
+            self::research_management => 'Research management',
         };
     }
 

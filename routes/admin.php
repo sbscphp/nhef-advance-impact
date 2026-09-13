@@ -28,6 +28,7 @@ use App\Http\Controllers\v1\Admin\Networking\AlumniSearchController;
 use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkingChannelController;
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
 use App\Http\Controllers\v1\Admin\Projects\ProjectController;
+use App\Http\Controllers\v1\Admin\Research\ResearchController;
 use App\Http\Controllers\v1\Admin\Reporting\ReportController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
 use App\Http\Controllers\v1\Admin\SystemConfiguration\DonorTierController;
@@ -445,6 +446,58 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:projects.update']);
             Route::patch('/{uuid}/risks/{riskUuid}/resolve', [ProjectController::class, 'resolveRisk'])
                 ->middleware(['permission:projects.update']);
+        });
+
+        Route::prefix('research')->group(function () {
+            // Must come before /{uuid}; otherwise "overview"/"metadata" would be swallowed
+            // as a wildcard research uuid by the route below (same caution as projects/overview).
+            Route::get('/overview', [ResearchController::class, 'overview'])
+                ->middleware(['permission:research.read']);
+            Route::get('/metadata', [ResearchController::class, 'metadata'])
+                ->middleware(['permission:research.read']);
+            Route::get('/', [ResearchController::class, 'index'])
+                ->middleware(['permission:research.read']);
+            Route::post('/', [ResearchController::class, 'store'])
+                ->middleware(['permission:research.create']);
+            Route::get('/{uuid}', [ResearchController::class, 'show'])
+                ->middleware(['permission:research.read']);
+            Route::patch('/{uuid}', [ResearchController::class, 'update'])
+                ->middleware(['permission:research.update']);
+            Route::patch('/{uuid}/complete', [ResearchController::class, 'complete'])
+                ->middleware(['permission:research.update']);
+
+            Route::get('/{uuid}/objectives', [ResearchController::class, 'objectives'])
+                ->middleware(['permission:research.read']);
+            Route::post('/{uuid}/objectives', [ResearchController::class, 'storeObjective'])
+                ->middleware(['permission:research.update']);
+            Route::patch('/{uuid}/objectives/{objectiveUuid}', [ResearchController::class, 'updateObjective'])
+                ->middleware(['permission:research.update']);
+
+            Route::get('/{uuid}/milestones', [ResearchController::class, 'milestones'])
+                ->middleware(['permission:research.read']);
+            Route::post('/{uuid}/milestones', [ResearchController::class, 'storeMilestone'])
+                ->middleware(['permission:research.update']);
+            Route::get('/{uuid}/milestones/{milestoneUuid}', [ResearchController::class, 'showMilestone'])
+                ->middleware(['permission:research.read']);
+            Route::patch('/{uuid}/milestones/{milestoneUuid}', [ResearchController::class, 'updateMilestone'])
+                ->middleware(['permission:research.update']);
+            Route::patch('/{uuid}/milestones/{milestoneUuid}/complete', [ResearchController::class, 'completeMilestone'])
+                ->middleware(['permission:research.update']);
+            Route::delete('/{uuid}/milestones/{milestoneUuid}', [ResearchController::class, 'destroyMilestone'])
+                ->middleware(['permission:research.update']);
+
+            Route::get('/{uuid}/deliverables', [ResearchController::class, 'deliverables'])
+                ->middleware(['permission:research.read']);
+            Route::post('/{uuid}/deliverables', [ResearchController::class, 'storeDeliverable'])
+                ->middleware(['permission:research.update']);
+            Route::get('/{uuid}/deliverables/{deliverableUuid}', [ResearchController::class, 'showDeliverable'])
+                ->middleware(['permission:research.read']);
+            Route::patch('/{uuid}/deliverables/{deliverableUuid}', [ResearchController::class, 'updateDeliverable'])
+                ->middleware(['permission:research.update']);
+            Route::patch('/{uuid}/deliverables/{deliverableUuid}/complete', [ResearchController::class, 'completeDeliverable'])
+                ->middleware(['permission:research.update']);
+            Route::delete('/{uuid}/deliverables/{deliverableUuid}', [ResearchController::class, 'destroyDeliverable'])
+                ->middleware(['permission:research.update']);
         });
 
         Route::prefix('mentorship')->group(function () {
