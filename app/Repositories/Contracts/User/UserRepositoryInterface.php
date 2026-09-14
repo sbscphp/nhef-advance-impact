@@ -81,4 +81,11 @@ interface UserRepositoryInterface
      * @return Collection<int, User>
      */
     public function findManyByUuids(array $uuids): Collection;
+
+    /**
+     * Alumni belonging to one tertiary institution, matched by `users.tertiary_institution_id`.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForInstitution(int $tertiaryInstitutionId, array $filters, int $perPage): LengthAwarePaginator;
 }

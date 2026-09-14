@@ -18,6 +18,8 @@ class Institution extends Model
     {
         return [
             'is_active' => 'boolean',
+            'invited_at' => 'datetime',
+            'onboarded_at' => 'datetime',
         ];
     }
 
@@ -34,5 +36,11 @@ class Institution extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    /** Presentational only, derived from the UUID (see EventTicketSaleResource for the same pattern); no persisted code column. */
+    public function code(): string
+    {
+        return 'NHEF-IN-'.strtoupper(substr($this->uuid, 0, 6));
     }
 }

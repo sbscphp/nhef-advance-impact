@@ -3,6 +3,7 @@
 namespace App\Repositories\Donation;
 
 use App\Enums\DonationFrequencyEnum;
+use App\Enums\DonationStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Donation;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
@@ -82,5 +83,20 @@ class DonationRepository implements DonationRepositoryInterface
     public function loadFresh(Donation $donation, array $relations): Donation
     {
         return $donation->fresh($relations);
+    }
+
+    public function countByUserIds(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        return Donation::query()
+            ->whereIn('user_id', $userIds)
+            ->whereIn('status', [DonationStatusEnum::ACTIVE->value, DonationStatusEnum::COMPLETED->value])
+            ->selectRaw('user_id, count(*) as donation_count')
+            ->groupBy('user_id')
+            ->pluck('donation_count', 'user_id')
+            ->all();
     }
 }
