@@ -68,7 +68,7 @@ return [
     | false => force explicit auth errors for login + forgot-password flows
     |
     */
-    'auth_opaque_errors' => env('AUTH_OPAQUE_ERRORS') === null
+    'auth_opaque_errors' => in_array(env('AUTH_OPAQUE_ERRORS'), [null, ''], true)
         ? null
         : filter_var(env('AUTH_OPAQUE_ERRORS'), FILTER_VALIDATE_BOOL),
 
