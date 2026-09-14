@@ -32,6 +32,13 @@ interface CampaignInstitutionRepositoryInterface
      */
     public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator;
 
+    /**
+     * Campaigns one institution participates in, for the Institution detail "Campaign" tab.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForInstitution(int $institutionId, array $filters, int $perPage): LengthAwarePaginator;
+
     public function findForCampaign(int $campaignId, string $uuid): ?CampaignInstitution;
 
     /**

@@ -176,6 +176,28 @@ class UserRepository implements UserRepositoryInterface
         return User::query()->whereIn('uuid', $uuids)->get();
     }
 
+    public function paginateForInstitution(int $tertiaryInstitutionId, array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = User::query()
+            ->where('tertiary_institution_id', $tertiaryInstitutionId)
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->where(function ($query) use ($filters) {
+                    $query->where('firstname', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('lastname', 'like', '%'.$filters['search'].'%')
+                        ->orWhere('email', 'like', '%'.$filters['search'].'%');
+                })
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query->orderBy('firstname', $direction)->orderBy('lastname', $direction),
+        ], 'created_at');
+
+        return $query->paginate($perPage);
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      */

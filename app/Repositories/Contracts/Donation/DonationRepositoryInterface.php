@@ -32,4 +32,14 @@ interface DonationRepositoryInterface
      * @param  list<string>  $relations
      */
     public function loadFresh(Donation $donation, array $relations): Donation;
+
+    /**
+     * Count of active/completed (i.e. at least one successful charge) donations per user,
+     * keyed by `user_id`. Used to populate "No. of Donations" on the Institution Alumni List
+     * without an N+1 query per row.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, int>
+     */
+    public function countByUserIds(array $userIds): array;
 }

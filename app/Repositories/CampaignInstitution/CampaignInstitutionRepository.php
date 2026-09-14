@@ -54,6 +54,29 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
         return $query->paginate($perPage);
     }
 
+    public function paginateForInstitution(int $institutionId, array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = CampaignInstitution::query()
+            ->select('campaign_institutions.*')
+            ->with(['campaign', 'institution'])
+            ->where('campaign_institutions.institution_id', $institutionId)
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->whereHas('campaign', fn ($q) => $q->where('title', 'like', '%'.$filters['search'].'%'))
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'campaign_institutions.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('campaigns', 'campaigns.id', '=', 'campaign_institutions.campaign_id')
+                ->orderBy('campaigns.title', $direction),
+            'value' => fn ($query, string $direction) => $query->orderBy('campaign_institutions.goal_amount', $direction),
+        ], 'campaign_institutions.created_at');
+
+        return $query->paginate($perPage);
+    }
+
     public function findForCampaign(int $campaignId, string $uuid): ?CampaignInstitution
     {
         return CampaignInstitution::query()
