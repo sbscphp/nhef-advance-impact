@@ -54,6 +54,7 @@ class AccountSettingsService
         return [
             'uuid' => $admin->uuid,
             'name' => $admin->name,
+            'job_title' => $admin->job_title,
             'email' => $admin->email,
             '2fa' => (bool) $admin->{'2fa'},
             'is_active' => (bool) $admin->is_active,
@@ -98,12 +99,17 @@ class AccountSettingsService
     /**
      * @return array<string, mixed>
      */
-    public function updateAdminProfile(Admin $admin, string $name): array
+    public function updateAdminProfile(Admin $admin, string $name, ?string $jobTitle = null, bool $updateJobTitle = false): array
     {
         $previousName = (string) $admin->name;
         $newName = trim($name);
 
-        $admin->forceFill(['name' => $newName])->save();
+        $updates = ['name' => $newName];
+        if ($updateJobTitle) {
+            $updates['job_title'] = $jobTitle !== null && trim($jobTitle) !== '' ? trim($jobTitle) : null;
+        }
+
+        $admin->forceFill($updates)->save();
 
         if ($previousName !== $newName) {
             $this->sendAdminNameChangedNotification($admin, $previousName, $newName);

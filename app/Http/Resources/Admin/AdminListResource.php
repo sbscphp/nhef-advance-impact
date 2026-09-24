@@ -23,6 +23,7 @@ class AdminListResource extends JsonResource
         return [
             'admin_id' => $this->uuid,
             'name' => $this->name,
+            'job_title' => $this->job_title,
             'role' => $this->roles->first()?->name,
             'email' => $this->email,
             'last_active' => $this->last_active_at,

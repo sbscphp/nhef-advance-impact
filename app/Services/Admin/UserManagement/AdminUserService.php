@@ -48,6 +48,7 @@ class AdminUserService
             $admin = Admin::query()->create([
                 'name' => (string) $payload['name'],
                 'email' => (string) $payload['email'],
+                'job_title' => $payload['job_title'] ?? null,
                 'institution_id' => $institutionId,
                 // Random placeholder; admin sets real password via emailed invite link.
                 'password' => bin2hex(random_bytes(16)),
@@ -221,6 +222,7 @@ class AdminUserService
         $previous = [
             'name' => $admin->name,
             'email' => $admin->email,
+            'job_title' => $admin->job_title,
             'is_active' => (bool) $admin->is_active,
             'can_login' => (bool) $admin->can_login,
             'role_name' => $previousRoleName,
@@ -248,7 +250,7 @@ class AdminUserService
         $admin->loadMissing('roles:id,name');
 
         $changedFields = [];
-        foreach (['name', 'email', 'is_active', 'can_login'] as $field) {
+        foreach (['name', 'email', 'job_title', 'is_active', 'can_login'] as $field) {
             if (array_key_exists($field, $payload) && $previous[$field] !== $admin->{$field}) {
                 $changedFields[] = $field;
             }

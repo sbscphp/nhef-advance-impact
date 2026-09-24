@@ -33,6 +33,7 @@ class UpdateAdminRequest extends ApiFormRequest
                     fn ($query) => $query->where('guard_name', 'api')
                 ),
             ],
+            'job_title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'is_active' => ['sometimes', 'boolean'],
             'can_login' => ['sometimes', 'boolean'],
         ];

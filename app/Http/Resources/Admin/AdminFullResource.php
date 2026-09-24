@@ -26,6 +26,7 @@ class AdminFullResource extends JsonResource
         return [
             'admin_id' => $this->uuid,
             'name' => $this->name,
+            'job_title' => $this->job_title,
             'email' => $this->email,
             'role_name' => $role?->name,
             'permissions' => $permissionNames,

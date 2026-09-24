@@ -38,7 +38,12 @@ class SettingsController extends Controller
             $admin = $this->requireAdmin($request);
             $previousName = (string) $admin->name;
             $newName = (string) $request->validated('name');
-            $profile = $this->settingsService->updateAdminProfile($admin, $newName);
+            $profile = $this->settingsService->updateAdminProfile(
+                $admin,
+                $newName,
+                $request->validated('job_title'),
+                array_key_exists('job_title', $request->validated()),
+            );
 
             if ($previousName !== $newName) {
                 GeneralHelper::storeAuditLog(

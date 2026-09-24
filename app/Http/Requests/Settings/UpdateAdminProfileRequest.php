@@ -13,6 +13,7 @@ class UpdateAdminProfileRequest extends ApiFormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'job_title' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 
