@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\NetworkingChannelTypeEnum;
+use App\Models\Concerns\OwnedByInstitution;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class NetworkingChannel extends Model
 {
-    use HasUuid;
+    use OwnedByInstitution, HasUuid;
 
     protected $guarded = ['id', 'uuid'];
 

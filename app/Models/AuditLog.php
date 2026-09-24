@@ -5,13 +5,14 @@ namespace App\Models;
 use App\Enums\AuditActionEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
+use App\Models\Concerns\OwnedByInstitution;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AuditLog extends Model
 {
-    use HasUuid;
+    use OwnedByInstitution, HasUuid;
 
     protected $guarded = ['id', 'uuid'];
 

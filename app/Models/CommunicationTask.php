@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TaskStatusEnum;
+use App\Models\Concerns\OwnedByInstitution;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Support\Carbon;
 
 class CommunicationTask extends Model
 {
-    use HasFactory, HasUuid;
+    use OwnedByInstitution, HasFactory, HasUuid;
 
     protected $guarded = ['id', 'uuid'];
 

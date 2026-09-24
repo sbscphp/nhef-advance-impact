@@ -5,7 +5,10 @@ namespace App\Services\Audit;
 use App\Enums\AuditActionEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
+use App\Models\Admin;
 use App\Models\AuditLog;
+use App\Models\Institution;
+use App\Models\Scopes\TenantScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -46,6 +49,7 @@ class AuditLogService
         AuditLog::create([
             'user_type' => $userType,
             'user_id' => $userId,
+            'institution_id' => $this->institutionIdFor($userType, $userId),
             'action_module' => $actionModule,
             'action' => $action,
             'model' => $model,
@@ -56,6 +60,20 @@ class AuditLogService
             'http_status' => $httpStatus,
             'metadata' => $this->buildMetadata($request, $metadata, $model, $modelId),
         ]);
+    }
+
+    /** Admin actions belong to the admin's institution, even before a tenant is current (e.g. login). */
+    private function institutionIdFor(UserTypeEnum $userType, ?string $userId): ?int
+    {
+        if (Institution::current() !== null) {
+            return Institution::current()->id;
+        }
+
+        if ($userType !== UserTypeEnum::ADMIN || $userId === null) {
+            return null;
+        }
+
+        return Admin::query()->withoutGlobalScope(TenantScope::class)->where('uuid', $userId)->value('institution_id');
     }
 
     /**

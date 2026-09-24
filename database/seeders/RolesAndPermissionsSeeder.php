@@ -114,9 +114,8 @@ class RolesAndPermissionsSeeder extends Seeder
     }
 
     /**
-     * Only modules whose data is already tenant-scoped are granted (fail closed): constituents,
-     * donations and campaign institution rows, plus managing the institution's own admin users.
-     * Everything else (events, mentorship, communications, CRM, reports, ...) stays off until scoped.
+     * Only modules whose data is tenant-scoped are granted (fail closed), and never delete.
+     * Left off: dashboard (national snapshot), custom fields, system configuration, roles.
      *
      * @param  \Illuminate\Support\Collection<int, Permission>  $allPermissions
      */
@@ -136,6 +135,23 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::ADMINS_CREATE->value,
             PermissionEnum::ADMINS_READ->value,
             PermissionEnum::ADMINS_UPDATE->value,
+            PermissionEnum::EVENTS_CREATE->value,
+            PermissionEnum::EVENTS_READ->value,
+            PermissionEnum::EVENTS_UPDATE->value,
+            PermissionEnum::COMMUNICATIONS_CREATE->value,
+            PermissionEnum::COMMUNICATIONS_READ->value,
+            PermissionEnum::COMMUNICATIONS_UPDATE->value,
+            PermissionEnum::MENTORSHIP_READ->value,
+            PermissionEnum::MENTORSHIP_UPDATE->value,
+            PermissionEnum::NETWORKING_CREATE->value,
+            PermissionEnum::NETWORKING_READ->value,
+            PermissionEnum::NETWORKING_UPDATE->value,
+            PermissionEnum::CRM_CREATE->value,
+            PermissionEnum::CRM_READ->value,
+            PermissionEnum::CRM_UPDATE->value,
+            PermissionEnum::REPORTS_CREATE->value,
+            PermissionEnum::REPORTS_READ->value,
+            PermissionEnum::AUDIT_TRAIL_READ->value,
         ];
 
         foreach ($allPermissions as $permission) {
