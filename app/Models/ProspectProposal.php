@@ -37,12 +37,12 @@ class ProspectProposal extends Model
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'created_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();
     }
 
     public function sender(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'sent_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'sent_by', 'uuid')->withTrashed();
     }
 
     public function collaborators(): HasMany

@@ -42,12 +42,12 @@ class MentorProfile extends Model
 
     public function reviewer(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'reviewed_by');
+        return $this->belongsTo(Admin::class, 'reviewed_by')->withTrashed();
     }
 
     public function suspendedBy(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'suspended_by');
+        return $this->belongsTo(Admin::class, 'suspended_by')->withTrashed();
     }
 
     public function matches(): HasMany

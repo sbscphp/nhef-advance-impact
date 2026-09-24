@@ -10,6 +10,7 @@ use App\Http\Requests\Admin\DateRangeStatsRequest;
 use App\Http\Requests\Admin\UserManagement\AdminListRequest;
 use App\Http\Requests\Admin\UserManagement\CreateAdminRequest;
 use App\Http\Requests\Admin\UserManagement\CreateRoleRequest;
+use App\Http\Requests\Admin\UserManagement\ReassignRoleUsersRequest;
 use App\Http\Requests\Admin\UserManagement\RoleListRequest;
 use App\Http\Requests\Admin\UserManagement\UpdateAdminRequest;
 use App\Http\Requests\Admin\UserManagement\UpdateRoleRequest;
@@ -234,13 +235,7 @@ class UserManagementController extends Controller
                 return JsonResponser::send(true, 'You cannot delete your own admin account.', null, 422);
             }
 
-            $result = $this->adminUserService->delete($adminId, $actor, $request);
-            $auditLogsCount = $result['audit_logs_count'];
-            if ($auditLogsCount > 0) {
-                return JsonResponser::send(true, 'Admin cannot be deleted because of audit logs tied to them.', [
-                    'audit_logs_count' => $auditLogsCount,
-                ], 422);
-            }
+            $this->adminUserService->delete($adminId, $actor, $request);
 
             return JsonResponser::send(false, 'Admin user deleted successfully.', null);
         } catch (\Throwable $th) {
@@ -271,11 +266,11 @@ class UserManagementController extends Controller
         }
     }
 
-    public function setRoleActiveStatus(Request $request, string $roleId)
+    public function setRoleActiveStatus(ReassignRoleUsersRequest $request, string $roleId)
     {
         try {
             $admin = $this->requireAdmin($request);
-            $role = $this->roleService->toggleActiveStatus($roleId, $admin, $request);
+            $role = $this->roleService->toggleActiveStatus($roleId, $admin, $request, $request->validated('reassign_to_role_id'));
             $message = (bool) $role->is_active ? 'Role activated.' : 'Role deactivated.';
 
             return JsonResponser::send(false, $message, RoleResource::make($role)->resolve());
@@ -284,17 +279,11 @@ class UserManagementController extends Controller
         }
     }
 
-    public function deleteRole(Request $request, string $roleId)
+    public function deleteRole(ReassignRoleUsersRequest $request, string $roleId)
     {
         try {
             $admin = $this->requireAdmin($request);
-            $result = $this->roleService->delete($roleId, $admin, $request);
-            $adminUsersCount = $result['admin_users_count'];
-            if ($adminUsersCount > 0) {
-                return JsonResponser::send(true, 'Role cannot be deleted because it is assigned to one or more admin users.', [
-                    'admin_users_count' => $adminUsersCount,
-                ], 422);
-            }
+            $this->roleService->delete($roleId, $admin, $request, $request->validated('reassign_to_role_id'));
 
             return JsonResponser::send(false, 'Role deleted successfully.', null);
         } catch (\Throwable $th) {
@@ -325,12 +314,10 @@ class UserManagementController extends Controller
                 'Last updated',
             ]);
 
-            $rowNumber = 0;
             foreach ($collection as $role) {
                 /** @var Role $role */
-                $rowNumber++;
                 fputcsv($out, [
-                    $rowNumber,
+                    $role->code(),
                     $role->name,
                     (int) ($role->users_count ?? 0),
                     $role->is_active ? 'active' : 'inactive',
@@ -363,8 +350,8 @@ class UserManagementController extends Controller
             'Last updated',
         ];
 
-        $rows = $collection->values()->map(fn (Role $role, int $index): array => [
-            $index + 1,
+        $rows = $collection->values()->map(fn (Role $role): array => [
+            $role->code(),
             $role->name,
             (string) (int) ($role->users_count ?? 0),
             $role->is_active ? 'active' : 'inactive',
@@ -376,7 +363,7 @@ class UserManagementController extends Controller
             headings: $headings,
             title: 'Roles',
             filename: $filename,
-            orientation: 'landscape',
+            orientation: 'portrait',
             periodStart: $periodStart,
             periodEnd: $periodEnd,
             generatedAt: now((string) config('app.timezone')),
@@ -409,12 +396,10 @@ class UserManagementController extends Controller
                 'Status',
             ]);
 
-            $rowNumber = 0;
             foreach ($collection as $admin) {
                 /** @var Admin $admin */
-                $rowNumber++;
                 fputcsv($out, [
-                    $rowNumber,
+                    $admin->code(),
                     $admin->name,
                     $admin->roles->first()?->name ?? '',
                     $admin->email,
@@ -449,8 +434,8 @@ class UserManagementController extends Controller
             'Status',
         ];
 
-        $rows = $collection->values()->map(fn (Admin $admin, int $index): array => [
-            $index + 1,
+        $rows = $collection->values()->map(fn (Admin $admin): array => [
+            $admin->code(),
             $admin->name,
             $admin->roles->first()?->name ?? '',
             $admin->email,
@@ -463,7 +448,7 @@ class UserManagementController extends Controller
             headings: $headings,
             title: 'Admin users',
             filename: $filename,
-            orientation: 'landscape',
+            orientation: 'portrait',
             periodStart: $periodStart,
             periodEnd: $periodEnd,
             generatedAt: now((string) config('app.timezone')),

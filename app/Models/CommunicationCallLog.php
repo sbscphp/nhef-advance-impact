@@ -29,7 +29,7 @@ class CommunicationCallLog extends Model
 
     public function logger(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'logged_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'logged_by', 'uuid')->withTrashed();
     }
 
     public function followUpTasks(): HasMany

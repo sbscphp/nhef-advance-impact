@@ -39,6 +39,6 @@ class AuditLog extends Model
 
     public function adminUser(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'user_id', 'uuid');
+        return $this->belongsTo(Admin::class, 'user_id', 'uuid')->withTrashed();
     }
 }

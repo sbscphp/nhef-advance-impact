@@ -25,9 +25,11 @@ class AdminFullResource extends JsonResource
 
         return [
             'admin_id' => $this->uuid,
+            'user_code' => $this->code(),
             'name' => $this->name,
             'job_title' => $this->job_title,
             'email' => $this->email,
+            'role_id' => $role?->uuid,
             'role_name' => $role?->name,
             'permissions' => $permissionNames,
             'permissions_by_module' => PermissionModuleMapper::groupedApiPermissionsForNames($permissionNames),

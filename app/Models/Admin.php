@@ -7,6 +7,7 @@ use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -14,7 +15,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class Admin extends Authenticatable
 {
-    use BelongsToTenant, HasApiTokens, HasFactory, HasRoles, HasUuid, Notifiable;
+    use BelongsToTenant, HasApiTokens, HasFactory, HasRoles, HasUuid, Notifiable, SoftDeletes;
 
     public static function constrainToTenant(Builder $query, Institution $tenant): void
     {
@@ -63,6 +64,12 @@ class Admin extends Authenticatable
     public function isInstitutionAdmin(): bool
     {
         return $this->institution_id !== null;
+    }
+
+    /** Presentational only, derived from the UUID; no persisted code column. */
+    public function code(): string
+    {
+        return 'NHF-USR-'.strtoupper(substr(str_replace('-', '', $this->uuid), 0, 4));
     }
 
     public function displayName(): string

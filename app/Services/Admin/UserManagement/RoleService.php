@@ -116,9 +116,7 @@ class RoleService
         $query = Role::query()
             ->where('guard_name', 'api')
             ->where('name', '!=', eRole::CUSTOMER->value)
-            ->withCount([
-                'admins as users_count' => fn (Builder $builder) => $builder->where('admins.is_active', true),
-            ]);
+            ->withCount('admins as users_count');
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         $search = trim((string) ($validated['search'] ?? ''));
@@ -126,7 +124,7 @@ class RoleService
             $query->where(function (Builder $builder) use ($search): void {
                 $builder->where('name', 'like', '%'.$search.'%')
                     ->orWhere('description', 'like', '%'.$search.'%')
-                    ->orWhere('uuid', 'like', '%'.$search.'%');
+                    ->orWhere('uuid', 'like', '%'.$this->uuidFragment($search, 'NHF-RL-').'%');
             });
         }
 
@@ -165,7 +163,8 @@ class RoleService
     /**
      * @return array{
      *     permissions: list<string>,
-     *     permissions_by_module: list<array{key: string, label: string, permissions: list<array{name: string}>}>
+     *     permissions_by_module: list<array{key: string, label: string, permissions: list<array{name: string}>}>,
+     *     permission_matrix: list<array<string, mixed>>
      * }
      */
     public function listAllPermissions(): array
@@ -182,6 +181,7 @@ class RoleService
         return [
             'permissions' => $permissions,
             'permissions_by_module' => $permissionsByModule,
+            'permission_matrix' => PermissionModuleMapper::matrix(),
         ];
     }
 
@@ -245,15 +245,22 @@ class RoleService
         ];
 
         $permissions = $payload['permissions'] ?? null;
-        unset($payload['permissions']);
+        $reassignRoleId = $payload['reassign_to_role_id'] ?? null;
+        unset($payload['permissions'], $payload['reassign_to_role_id']);
 
-        if (
-            array_key_exists('is_active', $payload)
-            && (bool) $role->is_active === true
-            && (bool) $payload['is_active'] === false
-            && $role->admins()->exists()
-        ) {
-            throw new ApiException('Role cannot be deactivated because it is assigned to one or more admin users.', 422);
+        if (array_key_exists('name', $payload) && $payload['name'] !== $role->name) {
+            $this->assertNotSystemRole($role, 'A system role cannot be renamed.');
+        }
+
+        if (is_array($permissions) && $role->name === eRole::SUPER_ADMIN->value) {
+            throw new ApiException('The Super Admin role always keeps every permission and cannot be edited.', 422);
+        }
+
+        $deactivating = array_key_exists('is_active', $payload) && (bool) $role->is_active && ! (bool) $payload['is_active'];
+        $reassigned = 0;
+        if ($deactivating) {
+            $this->assertCanDeactivate($role);
+            $reassigned = $this->reassignUsers($role, $reassignRoleId, 'deactivated', $actor);
         }
 
         if ($payload !== []) {
@@ -285,6 +292,7 @@ class RoleService
                 'role_uuid' => $role->uuid,
                 'role_name' => $role->name,
                 'fields' => $changedFields,
+                'users_reassigned' => $reassigned,
             ];
             if (in_array('permissions', $changedFields, true)) {
                 $metadata['previous_permissions_count'] = count($previous['permissions']);
@@ -308,14 +316,16 @@ class RoleService
         return $role;
     }
 
-    public function toggleActiveStatus(string $roleId, Admin $actor, Request $request): Role
+    public function toggleActiveStatus(string $roleId, Admin $actor, Request $request, ?string $reassignRoleId = null): Role
     {
         $role = $this->resolveRole($roleId);
         $previousStatus = (bool) $role->is_active;
         $isActive = ! $previousStatus;
+        $reassigned = 0;
 
-        if (! $isActive && $role->admins()->exists()) {
-            throw new ApiException('Role cannot be deactivated because it is assigned to one or more admin users.', 422);
+        if (! $isActive) {
+            $this->assertCanDeactivate($role);
+            $reassigned = $this->reassignUsers($role, $reassignRoleId, 'deactivated', $actor);
         }
 
         $role->forceFill(['is_active' => $isActive])->save();
@@ -332,6 +342,7 @@ class RoleService
                 'role_name' => $role->name,
                 'previous_status' => $previousStatus ? 'active' : 'inactive',
                 'new_status' => $isActive ? 'active' : 'inactive',
+                'users_reassigned' => $reassigned,
             ],
             $isActive ? 'Role activated.' : 'Role deactivated.',
             Role::class,
@@ -343,18 +354,12 @@ class RoleService
         return $role;
     }
 
-    /**
-     * @return array{admin_users_count:int, uuid?:string, name?:string}
-     */
-    public function delete(string $roleId, Admin $actor, Request $request): array
+    public function delete(string $roleId, Admin $actor, Request $request, ?string $reassignRoleId = null): void
     {
         $role = $this->resolveRole($roleId);
-        $adminUsersCount = $role->admins()->count();
+        $this->assertNotSystemRole($role, 'A system role cannot be deleted.');
 
-        if ($adminUsersCount > 0) {
-            return ['admin_users_count' => $adminUsersCount];
-        }
-
+        $reassigned = $this->reassignUsers($role, $reassignRoleId, 'deleted', $actor);
         $roleUuid = $role->uuid;
         $roleName = $role->name;
         $role->delete();
@@ -364,15 +369,75 @@ class RoleService
             AuditActionEnum::ROLE_DELETED,
             $request,
             $actor->uuid,
-            ['role_uuid' => $roleUuid, 'role_name' => $roleName],
+            ['role_uuid' => $roleUuid, 'role_name' => $roleName, 'users_reassigned' => $reassigned],
             'Role deleted.',
             Role::class,
             $roleUuid,
             ModuleEnums::user_management,
             200,
         );
+    }
 
-        return ['admin_users_count' => 0, 'uuid' => $roleUuid, 'name' => $roleName];
+    /**
+     * Moves every admin off $role onto the chosen role before the role is deactivated or deleted;
+     * refuses (rather than guessing a fallback) when users are assigned and no target was given.
+     */
+    private function reassignUsers(Role $role, ?string $reassignRoleId, string $action, Admin $actor): int
+    {
+        $admins = $role->admins()->get();
+
+        if ($admins->isEmpty()) {
+            return 0;
+        }
+
+        if (blank($reassignRoleId)) {
+            throw new ApiException(
+                'Role cannot be '.$action.' while '.$admins->count().' admin user(s) are assigned to it. Choose a role to reassign them to.',
+                422,
+                ['admin_users_count' => $admins->count()],
+            );
+        }
+
+        $target = $this->resolveRole($reassignRoleId);
+
+        if ($target->is($role) || ! $target->is_active) {
+            throw new ApiException('Choose a different, active role to reassign users to.', 422);
+        }
+
+        if (in_array($target->name, eRole::institutionAssignable(), true) !== Institution::checkCurrent()) {
+            throw new ApiException('This role cannot be used as a reassignment target.', 422);
+        }
+
+        if ($target->name === eRole::SUPER_ADMIN->value && ! $actor->hasRole(eRole::SUPER_ADMIN->value)) {
+            throw new ApiException('Only a Super Admin can assign the Super Admin role.', 403);
+        }
+
+        foreach ($admins as $admin) {
+            $admin->syncRoles([$target->name]);
+        }
+
+        return $admins->count();
+    }
+
+    private function assertNotSystemRole(Role $role, string $message): void
+    {
+        if (in_array($role->name, eRole::values(), true)) {
+            throw new ApiException($message, 422);
+        }
+    }
+
+    private function assertCanDeactivate(Role $role): void
+    {
+        if (in_array($role->name, [eRole::SUPER_ADMIN->value, eRole::INSTITUTION_ADMIN->value], true)) {
+            throw new ApiException('This system role cannot be deactivated.', 422);
+        }
+    }
+
+    private function uuidFragment(string $search, string $codePrefix): string
+    {
+        return str_starts_with(strtoupper($search), $codePrefix)
+            ? strtolower(substr($search, strlen($codePrefix)))
+            : $search;
     }
 
     private function resolveRole(string $roleId): Role
@@ -393,5 +458,4 @@ class RoleService
 
         return $role;
     }
-
 }

@@ -28,7 +28,7 @@ class AdminRepository implements AdminRepositoryInterface
 
     public function emailExists(string $email): bool
     {
-        return Admin::query()->withoutGlobalScope(TenantScope::class)->where('email', $email)->exists();
+        return Admin::query()->withoutGlobalScope(TenantScope::class)->withTrashed()->where('email', $email)->exists();
     }
 
     public function createInstitutionOwner(Institution $institution, string $name, string $email): Admin

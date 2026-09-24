@@ -40,12 +40,12 @@ class Campaign extends Model
 
     public function allocatedAdmin(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'allocated_admin_id');
+        return $this->belongsTo(Admin::class, 'allocated_admin_id')->withTrashed();
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'created_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();
     }
 
     public function bankAccount(): BelongsTo

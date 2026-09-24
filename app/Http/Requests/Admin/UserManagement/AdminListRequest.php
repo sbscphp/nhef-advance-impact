@@ -20,6 +20,7 @@ class AdminListRequest extends ApiFormRequest
             [
                 'export' => ['sometimes', 'nullable', Rule::in(['csv', 'pdf'])],
                 'filters.status' => ['sometimes', 'nullable', Rule::in(['active', 'inactive'])],
+                'filters.role_id' => ['sometimes', 'nullable', 'uuid'],
             ]
         );
     }
@@ -28,6 +29,7 @@ class AdminListRequest extends ApiFormRequest
     {
         return array_merge(parent::messages(), ListingFilterRules::listingMessages(), [
             'export.in' => "Export format must be either 'csv' or 'pdf'.",
+            'filters.role_id.uuid' => 'Role filter must be a valid UUID.',
             'filters.status.in' => "Status filter must be either 'active' or 'inactive'.",
         ]);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Enums\eRole;
 use App\Helpers\PermissionModuleMapper;
 use App\Models\Role;
 use Illuminate\Http\Request;
@@ -22,11 +23,15 @@ class RoleResource extends JsonResource
 
         return [
             'role_id' => $this->uuid,
+            'role_code' => $this->code(),
             'name' => $this->name,
             'description' => $this->description,
             'status' => $this->is_active ? 'active' : 'inactive',
+            'is_system_role' => in_array($this->name, eRole::values(), true),
+            'number_of_users' => $this->users_count ?? $this->admins()->count(),
             'permissions' => $permissionNames,
             'permissions_by_module' => PermissionModuleMapper::groupedApiPermissionsForNames($permissionNames),
+            'permission_matrix' => PermissionModuleMapper::matrix($permissionNames),
             'updated_at' => $this->updated_at,
         ];
     }

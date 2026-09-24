@@ -35,6 +35,6 @@ class ProspectMessage extends Model
 
     public function sender(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'sent_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'sent_by', 'uuid')->withTrashed();
     }
 }

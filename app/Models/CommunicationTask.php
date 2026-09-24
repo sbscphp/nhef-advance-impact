@@ -50,12 +50,12 @@ class CommunicationTask extends Model
 
     public function assignee(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'assigned_to', 'uuid');
+        return $this->belongsTo(Admin::class, 'assigned_to', 'uuid')->withTrashed();
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'created_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();
     }
 
     public function notes(): HasMany

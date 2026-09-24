@@ -34,11 +34,11 @@ class ProposalCollaborator extends Model
 
     public function admin(): BelongsTo
     {
-        return $this->belongsTo(Admin::class);
+        return $this->belongsTo(Admin::class)->withTrashed();
     }
 
     public function inviter(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'invited_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'invited_by', 'uuid')->withTrashed();
     }
 }

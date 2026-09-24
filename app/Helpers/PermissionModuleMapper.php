@@ -130,4 +130,46 @@ final class PermissionModuleMapper
 
         return $out;
     }
+
+    /**
+     * The Create/Read/Update/Delete grid the role form renders: one row per module, one cell per
+     * action listing every permission that cell toggles (User Management spans roles.* and admins.*).
+     *
+     * @param  list<string>  $grantedNames
+     * @return list<array{key: string, label: string, actions: array<string, array{names: list<string>, granted: bool}|null>}>
+     */
+    public static function matrix(array $grantedNames = []): array
+    {
+        $granted = array_flip($grantedNames);
+        $labels = [
+            'alumni' => 'Alumni Management',
+            'constituent_management' => 'Constituent Management',
+            'fundraising' => 'Fundraising Campaign',
+            'user_management' => 'User Management',
+            'audit_trail' => 'Audit Trail',
+            'system_configuration' => 'System Configuration',
+            'custom_field' => 'Custom Field',
+        ];
+
+        return array_map(function (array $module) use ($granted, $labels): array {
+            $actions = [];
+            foreach (['create', 'read', 'update', 'delete'] as $action) {
+                $names = array_values(array_map(
+                    fn (array $permission): string => $permission['name'],
+                    array_filter($module['permissions'], fn (array $permission): bool => str_ends_with($permission['name'], '.'.$action)),
+                ));
+
+                $actions[$action] = $names === [] ? null : [
+                    'names' => $names,
+                    'granted' => count(array_filter($names, fn (string $name): bool => isset($granted[$name]))) === count($names),
+                ];
+            }
+
+            return [
+                'key' => $module['key'],
+                'label' => $labels[$module['key']] ?? $module['label'],
+                'actions' => $actions,
+            ];
+        }, self::groupedApiPermissions());
+    }
 }

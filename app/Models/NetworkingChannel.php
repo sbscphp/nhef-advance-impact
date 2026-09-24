@@ -28,7 +28,7 @@ class NetworkingChannel extends Model
 
     public function createdByAdmin(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'created_by_admin_id');
+        return $this->belongsTo(Admin::class, 'created_by_admin_id')->withTrashed();
     }
 
     public function members(): BelongsToMany

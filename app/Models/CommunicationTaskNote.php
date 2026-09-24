@@ -27,6 +27,6 @@ class CommunicationTaskNote extends Model
 
     public function author(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'author_id', 'uuid');
+        return $this->belongsTo(Admin::class, 'author_id', 'uuid')->withTrashed();
     }
 }

@@ -11,7 +11,6 @@ use App\Helpers\GeneralHelper;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Jobs\SendAdminInviteSetPasswordEmailJob;
 use App\Models\Admin;
-use App\Models\AuditLog;
 use App\Models\Institution;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Builder;
@@ -166,8 +165,9 @@ class AdminUserService
 
         $search = trim((string) ($validated['search'] ?? ''));
         if ($search !== '') {
-            $query->where(function (Builder $builder) use ($search): void {
-                $builder->where('uuid', 'like', '%'.$search.'%')
+            $uuidSearch = str_starts_with(strtoupper($search), 'NHF-USR-') ? strtolower(substr($search, 8)) : $search;
+            $query->where(function (Builder $builder) use ($search, $uuidSearch): void {
+                $builder->where('uuid', 'like', '%'.$uuidSearch.'%')
                     ->orWhere('name', 'like', '%'.$search.'%')
                     ->orWhere('email', 'like', '%'.$search.'%')
                     ->orWhereHas('roles', fn (Builder $roleBuilder) => $roleBuilder->where('name', 'like', '%'.$search.'%'));
@@ -179,6 +179,11 @@ class AdminUserService
             $query->where('is_active', true);
         } elseif ($status === 'inactive') {
             $query->where('is_active', false);
+        }
+
+        $roleUuid = data_get($validated, 'filters.role_id');
+        if (is_string($roleUuid) && $roleUuid !== '') {
+            $query->whereHas('roles', fn (Builder $roleBuilder) => $roleBuilder->where('roles.uuid', $roleUuid));
         }
 
         if (! in_array($sortBy, ['uuid', 'name', 'email', 'last_active_at', 'is_active', 'created_at'], true)) {
@@ -231,6 +236,12 @@ class AdminUserService
         $roleUuid = $payload['role_id'] ?? null;
         unset($payload['role_id']);
 
+        $losesAccess = (array_key_exists('is_active', $payload) && ! $payload['is_active'])
+            || (array_key_exists('can_login', $payload) && ! $payload['can_login']);
+        if ($losesAccess) {
+            $this->assertNotLastSuperAdmin($admin);
+        }
+
         if ($payload !== []) {
             $admin->fill($payload)->save();
         }
@@ -242,6 +253,9 @@ class AdminUserService
                 ->where('uuid', (string) $roleUuid)
                 ->firstOrFail();
             $this->assertRoleAssignable($role);
+            if ($role->name !== $previousRoleName) {
+                $this->assertNotLastSuperAdmin($admin);
+            }
             $admin->syncRoles([$role->name]);
             $newRoleName = $role->name;
         }
@@ -292,6 +306,11 @@ class AdminUserService
         $admin = $this->resolveAdmin($adminId);
         $previousStatus = (bool) $admin->is_active;
         $isActive = ! $previousStatus;
+
+        if (! $isActive) {
+            $this->assertNotLastSuperAdmin($admin);
+        }
+
         $admin->forceFill([
             'is_active' => $isActive,
             'can_login' => $isActive,
@@ -321,23 +340,17 @@ class AdminUserService
     }
 
     /**
-     * @return array{audit_logs_count:int, uuid?:string, email?:string}
+     * Soft delete: the row stays so audit entries and records the admin authored keep their name.
      */
-    public function delete(string $adminId, Admin $actor, Request $request): array
+    public function delete(string $adminId, Admin $actor, Request $request): void
     {
         $admin = $this->resolveAdmin($adminId);
-        $auditLogsCount = AuditLog::query()
-            ->where('user_type', UserTypeEnum::ADMIN)
-            ->where('user_id', $admin->uuid)
-            ->count();
-
-        if ($auditLogsCount > 0) {
-            return ['audit_logs_count' => $auditLogsCount];
-        }
+        $this->assertNotLastSuperAdmin($admin);
 
         $adminUuid = $admin->uuid;
         $adminEmail = $admin->email;
         $admin->tokens()->delete();
+        $admin->forceFill(['is_active' => false, 'can_login' => false])->save();
         $admin->delete();
 
         GeneralHelper::storeAuditLog(
@@ -352,8 +365,24 @@ class AdminUserService
             ModuleEnums::user_management,
             200,
         );
+    }
 
-        return ['audit_logs_count' => 0, 'uuid' => $adminUuid, 'email' => $adminEmail];
+    private function assertNotLastSuperAdmin(Admin $admin): void
+    {
+        if (! $admin->hasRole(eRole::SUPER_ADMIN->value) || ! $admin->is_active) {
+            return;
+        }
+
+        $otherActive = Admin::query()
+            ->nhefStaff()
+            ->whereKeyNot($admin->getKey())
+            ->where('is_active', true)
+            ->whereHas('roles', fn (Builder $roles) => $roles->where('name', eRole::SUPER_ADMIN->value))
+            ->exists();
+
+        if (! $otherActive) {
+            throw new ApiException('At least one active Super Admin must remain.', 422);
+        }
     }
 
     private function assertRoleAssignable(Role $role): void

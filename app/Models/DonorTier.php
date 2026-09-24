@@ -37,6 +37,6 @@ class DonorTier extends Model
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'created_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();
     }
 }
