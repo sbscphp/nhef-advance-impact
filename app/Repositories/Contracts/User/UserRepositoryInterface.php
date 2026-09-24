@@ -88,4 +88,12 @@ interface UserRepositoryInterface
      * @param  array<string, mixed>  $filters
      */
     public function paginateForInstitution(int $tertiaryInstitutionId, array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Headcount per constituent type for each tertiary institution, for the institution list.
+     *
+     * @param  list<int>  $tertiaryInstitutionIds
+     * @return array<int, array{alumni: int, non_alumni: int, organization: int}>
+     */
+    public function countByConstituentTypeForInstitutions(array $tertiaryInstitutionIds): array;
 }

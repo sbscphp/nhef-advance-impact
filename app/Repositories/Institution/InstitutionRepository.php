@@ -48,6 +48,19 @@ class InstitutionRepository implements InstitutionRepositoryInterface
         return Institution::query()->where('slug', $slug)->exists();
     }
 
+    public function linkedTertiaryInstitutionIds(array $tertiaryInstitutionIds): array
+    {
+        if ($tertiaryInstitutionIds === []) {
+            return [];
+        }
+
+        return Institution::query()
+            ->whereIn('tertiary_institution_id', $tertiaryInstitutionIds)
+            ->pluck('tertiary_institution_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     public function existsForTertiaryInstitution(int $tertiaryInstitutionId, ?int $excludeInstitutionId = null): bool
     {
         return Institution::query()

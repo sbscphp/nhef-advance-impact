@@ -4,6 +4,7 @@ namespace App\Services\ConstituentManagement;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\ConstituentStatusEnum;
+use App\Enums\ConstituentTypeEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
@@ -54,6 +55,7 @@ class AdminConstituentService
 
         $user = $this->userRepository->create([
             'tertiary_institution_id' => $tenant?->tertiary_institution_id,
+            'constituent_type' => $payload['constituent_type'] ?? ConstituentTypeEnum::ALUMNI->value,
             'firstname' => $payload['first_name'],
             'lastname' => $payload['last_name'],
             'email' => $payload['email'],
@@ -164,7 +166,7 @@ class AdminConstituentService
         if (array_key_exists('last_name', $payload)) {
             $updates['lastname'] = $payload['last_name'];
         }
-        foreach (['email', 'phone_number', 'invite_message', 'status'] as $field) {
+        foreach (['email', 'phone_number', 'invite_message', 'status', 'constituent_type'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $updates[$field] = $payload[$field];
             }

@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Pledge;
 
+use App\Enums\PledgeStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Pledge;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
@@ -120,5 +121,23 @@ class PledgeRepository implements PledgeRepositoryInterface
             'total_pledged' => (string) (clone $query)->sum('total_amount'),
             'total_fulfilled' => (string) (clone $query)->sum('amount_paid'),
         ];
+    }
+
+    public function totalCommittedByInstitutions(array $tertiaryInstitutionIds): array
+    {
+        if ($tertiaryInstitutionIds === []) {
+            return [];
+        }
+
+        return Pledge::query()
+            ->join('users', 'users.id', '=', 'pledges.user_id')
+            ->where('pledges.currency', 'NGN')
+            ->where('pledges.status', '!=', PledgeStatusEnum::CANCELLED->value)
+            ->whereIn('users.tertiary_institution_id', $tertiaryInstitutionIds)
+            ->groupBy('users.tertiary_institution_id')
+            ->selectRaw('users.tertiary_institution_id as institution_id, sum(pledges.total_amount) as total')
+            ->pluck('total', 'institution_id')
+            ->map(fn ($total) => (string) $total)
+            ->all();
     }
 }

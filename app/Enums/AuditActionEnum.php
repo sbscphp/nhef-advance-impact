@@ -146,6 +146,111 @@ enum AuditActionEnum: string
     case CUSTOM_FIELD_UPDATED = 'CUSTOM_FIELD_UPDATED';
     case CUSTOM_FIELD_ARCHIVED = 'CUSTOM_FIELD_ARCHIVED';
 
+    private const SUFFIX_PRESENTATION = [
+        '_CREATED' => ['Created', 'success'],
+        '_ADDED' => ['Added', 'success'],
+        '_INVITED' => ['Invited', 'success'],
+        '_APPROVED' => ['Approved', 'success'],
+        '_REJECTED' => ['Rejected', 'danger'],
+        '_DELETED' => ['Deleted', 'danger'],
+        '_REMOVED' => ['Removed', 'danger'],
+        '_CANCELLED' => ['Cancelled', 'danger'],
+        '_ACCESS_REVOKED' => ['Revoked', 'danger'],
+        '_SUSPENDED' => ['Suspended', 'danger'],
+        '_DEACTIVATED' => ['Deactivated', 'danger'],
+        '_DISABLED' => ['Disabled', 'danger'],
+        '_ARCHIVED' => ['Archived', 'neutral'],
+        '_UPDATED' => ['Updated', 'info'],
+        '_MODIFIED' => ['Updated', 'info'],
+        '_STATUS_TOGGLED' => ['Updated', 'info'],
+        '_STAGE_CHANGED' => ['Updated', 'info'],
+        '_DEFAULT_SET' => ['Updated', 'info'],
+        '_PAUSED' => ['Paused', 'warning'],
+        '_LOCKED' => ['Locked', 'warning'],
+        '_WAITLISTED' => ['Waitlisted', 'warning'],
+        '_INITIATED' => ['Pending', 'warning'],
+        '_RESUMED' => ['Resumed', 'success'],
+        '_REACTIVATED' => ['Reactivated', 'success'],
+        '_ACTIVATED' => ['Activated', 'success'],
+        '_UNLOCKED' => ['Unlocked', 'success'],
+        '_COMPLETED' => ['Completed', 'success'],
+        '_MATCHED' => ['Matched', 'success'],
+        '_MATCHED_MANUALLY' => ['Matched', 'success'],
+        '_GENERATED' => ['Generated', 'info'],
+        '_RESENT' => ['Resent', 'info'],
+        '_SENT' => ['Sent', 'info'],
+        '_LOGGED' => ['Logged', 'info'],
+        '_MARKED_DONE' => ['Completed', 'success'],
+        '_DUPLICATED' => ['Duplicated', 'info'],
+        '_INVITE_RESENT' => ['Resent', 'info'],
+        '_INVITE_LINK_RESENT' => ['Resent', 'info'],
+        '_INVITE_SENT' => ['Sent', 'info'],
+        '_REMINDER_SENT' => ['Sent', 'info'],
+        '_SET_ACTIVE' => ['Updated', 'info'],
+        '_REFRESHED' => ['Refreshed', 'neutral'],
+        '_SUCCESS' => ['Logged in', 'success'],
+        '_FAILED' => ['Failed', 'danger'],
+        '_SUCCEEDED' => ['Succeeded', 'success'],
+        '_VERIFIED' => ['Verified', 'success'],
+        '_REQUESTED' => ['Requested', 'warning'],
+    ];
+
+    /**
+     * Past-tense verb and colour tone for the audit log list; the noun comes from objectLabel().
+     *
+     * @return array{verb: string, tone: string}
+     */
+    public function presentation(): array
+    {
+        if ($this === self::PASSWORD_RESET_COMPLETED) {
+            return ['verb' => 'Reset', 'tone' => 'info'];
+        }
+
+        if ($this === self::REGISTERED) {
+            return ['verb' => 'Registered', 'tone' => 'success'];
+        }
+
+        foreach (self::suffixesLongestFirst() as $suffix => [$verb, $tone]) {
+            if (str_ends_with($this->value, $suffix)) {
+                return ['verb' => $verb, 'tone' => $tone];
+            }
+        }
+
+        return ['verb' => $this->humanised(), 'tone' => 'neutral'];
+    }
+
+    public function objectLabel(): string
+    {
+        $stripped = preg_replace(
+            '/(?:'.implode('|', array_map(fn (string $suffix): string => preg_quote($suffix, '/'), array_keys(self::suffixesLongestFirst()))).')$/',
+            '',
+            $this->value,
+        );
+
+        return $this->humaniseKey(in_array($stripped, ['', null], true) ? $this->value : $stripped);
+    }
+
+    public function humanised(): string
+    {
+        return $this->humaniseKey($this->value);
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    private static function suffixesLongestFirst(): array
+    {
+        $suffixes = self::SUFFIX_PRESENTATION;
+        uksort($suffixes, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        return $suffixes;
+    }
+
+    private function humaniseKey(string $key): string
+    {
+        return str_replace('Otp', 'OTP', ucwords(strtolower(str_replace('_', ' ', $key))));
+    }
+
     /**
      * @return list<string>
      */

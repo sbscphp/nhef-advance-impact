@@ -24,6 +24,7 @@ class AuditTrailListingRequest extends ApiFormRequest
                 'filters.user_type' => ['sometimes', 'nullable', Rule::enum(UserTypeEnum::class)],
                 'filters.action_module' => ['sometimes', 'nullable', Rule::in(ModuleEnums::values())],
                 'filters.action' => ['sometimes', 'nullable', Rule::in(AuditActionEnum::values())],
+                'filters.institution_uuid' => ['sometimes', 'nullable', 'uuid'],
                 'filters.model' => ['sometimes', 'nullable', 'string', 'max:255'],
                 'filters.http_status' => ['sometimes', 'nullable', 'integer', 'between:100,599'],
             ]
@@ -37,6 +38,7 @@ class AuditTrailListingRequest extends ApiFormRequest
             'filters.user_type.enum' => 'User type filter is invalid.',
             'filters.action_module.in' => 'Action module filter is invalid.',
             'filters.action.in' => 'Action filter is invalid.',
+            'filters.institution_uuid.uuid' => 'Institution filter must be a valid UUID.',
             'filters.model.max' => 'Model filter may not be longer than 255 characters.',
             'filters.http_status.integer' => 'HTTP status filter must be an integer.',
             'filters.http_status.between' => 'HTTP status filter must be between 100 and 599.',

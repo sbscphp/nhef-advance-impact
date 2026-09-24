@@ -47,4 +47,10 @@ interface CampaignInstitutionRepositoryInterface
     public function update(CampaignInstitution $campaignInstitution, array $data): CampaignInstitution;
 
     public function delete(CampaignInstitution $campaignInstitution): void;
+
+    /**
+     * @param  list<int>  $institutionIds
+     * @return array<int, int> institution id => number of campaigns it participates in
+     */
+    public function countByInstitutions(array $institutionIds): array;
 }

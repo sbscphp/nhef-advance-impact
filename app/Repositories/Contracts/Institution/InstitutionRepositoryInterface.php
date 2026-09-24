@@ -24,6 +24,12 @@ interface InstitutionRepositoryInterface
 
     public function slugExists(string $slug): bool;
 
+    /**
+     * @param  list<int>  $tertiaryInstitutionIds
+     * @return list<int> the subset already linked to an institution
+     */
+    public function linkedTertiaryInstitutionIds(array $tertiaryInstitutionIds): array;
+
     public function existsForTertiaryInstitution(int $tertiaryInstitutionId, ?int $excludeInstitutionId = null): bool;
 
     /**

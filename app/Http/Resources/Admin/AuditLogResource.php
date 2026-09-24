@@ -22,11 +22,21 @@ class AuditLogResource extends JsonResource
             'user_type' => $this->user_type->value,
             'action_module' => $this->action_module->value,
             'action' => $this->action->value,
+            'actor' => $this->actorName(),
+            'action_verb' => $this->action->presentation()['verb'],
+            'action_tone' => $this->action->presentation()['tone'],
+            'action_object' => $this->action->objectLabel(),
+            'action_label' => $this->action->humanised(),
             'description' => $this->description,
             'ip_address' => $this->ip_address,
             'user_agent' => $this->user_agent,
             'http_outcome' => $this->httpOutcome(),
             'created_at' => $this->created_at,
+            'created_at_label' => $this->created_at?->format('F j | h:i a'),
+            'institution' => $this->whenLoaded('institution', fn (): ?array => $this->institution === null ? null : [
+                'uuid' => $this->institution->uuid,
+                'name' => $this->institution->name,
+            ]),
             $this->mergeWhen(
                 $this->user_type === UserTypeEnum::CUSTOMER
                     && $this->relationLoaded('customerUser')
@@ -44,6 +54,19 @@ class AuditLogResource extends JsonResource
                 ]]
             ),
         ];
+    }
+
+    private function actorName(): ?string
+    {
+        if ($this->user_type === UserTypeEnum::ADMIN && $this->relationLoaded('adminUser')) {
+            return $this->adminUser?->name;
+        }
+
+        if ($this->user_type === UserTypeEnum::CUSTOMER && $this->relationLoaded('customerUser') && $this->customerUser !== null) {
+            return $this->customerSummary()['name'];
+        }
+
+        return null;
     }
 
     private function httpOutcome(): ?string

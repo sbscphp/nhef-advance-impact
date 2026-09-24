@@ -97,4 +97,19 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
     {
         $campaignInstitution->delete();
     }
+
+    public function countByInstitutions(array $institutionIds): array
+    {
+        if ($institutionIds === []) {
+            return [];
+        }
+
+        return CampaignInstitution::query()
+            ->whereIn('institution_id', $institutionIds)
+            ->groupBy('institution_id')
+            ->selectRaw('institution_id, count(*) as total')
+            ->pluck('total', 'institution_id')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+    }
 }

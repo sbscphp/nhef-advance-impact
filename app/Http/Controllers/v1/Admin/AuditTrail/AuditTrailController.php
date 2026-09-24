@@ -12,6 +12,7 @@ use App\Models\AuditLog;
 use App\Responser\JsonResponser;
 use App\Services\Audit\AuditTrailQueryService;
 use App\Support\ListingQuery;
+use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -36,6 +37,33 @@ class AuditTrailController extends Controller
             };
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\AuditTrail\AuditTrailController@index');
+        }
+    }
+
+    public function timeline(AuditTrailListingRequest $request)
+    {
+        try {
+            $listing = ListingQuery::fromValidated($request->validated(), defaultPerPage: 50);
+
+            [$paginator, $dayCounts] = $this->auditTrailQuery->timelinePage($listing);
+
+            $days = $paginator->getCollection()
+                ->groupBy(fn (AuditLog $log): string => $log->created_at->toDateString())
+                ->map(fn (Collection $logs, string $day): array => [
+                    'date' => $day,
+                    'label' => Carbon::parse($day)->format('F j, Y'),
+                    'events_count' => $dayCounts[$day] ?? $logs->count(),
+                    'events' => AuditLogResource::collection($logs)->resolve(),
+                ])
+                ->values()
+                ->all();
+
+            $payload = $paginator->toArray();
+            $payload['data'] = $days;
+
+            return JsonResponser::send(false, 'Audit timeline retrieved.', $payload);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\AuditTrail\AuditTrailController@timeline');
         }
     }
 
@@ -73,6 +101,7 @@ class AuditTrailController extends Controller
                 'User type',
                 'Actor email',
                 'Actor name',
+                'Institution',
                 'Action module',
                 'Action',
                 'Model',
@@ -105,30 +134,14 @@ class AuditTrailController extends Controller
         $periodStart = $listing->startDate?->toDateString() ?? 'All dates';
         $periodEnd = $listing->endDate?->toDateString() ?? 'All dates';
 
-        $headings = [
-            'ID',
-            'Created',
-            'User type',
-            'Actor',
-            'Module',
-            'Action',
-            'Model',
-            'Description',
-            'IP',
-            'HTTP',
-        ];
+        $headings = ['#', 'Date', 'Actor', 'Action', 'Description'];
 
         $rows = $collection->values()->map(fn (AuditLog $log, int $index): array => [
             (string) ($index + 1),
             $log->created_at?->format('Y-m-d H:i') ?? '',
-            $log->user_type->value,
             $this->actorSummary($log),
-            $log->action_module->value,
-            $log->action->value,
-            $log->model !== null ? class_basename((string) $log->model) : '',
+            $log->action->presentation()['verb'].' '.$log->action->objectLabel(),
             $this->truncatePdfCell((string) ($log->description ?? '')),
-            (string) ($log->ip_address ?? ''),
-            $log->http_status !== null ? (string) $log->http_status : '',
         ]);
 
         return $this->pdfReportHelper->download(
@@ -136,7 +149,7 @@ class AuditTrailController extends Controller
             headings: $headings,
             title: 'Audit trail',
             filename: $filename,
-            orientation: 'landscape',
+            orientation: 'portrait',
             periodStart: $periodStart,
             periodEnd: $periodEnd,
             generatedAt: now((string) config('app.timezone')),
@@ -158,6 +171,7 @@ class AuditTrailController extends Controller
             $log->user_type->value,
             $email,
             $name,
+            $log->institution?->name ?? '',
             $log->action_module->value,
             $log->action->value,
             $log->model ?? '',

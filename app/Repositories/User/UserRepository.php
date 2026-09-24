@@ -11,6 +11,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class UserRepository implements UserRepositoryInterface
 {
@@ -121,6 +122,10 @@ class UserRepository implements UserRepositoryInterface
             ->when(
                 filled($filters['filters']['status'] ?? null),
                 fn ($query) => $query->where('status', $filters['filters']['status'])
+            )
+            ->when(
+                filled($filters['filters']['constituent_type'] ?? null),
+                fn ($query) => $query->where('constituent_type', $filters['filters']['constituent_type'])
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
@@ -240,5 +245,31 @@ class UserRepository implements UserRepositoryInterface
             || filled($segment['department'] ?? null)
             || filled($segment['graduation_year_from'] ?? null)
             || filled($segment['graduation_year_to'] ?? null);
+    }
+
+    public function countByConstituentTypeForInstitutions(array $tertiaryInstitutionIds): array
+    {
+        if ($tertiaryInstitutionIds === []) {
+            return [];
+        }
+
+        $counts = [];
+        foreach ($tertiaryInstitutionIds as $id) {
+            $counts[$id] = ['alumni' => 0, 'non_alumni' => 0, 'organization' => 0];
+        }
+
+        $rows = User::query()
+            ->select('tertiary_institution_id', 'constituent_type', DB::raw('count(*) as total'))
+            ->whereIn('tertiary_institution_id', $tertiaryInstitutionIds)
+            ->groupBy('tertiary_institution_id', 'constituent_type')
+            ->get();
+
+        foreach ($rows as $row) {
+            if (isset($counts[$row->tertiary_institution_id][$row->constituent_type])) {
+                $counts[$row->tertiary_institution_id][$row->constituent_type] = (int) $row->total;
+            }
+        }
+
+        return $counts;
     }
 }

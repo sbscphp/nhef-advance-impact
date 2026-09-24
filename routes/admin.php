@@ -51,10 +51,12 @@ Route::prefix('v1/admin')->group(function () {
 
     Route::middleware(['auth:sanctum', 'permission:audit_trail.read'])->group(function () {
         Route::get('audit-trails', [AuditTrailController::class, 'index']);
+        Route::get('audit-trails/timeline', [AuditTrailController::class, 'timeline']);
     });
 
     Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/summary', [NotificationController::class, 'summary']);
         Route::post('/read-all', [NotificationController::class, 'markAllRead']);
         Route::get('/{id}', [NotificationController::class, 'show']);
         Route::patch('/{id}/read', [NotificationController::class, 'markRead']);
@@ -497,6 +499,8 @@ Route::prefix('v1/admin')->group(function () {
             // a wildcard institution uuid by the route below (same caution as events/overview).
             Route::get('/overview', [ConstituentInstitutionController::class, 'overview'])
                 ->middleware(['permission:constituents.read']);
+            Route::get('/tertiary-options', [ConstituentInstitutionController::class, 'tertiaryOptions'])
+                ->middleware(['permission:constituents.create']);
             Route::get('/{uuid}', [ConstituentInstitutionController::class, 'show'])
                 ->middleware(['permission:constituents.read']);
             Route::patch('/{uuid}', [ConstituentInstitutionController::class, 'update'])

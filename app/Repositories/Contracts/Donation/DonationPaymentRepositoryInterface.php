@@ -128,4 +128,12 @@ interface DonationPaymentRepositoryInterface
      * tier's "Date of Upgrade" column without needing a separate tier-change history table.
      */
     public function resolveTierUpgradeDate(int $userId, string $thresholdAmount): ?CarbonInterface;
+
+    /**
+     * Successful NGN payments and distinct donors per donor's tertiary institution.
+     *
+     * @param  list<int>  $tertiaryInstitutionIds
+     * @return array<int, array{total: string, donors: int}>
+     */
+    public function totalsByInstitutions(array $tertiaryInstitutionIds): array;
 }

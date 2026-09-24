@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\v1\Admin\Notification;
 
+use App\Enums\NotificationCategoryEnum;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Notification\MarkAllNotificationsReadRequest;
 use App\Http\Requests\Admin\Notification\NotificationListRequest;
 use App\Http\Resources\DatabaseNotificationResource;
 use App\Models\Admin;
@@ -42,10 +44,20 @@ class NotificationController extends Controller
         }
     }
 
-    public function markAllRead(Request $request)
+    public function summary(Request $request)
     {
         try {
-            $this->inbox->markAllRead($this->requireAdmin($request));
+            return JsonResponser::send(false, 'Notification summary retrieved.', $this->inbox->summary($this->requireAdmin($request)));
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Notification\NotificationController@summary');
+        }
+    }
+
+    public function markAllRead(MarkAllNotificationsReadRequest $request)
+    {
+        try {
+            $category = NotificationCategoryEnum::tryFrom((string) $request->validated('category'));
+            $this->inbox->markAllRead($this->requireAdmin($request), $category);
 
             return JsonResponser::send(false, 'All notifications marked as read.', null);
         } catch (\Throwable $th) {

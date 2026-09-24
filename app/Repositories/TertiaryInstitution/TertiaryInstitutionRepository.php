@@ -23,6 +23,10 @@ class TertiaryInstitutionRepository implements TertiaryInstitutionRepositoryInte
                         ->orWhere('abbreviation', 'like', '%'.$search.'%');
                 });
             })
+            ->when(
+                (bool) ($filters['available_only'] ?? false),
+                fn ($builder) => $builder->whereNotIn('id', fn ($sub) => $sub->select('tertiary_institution_id')->from('institutions')->whereNotNull('tertiary_institution_id'))
+            )
             ->orderBy('name')
             ->paginate($perPage);
     }

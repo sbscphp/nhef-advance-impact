@@ -34,6 +34,7 @@ class InstitutionDetailResource extends JsonResource
             'date_added' => $this->created_at?->toIso8601String(),
             'date_onboarded' => $this->onboarded_at?->toIso8601String(),
             'invited_at' => $this->invited_at?->toIso8601String(),
+            ...$this->statsPayload(),
         ];
     }
 }

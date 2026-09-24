@@ -344,4 +344,27 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 
         return null;
     }
+
+    public function totalsByInstitutions(array $tertiaryInstitutionIds): array
+    {
+        if ($tertiaryInstitutionIds === []) {
+            return [];
+        }
+
+        $rows = DonationPayment::query()
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donation_payments.currency', 'NGN')
+            ->whereIn('users.tertiary_institution_id', $tertiaryInstitutionIds)
+            ->groupBy('users.tertiary_institution_id')
+            ->selectRaw('users.tertiary_institution_id as institution_id, sum(donation_payments.amount) as total, count(distinct donation_payments.user_id) as donors')
+            ->get();
+
+        $totals = [];
+        foreach ($rows as $row) {
+            $totals[(int) $row->institution_id] = ['total' => (string) $row->total, 'donors' => (int) $row->donors];
+        }
+
+        return $totals;
+    }
 }

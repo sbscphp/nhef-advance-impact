@@ -121,7 +121,64 @@ class AdminInstitutionService
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
-        return $this->institutionRepository->paginateForAdmin($filters, $perPage);
+        $paginator = $this->institutionRepository->paginateForAdmin($filters, $perPage);
+        $this->attachStats($paginator->items());
+
+        return $paginator;
+    }
+
+    /**
+     * Tertiary institutions the Super Admin can pick from when inviting, flagged when already invited.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function tertiaryOptions(array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $paginator = $this->tertiaryInstitutionRepository->paginate($filters, $perPage);
+
+        $linked = $this->institutionRepository->linkedTertiaryInstitutionIds(array_map(fn ($row) => $row->id, $paginator->items()));
+        foreach ($paginator->items() as $row) {
+            $row->setAttribute('already_invited', in_array($row->id, $linked, true));
+        }
+
+        return $paginator;
+    }
+
+    public function showForAdmin(string $uuid): Institution
+    {
+        $institution = $this->findForAdmin($uuid);
+        $this->attachStats([$institution]);
+
+        return $institution;
+    }
+
+    /**
+     * Total pledges is the committed pledge value (cancelled pledges excluded), not the amount paid so far.
+     *
+     * @param  iterable<Institution>  $institutions
+     */
+    private function attachStats(iterable $institutions): void
+    {
+        $institutions = collect($institutions);
+        $tertiaryIds = $institutions->pluck('tertiary_institution_id')->filter()->unique()->values()->all();
+
+        $types = $this->userRepository->countByConstituentTypeForInstitutions($tertiaryIds);
+        $donations = $this->donationPaymentRepository->totalsByInstitutions($tertiaryIds);
+        $pledges = $this->pledgeRepository->totalCommittedByInstitutions($tertiaryIds);
+        $campaigns = $this->campaignInstitutionRepository->countByInstitutions($institutions->pluck('id')->all());
+
+        foreach ($institutions as $institution) {
+            $tertiaryId = $institution->tertiary_institution_id;
+
+            $institution->setAttribute('alumni_count', $types[$tertiaryId]['alumni'] ?? 0);
+            $institution->setAttribute('non_alumni_count', $types[$tertiaryId]['non_alumni'] ?? 0);
+            $institution->setAttribute('organisation_count', $types[$tertiaryId]['organization'] ?? 0);
+            $institution->setAttribute('campaigns_count', $campaigns[$institution->id] ?? 0);
+            $institution->setAttribute('donors_count', $donations[$tertiaryId]['donors'] ?? 0);
+            $institution->setAttribute('total_donations', $donations[$tertiaryId]['total'] ?? '0');
+            $institution->setAttribute('total_pledges', $pledges[$tertiaryId] ?? '0');
+        }
     }
 
     /**

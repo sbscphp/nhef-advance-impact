@@ -24,6 +24,7 @@ class InstitutionAdminResource extends JsonResource
             'is_active' => $this->is_active,
             'date_added' => $this->created_at?->toIso8601String(),
             'date_onboarded' => $this->onboarded_at?->toIso8601String(),
+            ...$this->statsPayload(),
         ];
     }
 }

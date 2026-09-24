@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AuditLog extends Model
 {
-    use OwnedByInstitution, HasUuid;
+    use HasUuid, OwnedByInstitution;
 
     protected $guarded = ['id', 'uuid'];
 
@@ -25,6 +25,11 @@ class AuditLog extends Model
             'metadata' => 'array',
             'http_status' => 'integer',
         ];
+    }
+
+    public function institution(): BelongsTo
+    {
+        return $this->belongsTo(Institution::class);
     }
 
     public function customerUser(): BelongsTo

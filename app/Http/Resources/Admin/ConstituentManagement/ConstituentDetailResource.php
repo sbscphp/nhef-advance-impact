@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin\ConstituentManagement;
 
+use App\Enums\ConstituentTypeEnum;
 use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -22,6 +23,8 @@ class ConstituentDetailResource extends JsonResource
             'last_name' => $this->lastname,
             'name' => $this->displayName(),
             'email' => $this->email,
+            'constituent_type' => $this->constituent_type,
+            'constituent_type_label' => ConstituentTypeEnum::tryFrom((string) $this->constituent_type)?->label(),
             'phone_number' => $this->phone_number,
             'avatar_url' => $this->profile_picture_url,
             'university' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : TertiaryInstitutionResource::make($this->tertiaryInstitution)),

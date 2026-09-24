@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\ConstituentManagement;
 
 use App\Enums\ConstituentStatusEnum;
+use App\Enums\ConstituentTypeEnum;
 use App\Http\Requests\ApiFormRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use Illuminate\Validation\Rule;
@@ -27,6 +28,7 @@ class ConstituentListRequest extends ApiFormRequest
             ListingFilterRules::rules(['name']),
             [
                 'filters.status' => ['sometimes', 'nullable', Rule::in(ConstituentStatusEnum::values())],
+                'filters.constituent_type' => ['sometimes', 'nullable', Rule::in(ConstituentTypeEnum::values())],
                 'export' => ['sometimes', 'nullable', 'string', Rule::in(['csv', 'pdf'])],
             ]
         );

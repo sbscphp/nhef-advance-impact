@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use App\Support\Money;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -60,6 +61,30 @@ class Institution extends Tenant
     public function code(): string
     {
         return 'NHEF-IN-'.strtoupper(substr($this->uuid, 0, 6));
+    }
+
+    /**
+     * Headline numbers for the institution list and detail, present only when the service attached them.
+     *
+     * @return array<string, mixed>
+     */
+    public function statsPayload(): array
+    {
+        if (! array_key_exists('alumni_count', $this->attributes)) {
+            return [];
+        }
+
+        return [
+            'alumni_count' => (int) $this->attributes['alumni_count'],
+            'non_alumni_count' => (int) $this->attributes['non_alumni_count'],
+            'organisation_count' => (int) $this->attributes['organisation_count'],
+            'campaigns_count' => (int) $this->attributes['campaigns_count'],
+            'donors_count' => (int) $this->attributes['donors_count'],
+            'total_donations' => (string) $this->attributes['total_donations'],
+            'total_donations_formatted' => Money::format($this->attributes['total_donations'], 'NGN'),
+            'total_pledges' => (string) $this->attributes['total_pledges'],
+            'total_pledges_formatted' => Money::format($this->attributes['total_pledges'], 'NGN'),
+        ];
     }
 
     public function logoUrl(): ?string

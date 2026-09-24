@@ -48,4 +48,12 @@ interface PledgeRepositoryInterface
      * @return array{count: int, total_pledged: string, total_fulfilled: string}
      */
     public function overviewForUser(int $userId): array;
+
+    /**
+     * Committed (not yet paid) NGN pledge value per donor's tertiary institution, excluding cancelled pledges.
+     *
+     * @param  list<int>  $tertiaryInstitutionIds
+     * @return array<int, string>
+     */
+    public function totalCommittedByInstitutions(array $tertiaryInstitutionIds): array;
 }
