@@ -18,6 +18,7 @@ class InstitutionDetailResource extends JsonResource
             'uuid' => $this->uuid,
             'code' => $this->code(),
             'name' => $this->name,
+            'slug' => $this->slug,
             'tertiary_institution' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : [
                 'uuid' => $this->tertiaryInstitution->uuid,
                 'name' => $this->tertiaryInstitution->name,

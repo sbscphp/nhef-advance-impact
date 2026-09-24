@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use App\Traits\HasUuid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -11,7 +14,12 @@ use Spatie\Permission\Traits\HasRoles;
 
 class Admin extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasRoles, HasUuid, Notifiable;
+    use BelongsToTenant, HasApiTokens, HasFactory, HasRoles, HasUuid, Notifiable;
+
+    public static function constrainToTenant(Builder $query, Institution $tenant): void
+    {
+        $query->where('admins.institution_id', $tenant->id);
+    }
 
     protected $guard_name = 'api';
 
@@ -40,6 +48,21 @@ class Admin extends Authenticatable
             'locked_at' => 'datetime',
             'last_active_at' => 'datetime',
         ];
+    }
+
+    public function scopeNhefStaff(Builder $query): Builder
+    {
+        return $query->whereNull('admins.institution_id');
+    }
+
+    public function institution(): BelongsTo
+    {
+        return $this->belongsTo(Institution::class);
+    }
+
+    public function isInstitutionAdmin(): bool
+    {
+        return $this->institution_id !== null;
     }
 
     public function displayName(): string

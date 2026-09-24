@@ -77,7 +77,7 @@ Route::prefix('v1/admin')->group(function () {
         Route::prefix('roles')->group(function () {
             Route::get('/dropdown/{status?}', [UserManagementController::class, 'roleDropdown'])
                 ->where('status', 'active|inactive|all')
-                ->middleware(['permission:roles.read']);
+                ->middleware(['permission:roles.read|admins.create']);
             Route::get('/with-permissions', [UserManagementController::class, 'rolesWithPermissions'])
                 ->middleware(['permission:roles.read']);
             Route::get('/stats', [UserManagementController::class, 'roleStats'])
@@ -488,32 +488,7 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:communications.create']);
         });
 
-        Route::prefix('constituents/institutions')->group(function () {
-            Route::post('/', [ConstituentInstitutionController::class, 'store'])
-                ->middleware(['permission:constituents.create']);
-            Route::get('/', [ConstituentInstitutionController::class, 'index'])
-                ->middleware(['permission:constituents.read']);
-            // Must be registered before /{uuid}; otherwise "overview" would be swallowed as
-            // a wildcard institution uuid by the route below (same caution as events/overview).
-            Route::get('/overview', [ConstituentInstitutionController::class, 'overview'])
-                ->middleware(['permission:constituents.read']);
-            Route::get('/{uuid}', [ConstituentInstitutionController::class, 'show'])
-                ->middleware(['permission:constituents.read']);
-            Route::patch('/{uuid}', [ConstituentInstitutionController::class, 'update'])
-                ->middleware(['permission:constituents.update']);
-            Route::patch('/{uuid}/revoke', [ConstituentInstitutionController::class, 'revoke'])
-                ->middleware(['permission:constituents.update']);
-            Route::patch('/{uuid}/reactivate', [ConstituentInstitutionController::class, 'reactivate'])
-                ->middleware(['permission:constituents.update']);
-            Route::post('/{uuid}/resend-invite', [ConstituentInstitutionController::class, 'resendInvite'])
-                ->middleware(['permission:constituents.update']);
-            Route::get('/{uuid}/alumni', [ConstituentInstitutionController::class, 'alumni'])
-                ->middleware(['permission:constituents.read']);
-            Route::get('/{uuid}/campaigns', [ConstituentInstitutionController::class, 'campaigns'])
-                ->middleware(['permission:constituents.read']);
-        });
-
-        Route::prefix('constituents/institutions')->group(function () {
+        Route::prefix('constituents/institutions')->middleware('landlord')->group(function () {
             Route::post('/', [ConstituentInstitutionController::class, 'store'])
                 ->middleware(['permission:constituents.create']);
             Route::get('/', [ConstituentInstitutionController::class, 'index'])

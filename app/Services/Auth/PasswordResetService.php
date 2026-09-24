@@ -4,6 +4,7 @@ namespace App\Services\Auth;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\ConstituentStatusEnum;
+use App\Enums\InstitutionStatusEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\OtpChannelEnum;
 use App\Enums\OtpPurposeEnum;
@@ -270,6 +271,10 @@ class PasswordResetService
         }
         $subject->forceFill($updates)->save();
 
+        if ($subject instanceof Admin) {
+            $this->completeInstitutionOnboarding($subject);
+        }
+
         $subject->tokens()->delete();
         event(new PasswordReset($subject));
         $this->markResetTokenConsumed($payload);
@@ -289,6 +294,18 @@ class PasswordResetService
         );
 
         return $subject;
+    }
+
+    private function completeInstitutionOnboarding(Admin $admin): void
+    {
+        $institution = $admin->institution;
+
+        if ($institution !== null && $institution->status === InstitutionStatusEnum::INVITE_SENT->value) {
+            $institution->forceFill([
+                'status' => InstitutionStatusEnum::ACTIVE->value,
+                'onboarded_at' => now(),
+            ])->save();
+        }
     }
 
     /**

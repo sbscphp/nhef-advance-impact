@@ -43,6 +43,11 @@ class InstitutionRepository implements InstitutionRepositoryInterface
         return Institution::query()->where('email', $email)->exists();
     }
 
+    public function slugExists(string $slug): bool
+    {
+        return Institution::query()->where('slug', $slug)->exists();
+    }
+
     public function existsForTertiaryInstitution(int $tertiaryInstitutionId, ?int $excludeInstitutionId = null): bool
     {
         return Institution::query()

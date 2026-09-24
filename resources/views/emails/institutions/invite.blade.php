@@ -18,5 +18,14 @@
         <p style="margin:0 0 16px; font-size:14px; line-height:1.6; color:{{ $theme->text_color }};">{{ $inviteMessage }}</p>
     @endif
 
+    @if(! empty($setPasswordUrl))
+        @include('emails.components.button', ['url' => $setPasswordUrl, 'label' => 'Create Your Password'])
+
+        <p style="margin:0 0 16px; font-size:12px; line-height:1.6; color:{{ $theme->muted_text_color }};">
+            If the button does not work, copy this link into your browser:<br>
+            <span style="word-break:break-all; color:{{ $theme->text_color }};">{{ $setPasswordUrl }}</span>
+        </p>
+    @endif
+
     <p style="margin:0; font-size:14px; line-height:1.6; color:{{ $theme->text_color }};">Questions? Contact us at <a href="mailto:{{ $supportEmail }}">{{ $supportEmail }}</a>.</p>
 @endsection

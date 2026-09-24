@@ -263,6 +263,11 @@ class AuthService
         );
     }
 
+    private function institutionAllowsLogin(Admin $admin): bool
+    {
+        return $admin->institution_id === null || (bool) $admin->institution?->is_active;
+    }
+
     public function loginAdmin(string $email, string $password, Request $request, string $client = eClientType::WEB->value): array
     {
         $admin = Admin::query()->where('email', $email)->first();
@@ -283,7 +288,7 @@ class AuthService
 
         $passwordMatches = is_string($admin->password) && Hash::check($password, $admin->password);
 
-        if (! $admin->is_active || ! $admin->can_login || ! $passwordMatches) {
+        if (! $admin->is_active || ! $admin->can_login || ! $this->institutionAllowsLogin($admin) || ! $passwordMatches) {
             if (! $passwordMatches) {
                 $this->recordFailedLoginAttempt($admin);
             }

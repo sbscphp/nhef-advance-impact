@@ -4,6 +4,7 @@ namespace App\Repositories\User;
 
 use App\Enums\ConstituentStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
+use App\Models\Scopes\TenantScope;
 use App\Models\User;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use Carbon\CarbonInterface;
@@ -83,7 +84,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function emailExists(string $email): bool
     {
-        return User::query()->where('email', $email)->exists();
+        return User::query()->withoutGlobalScope(TenantScope::class)->where('email', $email)->exists();
     }
 
     public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator

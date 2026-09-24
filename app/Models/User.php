@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use App\Notifications\Auth\ResetPasswordMail;
 use App\Traits\HasUuid;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -16,7 +18,14 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, HasUuid, Notifiable, TwoFactorAuthenticatable;
+    use BelongsToTenant, HasApiTokens, HasFactory, HasRoles, HasUuid, Notifiable, TwoFactorAuthenticatable;
+
+    public static function constrainToTenant(Builder $query, Institution $tenant): void
+    {
+        $tenant->tertiary_institution_id === null
+            ? $query->whereRaw('1 = 0')
+            : $query->where('users.tertiary_institution_id', $tenant->tertiary_institution_id);
+    }
 
     protected $guard_name = 'api';
 

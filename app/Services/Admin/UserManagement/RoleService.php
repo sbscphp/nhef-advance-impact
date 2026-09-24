@@ -11,6 +11,7 @@ use App\Helpers\GeneralHelper;
 use App\Helpers\PermissionModuleMapper;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Admin;
+use App\Models\Institution;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -192,6 +193,10 @@ class RoleService
         $query = Role::query()
             ->where('guard_name', 'api')
             ->where('name', '!=', eRole::CUSTOMER->value);
+
+        Institution::checkCurrent()
+            ? $query->whereIn('name', eRole::institutionAssignable())
+            : $query->whereNotIn('name', eRole::institutionAssignable());
 
         if ($status === 'active') {
             $query->where('is_active', true);

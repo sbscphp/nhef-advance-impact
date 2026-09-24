@@ -47,6 +47,7 @@ class AuthResource extends JsonResource
             'is_active' => $admin->is_active,
             'can_login' => $admin->can_login,
             'must_reset_password' => (bool) $admin->must_reset_password,
+            'workspace' => $admin->institution?->workspaceData(),
             'last_login_at' => $admin->last_login_at,
             'last_active_at' => $admin->last_active_at,
             'created_at' => $admin->created_at,

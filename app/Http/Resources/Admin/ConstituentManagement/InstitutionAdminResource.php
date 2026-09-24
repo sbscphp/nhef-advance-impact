@@ -18,6 +18,7 @@ class InstitutionAdminResource extends JsonResource
             'uuid' => $this->uuid,
             'code' => $this->code(),
             'name' => $this->name,
+            'slug' => $this->slug,
             'email' => $this->email,
             'status' => $this->status,
             'is_active' => $this->is_active,

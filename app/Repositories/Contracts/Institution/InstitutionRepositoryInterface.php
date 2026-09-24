@@ -22,6 +22,8 @@ interface InstitutionRepositoryInterface
 
     public function emailExists(string $email): bool;
 
+    public function slugExists(string $slug): bool;
+
     public function existsForTertiaryInstitution(int $tertiaryInstitutionId, ?int $excludeInstitutionId = null): bool;
 
     /**

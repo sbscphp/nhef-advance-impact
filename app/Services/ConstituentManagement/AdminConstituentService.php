@@ -11,6 +11,7 @@ use App\Helpers\GeneralHelper;
 use App\Jobs\SendConstituentInviteEmailJob;
 use App\Models\Admin;
 use App\Models\DonationPayment;
+use App\Models\Institution;
 use App\Models\Pledge;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
@@ -46,7 +47,13 @@ class AdminConstituentService
             throw new ApiException('A constituent with this email already exists.', 422);
         }
 
+        $tenant = Institution::current();
+        if ($tenant !== null && $tenant->tertiary_institution_id === null) {
+            throw new ApiException('Your institution is not linked to a tertiary institution yet.', 422);
+        }
+
         $user = $this->userRepository->create([
+            'tertiary_institution_id' => $tenant?->tertiary_institution_id,
             'firstname' => $payload['first_name'],
             'lastname' => $payload['last_name'],
             'email' => $payload['email'],

@@ -109,5 +109,39 @@ class RolesAndPermissionsSeeder extends Seeder
                 $role->givePermissionTo($permission);
             }
         }
+
+        $this->grantInstitutionAdminPermissions($allPermissions);
+    }
+
+    /**
+     * Only modules whose data is already tenant-scoped are granted (fail closed): constituents,
+     * donations and campaign institution rows, plus managing the institution's own admin users.
+     * Everything else (events, mentorship, communications, CRM, reports, ...) stays off until scoped.
+     *
+     * @param  \Illuminate\Support\Collection<int, Permission>  $allPermissions
+     */
+    private function grantInstitutionAdminPermissions($allPermissions): void
+    {
+        $role = Role::query()
+            ->where('name', RoleEnum::INSTITUTION_ADMIN->value)
+            ->where('guard_name', self::GUARD)
+            ->firstOrFail();
+
+        $granted = [
+            PermissionEnum::CONSTITUENTS_CREATE->value,
+            PermissionEnum::CONSTITUENTS_READ->value,
+            PermissionEnum::CONSTITUENTS_UPDATE->value,
+            PermissionEnum::DONATIONS_READ->value,
+            PermissionEnum::CAMPAIGNS_READ->value,
+            PermissionEnum::ADMINS_CREATE->value,
+            PermissionEnum::ADMINS_READ->value,
+            PermissionEnum::ADMINS_UPDATE->value,
+        ];
+
+        foreach ($allPermissions as $permission) {
+            if (in_array($permission->name, $granted, true)) {
+                $role->givePermissionTo($permission);
+            }
+        }
     }
 }

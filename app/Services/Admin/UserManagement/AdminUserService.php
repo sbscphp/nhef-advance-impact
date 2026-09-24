@@ -3,6 +3,7 @@
 namespace App\Services\Admin\UserManagement;
 
 use App\Enums\AuditActionEnum;
+use App\Enums\eRole;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
@@ -11,6 +12,7 @@ use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Jobs\SendAdminInviteSetPasswordEmailJob;
 use App\Models\Admin;
 use App\Models\AuditLog;
+use App\Models\Institution;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -34,14 +36,19 @@ class AdminUserService
             ->where('uuid', $roleUuid)
             ->firstOrFail();
 
+        $this->assertRoleAssignable($role);
+
         $frontendUrl = isset($payload['frontend_url']) && is_string($payload['frontend_url'])
             ? $payload['frontend_url']
             : null;
 
-        $admin = DB::transaction(function () use ($payload, $role): Admin {
+        $institutionId = Institution::current()?->id;
+
+        $admin = DB::transaction(function () use ($payload, $role, $institutionId): Admin {
             $admin = Admin::query()->create([
                 'name' => (string) $payload['name'],
                 'email' => (string) $payload['email'],
+                'institution_id' => $institutionId,
                 // Random placeholder; admin sets real password via emailed invite link.
                 'password' => bin2hex(random_bytes(16)),
                 'is_active' => (bool) ($payload['is_active'] ?? true),
@@ -110,7 +117,7 @@ class AdminUserService
      */
     public function stats(array $validated): array
     {
-        $query = Admin::query();
+        $query = $this->visibleAdmins();
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         return array_merge(ListingFilterRules::periodMeta($validated), [
@@ -153,7 +160,7 @@ class AdminUserService
         $sortBy = (string) ($validated['sort_by'] ?? 'created_at');
         $sortDirection = strtolower((string) ($validated['sort_direction'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
 
-        $query = Admin::query()->with('roles:id,name');
+        $query = $this->visibleAdmins()->with('roles:id,name');
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         $search = trim((string) ($validated['search'] ?? ''));
@@ -190,7 +197,7 @@ class AdminUserService
      */
     public function dropdown(string $status = 'active'): Collection
     {
-        $query = Admin::query();
+        $query = $this->visibleAdmins();
 
         if ($status === 'active') {
             $query->where('is_active', true);
@@ -232,6 +239,7 @@ class AdminUserService
                 ->where('guard_name', 'api')
                 ->where('uuid', (string) $roleUuid)
                 ->firstOrFail();
+            $this->assertRoleAssignable($role);
             $admin->syncRoles([$role->name]);
             $newRoleName = $role->name;
         }
@@ -344,6 +352,30 @@ class AdminUserService
         );
 
         return ['audit_logs_count' => 0, 'uuid' => $adminUuid, 'email' => $adminEmail];
+    }
+
+    private function assertRoleAssignable(Role $role): void
+    {
+        $isInstitutionRole = in_array($role->name, eRole::institutionAssignable(), true);
+
+        if (Institution::checkCurrent() && ! $isInstitutionRole) {
+            throw new ApiException('This role cannot be assigned to an institution admin.', 403);
+        }
+
+        if (! Institution::checkCurrent() && $isInstitutionRole) {
+            throw new ApiException('The Institution Admin role is assigned through institution onboarding.', 422);
+        }
+    }
+
+    /**
+     * NHEF (no current tenant) manages its own staff here; an institution's admins are
+     * confined to that institution by the tenant scope.
+     *
+     * @return Builder<Admin>
+     */
+    private function visibleAdmins(): Builder
+    {
+        return Admin::query()->when(! Institution::checkCurrent(), fn (Builder $query) => $query->nhefStaff());
     }
 
     private function resolveAdmin(string $adminId): Admin
