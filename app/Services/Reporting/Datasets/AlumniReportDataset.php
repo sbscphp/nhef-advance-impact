@@ -2,11 +2,14 @@
 
 namespace App\Services\Reporting\Datasets;
 
+use App\Enums\ConstituentTypeEnum;
+use App\Enums\PaymentStatusEnum;
 use App\Models\User;
 use App\Services\Reporting\Datasets\Concerns\BuildsSimpleAggregateQuery;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class AlumniReportDataset implements ReportDatasetInterface
 {
@@ -28,6 +31,10 @@ class AlumniReportDataset implements ReportDatasetInterface
                 ['key' => 'email', 'label' => 'Email', 'type' => 'string'],
                 ['key' => 'phone_number', 'label' => 'Phone Number', 'type' => 'string'],
             ],
+            'Professional' => [
+                ['key' => 'occupation', 'label' => 'Occupation', 'type' => 'string'],
+                ['key' => 'employment_status', 'label' => 'Employment Status', 'type' => 'string'],
+            ],
             'Academic' => [
                 ['key' => 'department', 'label' => 'Department', 'type' => 'string'],
                 ['key' => 'matric_no', 'label' => 'Matric No', 'type' => 'string'],
@@ -37,6 +44,8 @@ class AlumniReportDataset implements ReportDatasetInterface
             ],
             'Status' => [
                 ['key' => 'status', 'label' => 'Status', 'type' => 'string'],
+                ['key' => 'alumni_type', 'label' => 'Alumni Type', 'type' => 'string'],
+                ['key' => 'donor_status', 'label' => 'Donor Status', 'type' => 'string'],
                 ['key' => 'last_active_at', 'label' => 'Last Active', 'type' => 'date'],
                 ['key' => 'joined_at', 'label' => 'Joined Date', 'type' => 'date'],
             ],
@@ -46,6 +55,15 @@ class AlumniReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return User::query()
+            ->select('users.*')
+            ->selectSub(
+                DB::table('donation_payments')
+                    ->selectRaw('1')
+                    ->whereColumn('donation_payments.user_id', 'users.id')
+                    ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+                    ->limit(1),
+                'has_donated',
+            )
             ->with('tertiaryInstitution')
             ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
@@ -73,6 +91,10 @@ class AlumniReportDataset implements ReportDatasetInterface
             'year_of_graduation' => $record->year_of_graduation,
             'degree_earned' => $record->degree_earned,
             'tertiary_institution' => $record->tertiaryInstitution?->name,
+            'occupation' => $record->position,
+            'employment_status' => $record->employment_status,
+            'alumni_type' => ConstituentTypeEnum::tryFrom((string) $record->constituent_type)?->label() ?? $record->constituent_type,
+            'donor_status' => $record->getAttribute('has_donated') ? 'Donor' : 'Non-donor',
             'status' => $record->status,
             'last_active_at' => $record->last_active_at?->toIso8601String(),
             'joined_at' => $record->created_at?->toIso8601String(),
@@ -98,6 +120,7 @@ class AlumniReportDataset implements ReportDatasetInterface
             ['key' => 'degree_earned', 'label' => 'Degree Earned', 'type' => 'string'],
             ['key' => 'department', 'label' => 'Department', 'type' => 'string'],
             ['key' => 'status', 'label' => 'Status', 'type' => 'string'],
+            ['key' => 'alumni_type', 'label' => 'Alumni Type', 'type' => 'string'],
         ];
     }
 
@@ -108,6 +131,7 @@ class AlumniReportDataset implements ReportDatasetInterface
             'degree_earned' => 'degree_earned',
             'department' => 'department',
             'status' => 'status',
+            'alumni_type' => 'constituent_type',
         ], $key);
     }
 

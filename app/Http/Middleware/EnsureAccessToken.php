@@ -13,7 +13,7 @@ class EnsureAccessToken
     /**
      * Reject Sanctum tokens that are refresh-only (not valid for API access).
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {

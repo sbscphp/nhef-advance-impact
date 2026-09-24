@@ -4,12 +4,14 @@ namespace App\Services\Reporting;
 
 use App\Enums\ReportDatasetEnum;
 use App\Exceptions\ApiException;
+use App\Models\Institution;
 use App\Services\Reporting\Datasets\AdminUserReportDataset;
 use App\Services\Reporting\Datasets\AlumniReportDataset;
 use App\Services\Reporting\Datasets\CampaignReportDataset;
 use App\Services\Reporting\Datasets\DonationReportDataset;
 use App\Services\Reporting\Datasets\EventReportDataset;
 use App\Services\Reporting\Datasets\EventWaitlistReportDataset;
+use App\Services\Reporting\Datasets\InstitutionReportDataset;
 use App\Services\Reporting\Datasets\MailReportDataset;
 use App\Services\Reporting\Datasets\MentorshipReportDataset;
 use App\Services\Reporting\Datasets\NetworkingReportDataset;
@@ -35,11 +37,18 @@ class ReportDatasetResolver
         private readonly NetworkingReportDataset $networkingDataset,
         private readonly AdminUserReportDataset $adminUserDataset,
         private readonly EventWaitlistReportDataset $eventWaitlistDataset,
+        private readonly InstitutionReportDataset $institutionDataset,
     ) {}
 
     public function make(string $dataset): ReportDatasetInterface
     {
-        return match (ReportDatasetEnum::tryFrom($dataset)) {
+        $enum = ReportDatasetEnum::tryFrom($dataset);
+
+        if ($enum?->landlordOnly() && Institution::checkCurrent()) {
+            throw new ApiException('You do not have access to this report dataset.', 403);
+        }
+
+        return match ($enum) {
             ReportDatasetEnum::ALUMNI => $this->alumniDataset,
             ReportDatasetEnum::DONATION => $this->donationDataset,
             ReportDatasetEnum::CAMPAIGN => $this->campaignDataset,
@@ -51,6 +60,7 @@ class ReportDatasetResolver
             ReportDatasetEnum::NETWORKING => $this->networkingDataset,
             ReportDatasetEnum::ADMIN_USER => $this->adminUserDataset,
             ReportDatasetEnum::EVENT_WAITLIST => $this->eventWaitlistDataset,
+            ReportDatasetEnum::INSTITUTION => $this->institutionDataset,
             null => throw new ApiException("Unsupported report dataset: {$dataset}", 422),
         };
     }

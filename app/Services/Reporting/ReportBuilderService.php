@@ -11,8 +11,10 @@ use App\Models\GeneratedReport;
 use App\Repositories\Contracts\CustomField\CustomFieldDefinitionRepositoryInterface;
 use App\Repositories\Contracts\CustomField\CustomFieldValueRepositoryInterface;
 use App\Repositories\Contracts\Reporting\GeneratedReportRepositoryInterface;
+use App\Services\Reporting\Datasets\PreparesReportRecords;
 use App\Services\Reporting\Datasets\ReportDatasetInterface;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -206,20 +208,24 @@ class ReportBuilderService
         }
 
         $customDefinitions = $customUuids === []
-            ? new Collection()
+            ? new Collection
             : CustomFieldDefinition::query()->whereIn('uuid', $customUuids)->get();
 
         return [$native, $customDefinitions];
     }
 
     /**
-     * @param  Collection<int, \Illuminate\Database\Eloquent\Model>  $records
+     * @param  Collection<int, Model>  $records
      * @param  list<string>  $nativeKeys
      * @param  Collection<int, CustomFieldDefinition>  $customDefinitions
      * @return Collection<int, array<string, mixed>>
      */
     private function mapRows(ReportDatasetInterface $dataset, Collection $records, array $nativeKeys, Collection $customDefinitions): Collection
     {
+        if ($dataset instanceof PreparesReportRecords) {
+            $dataset->prepareRecords($records);
+        }
+
         $valuesByRecordAndDefinition = [];
 
         if ($customDefinitions->isNotEmpty()) {

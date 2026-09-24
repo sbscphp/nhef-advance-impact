@@ -15,6 +15,7 @@ use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Http\Resources\Reporting\GeneratedReportResource;
 use App\Models\Admin;
 use App\Models\GeneratedReport;
+use App\Models\Institution;
 use App\Responser\JsonResponser;
 use App\Services\Reporting\ReportBuilderService;
 use Illuminate\Http\Request;
@@ -36,11 +37,16 @@ class ReportController extends Controller
     public function metadata()
     {
         try {
+            $visible = array_filter(
+                ReportDatasetEnum::cases(),
+                fn (ReportDatasetEnum $dataset): bool => ! ($dataset->landlordOnly() && Institution::checkCurrent()),
+            );
+
             $datasets = array_map(fn (ReportDatasetEnum $dataset): array => [
                 'value' => $dataset->value,
                 'label' => $dataset->label(),
                 'description' => $dataset->description(),
-            ], ReportDatasetEnum::cases());
+            ], array_values($visible));
 
             return JsonResponser::send(false, 'Report metadata retrieved.', [
                 'datasets' => $datasets,

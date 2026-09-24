@@ -19,7 +19,7 @@ class GeneratedReportResource extends JsonResource
             'uuid' => $this->uuid,
             'name' => $this->name,
             'dataset' => $this->dataset,
-            'dataset_label' => ReportDatasetEnum::from($this->dataset)->label(),
+            'dataset_label' => ReportDatasetEnum::tryFrom($this->dataset)?->label() ?? $this->dataset,
             'fields' => $this->fields,
             'period' => $this->period,
             'start_date' => $this->start_date?->toDateString(),

@@ -15,6 +15,7 @@ enum ReportDatasetEnum: string
     case NETWORKING = 'networking';
     case ADMIN_USER = 'admin_user';
     case EVENT_WAITLIST = 'event_waitlist';
+    case INSTITUTION = 'institution';
 
     public function label(): string
     {
@@ -30,6 +31,7 @@ enum ReportDatasetEnum: string
             self::NETWORKING => 'Networking',
             self::ADMIN_USER => 'Admin Users',
             self::EVENT_WAITLIST => 'Event Waitlist',
+            self::INSTITUTION => 'Institution',
         };
     }
 
@@ -47,6 +49,7 @@ enum ReportDatasetEnum: string
             self::NETWORKING => 'Alumni networking channels and their activity.',
             self::ADMIN_USER => 'Admin/staff accounts and their access.',
             self::EVENT_WAITLIST => 'Attendees waitlisted once an event reached capacity.',
+            self::INSTITUTION => 'Partner universities and their aggregated metrics.',
         };
     }
 
@@ -64,8 +67,14 @@ enum ReportDatasetEnum: string
             self::PROSPECT => ModuleEnums::crm->value,
             self::MAIL => ModuleEnums::communications->value,
             self::ADMIN_USER => ModuleEnums::user_management->value,
-            self::CAMPAIGN, self::MENTORSHIP, self::NETWORKING, self::EVENT_WAITLIST => null,
+            self::CAMPAIGN, self::MENTORSHIP, self::NETWORKING, self::EVENT_WAITLIST, self::INSTITUTION => null,
         };
+    }
+
+    /** Institution admins only ever see their own institution, so this dataset is NHEF-only. */
+    public function landlordOnly(): bool
+    {
+        return $this === self::INSTITUTION;
     }
 
     /** @return list<string> */
