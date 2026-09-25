@@ -15,6 +15,7 @@ enum AuditActionEnum: string
     case OTP_FAILED = 'OTP_FAILED';
     case PASSWORD_RESET_REQUESTED = 'PASSWORD_RESET_REQUESTED';
     case PASSWORD_RESET_COMPLETED = 'PASSWORD_RESET_COMPLETED';
+    case PASSWORD_CHANGED = 'PASSWORD_CHANGED';
     case PROFILE_UPDATED = 'PROFILE_UPDATED';
     case PAYMENT_METHOD_DELETED = 'PAYMENT_METHOD_DELETED';
     case PAYMENT_METHOD_DEFAULT_SET = 'PAYMENT_METHOD_DEFAULT_SET';
@@ -164,6 +165,7 @@ enum AuditActionEnum: string
         '_MODIFIED' => ['Updated', 'info'],
         '_STATUS_TOGGLED' => ['Updated', 'info'],
         '_STAGE_CHANGED' => ['Updated', 'info'],
+        '_CHANGED' => ['Changed', 'info'],
         '_DEFAULT_SET' => ['Updated', 'info'],
         '_PAUSED' => ['Paused', 'warning'],
         '_LOCKED' => ['Locked', 'warning'],

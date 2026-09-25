@@ -43,6 +43,7 @@ class Admin extends Authenticatable
             'is_active' => 'boolean',
             'can_login' => 'boolean',
             'must_reset_password' => 'boolean',
+            'onboarded_at' => 'datetime',
             'last_login_at' => 'datetime',
             'login_attempts' => 'integer',
             'is_locked' => 'boolean',

@@ -49,12 +49,14 @@ class AccountSettingsService
      */
     public function adminProfile(Admin $admin): array
     {
-        $admin->loadMissing(['roles', 'permissions']);
+        $admin->loadMissing(['roles', 'permissions', 'institution']);
 
         return [
             'uuid' => $admin->uuid,
+            'user_code' => $admin->code(),
             'name' => $admin->name,
             'job_title' => $admin->job_title,
+            'profile_picture_url' => $admin->profile_picture_url,
             'email' => $admin->email,
             '2fa' => (bool) $admin->{'2fa'},
             'is_active' => (bool) $admin->is_active,
@@ -62,10 +64,13 @@ class AccountSettingsService
             'must_reset_password' => (bool) $admin->must_reset_password,
             'email_notifications_enabled' => (bool) $admin->email_notifications_enabled,
             'push_notifications_enabled' => (bool) $admin->push_notifications_enabled,
+            'role' => $admin->roles->first()?->name,
             'roles' => $admin->roles->pluck('name')->values(),
             'permissions' => $admin->getAllPermissions()->pluck('name')->values(),
+            'institution' => $admin->institution === null ? null : ['uuid' => $admin->institution->uuid, 'name' => $admin->institution->name],
             'last_login_at' => $admin->last_login_at,
             'last_active_at' => $admin->last_active_at,
+            'onboarded_at' => $admin->onboarded_at,
             'created_at' => $admin->created_at,
             'updated_at' => $admin->updated_at,
         ];
@@ -89,6 +94,7 @@ class AccountSettingsService
 
         if ($authenticatable instanceof Admin) {
             $updates['must_reset_password'] = false;
+            $updates['onboarded_at'] = $authenticatable->onboarded_at ?? now();
         }
 
         $authenticatable->forceFill($updates)->save();
@@ -99,7 +105,7 @@ class AccountSettingsService
     /**
      * @return array<string, mixed>
      */
-    public function updateAdminProfile(Admin $admin, string $name, ?string $jobTitle = null, bool $updateJobTitle = false): array
+    public function updateAdminProfile(Admin $admin, string $name, ?string $jobTitle = null, bool $updateJobTitle = false, mixed $profilePicture = null, bool $updatePicture = false): array
     {
         $previousName = (string) $admin->name;
         $newName = trim($name);
@@ -107,6 +113,12 @@ class AccountSettingsService
         $updates = ['name' => $newName];
         if ($updateJobTitle) {
             $updates['job_title'] = $jobTitle !== null && trim($jobTitle) !== '' ? trim($jobTitle) : null;
+        }
+
+        if ($updatePicture) {
+            $updates['profile_picture_url'] = $profilePicture === null || $profilePicture === ''
+                ? null
+                : FileUploadHelper::smartSingleFileUpload($profilePicture, 'avatars');
         }
 
         $admin->forceFill($updates)->save();

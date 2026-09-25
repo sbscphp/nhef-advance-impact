@@ -40,7 +40,9 @@ class AuthResource extends JsonResource
         $payload = [
             'uuid' => $admin->uuid,
             'name' => $admin->name,
+            'user_code' => $admin->code(),
             'job_title' => $admin->job_title,
+            'profile_picture_url' => $admin->profile_picture_url,
             'email' => $admin->email,
             'email_verified_at' => $admin->email_verified_at,
             'email_notifications_enabled' => (bool) $admin->email_notifications_enabled,

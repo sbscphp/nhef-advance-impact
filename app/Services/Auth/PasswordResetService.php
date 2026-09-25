@@ -260,6 +260,7 @@ class PasswordResetService
         ];
         if ($subject instanceof Admin) {
             $updates['must_reset_password'] = false;
+            $updates['onboarded_at'] = $subject->onboarded_at ?? now();
         }
         // A User setting their password while still `invite_sent` is completing onboarding via
         // an admin-issued invite (see AdminConstituentService::invite()), not an ordinary

@@ -43,6 +43,8 @@ class SettingsController extends Controller
                 $newName,
                 $request->validated('job_title'),
                 array_key_exists('job_title', $request->validated()),
+                $request->validated('profile_picture'),
+                array_key_exists('profile_picture', $request->validated()),
             );
 
             if ($previousName !== $newName) {
@@ -91,7 +93,23 @@ class SettingsController extends Controller
                 (string) $request->input('password')
             );
 
-            return JsonResponser::send(false, 'Password changed successfully.', null, 200);
+            GeneralHelper::storeAuditLog(
+                UserTypeEnum::ADMIN,
+                AuditActionEnum::PASSWORD_CHANGED,
+                $request,
+                $admin->uuid,
+                [],
+                $admin->displayName().' changed their password.',
+                Admin::class,
+                $admin->uuid,
+                ModuleEnums::settings,
+                200,
+            );
+
+            // The client sends the admin back to login once the password is changed.
+            $admin->tokens()->delete();
+
+            return JsonResponser::send(false, 'Password changed successfully. Please log in again.', null, 200);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Settings\SettingsController@changePassword');
         }
