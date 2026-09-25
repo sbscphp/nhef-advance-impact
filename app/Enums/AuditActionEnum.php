@@ -254,6 +254,24 @@ enum AuditActionEnum: string
     }
 
     /**
+     * Actions on individual donors, alumni, attendees or their records, whose descriptions name them.
+     *
+     * @return list<string>
+     */
+    public static function individualLevelValues(): array
+    {
+        $prefixes = [
+            'CONSTITUENT_', 'PLEDGE_', 'DONATION_', 'PAYMENT_', 'EVENT_REGISTRATION_', 'EVENT_WAITLISTED',
+            'MENTOR', 'MENTEE_', 'PROSPECT_', 'COMMUNICATION_', 'NETWORKING_CHANNEL_MEMBER_',
+        ];
+
+        return array_values(array_filter(
+            self::values(),
+            fn (string $action): bool => array_filter($prefixes, fn (string $prefix): bool => str_starts_with($action, $prefix)) !== [],
+        ));
+    }
+
+    /**
      * @return list<string>
      */
     public static function values(): array

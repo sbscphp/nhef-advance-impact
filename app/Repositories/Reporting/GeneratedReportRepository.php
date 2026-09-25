@@ -41,6 +41,10 @@ class GeneratedReportRepository implements GeneratedReportRepositoryInterface
                 fn ($query) => $query->where('name', 'like', '%'.$filters['search'].'%')
             )
             ->when(
+                filled($filters['exclude_datasets'] ?? null),
+                fn ($query) => $query->whereNotIn('dataset', $filters['exclude_datasets'])
+            )
+            ->when(
                 filled($filters['filters']['dataset'] ?? null),
                 fn ($query) => $query->where('dataset', $filters['filters']['dataset'])
             );

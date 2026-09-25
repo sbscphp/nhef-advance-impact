@@ -2,9 +2,12 @@
 
 namespace App\Services\Audit;
 
+use App\Enums\AuditActionEnum;
+use App\Enums\UserTypeEnum;
 use App\Models\AuditLog;
 use App\Models\Institution;
 use App\Support\ListingQuery;
+use App\Support\ViewerVisibility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -117,6 +120,11 @@ class AuditTrailQueryService
     private function applyFilters(Builder $query, ListingQuery $listing): void
     {
         $filters = $listing->filters;
+
+        if (! ViewerVisibility::canSeeIndividualRecords()) {
+            $query->where('audit_logs.user_type', UserTypeEnum::ADMIN->value)
+                ->whereNotIn('audit_logs.action', AuditActionEnum::individualLevelValues());
+        }
 
         $userType = $filters['user_type'] ?? null;
         if (is_string($userType) && $userType !== '') {

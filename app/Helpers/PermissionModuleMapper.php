@@ -7,6 +7,15 @@ use App\Enums\ModuleEnums;
 
 final class PermissionModuleMapper
 {
+    /** Module labels that have no ModuleEnums case. */
+    private const EXTRA_MODULE_LABELS = ['visibility' => 'Data visibility'];
+
+    /** @var array<string, string> */
+    private const VISIBILITY_TOGGLE_LABELS = [
+        'visibility.monetary' => 'See institution-level amounts (totals, targets, progress)',
+        'visibility.individual_records' => 'See individual donor and alumni records',
+    ];
+
     /**
      * @return list<string>
      */
@@ -28,6 +37,7 @@ final class PermissionModuleMapper
             'custom_field',
             'audit_trail',
             'system_configuration',
+            'visibility',
         ];
     }
 
@@ -51,6 +61,7 @@ final class PermissionModuleMapper
             'custom_fields' => 'custom_field',
             'audit_trail' => 'audit_trail',
             'system_configuration' => 'system_configuration',
+            'visibility' => 'visibility',
             default => 'other',
         };
     }
@@ -81,7 +92,7 @@ final class PermissionModuleMapper
                 'key' => $key,
                 'label' => $key === 'other'
                     ? 'Other'
-                    : (ModuleEnums::tryFrom($key)?->label() ?? $key),
+                    : (ModuleEnums::tryFrom($key)?->label() ?? self::EXTRA_MODULE_LABELS[$key] ?? $key),
                 'permissions' => $buckets[$key],
             ];
             unset($buckets[$key]);
@@ -93,7 +104,7 @@ final class PermissionModuleMapper
             }
             $out[] = [
                 'key' => $key,
-                'label' => ModuleEnums::tryFrom($key)?->label() ?? $key,
+                'label' => ModuleEnums::tryFrom($key)?->label() ?? self::EXTRA_MODULE_LABELS[$key] ?? $key,
                 'permissions' => $perms,
             ];
         }
@@ -151,6 +162,8 @@ final class PermissionModuleMapper
             'custom_field' => 'Custom Field',
         ];
 
+        $crudModules = array_filter(self::groupedApiPermissions(), fn (array $module): bool => $module['key'] !== 'visibility');
+
         return array_map(function (array $module) use ($granted, $labels): array {
             $actions = [];
             foreach (['create', 'read', 'update', 'delete'] as $action) {
@@ -170,6 +183,21 @@ final class PermissionModuleMapper
                 'label' => $labels[$module['key']] ?? $module['label'],
                 'actions' => $actions,
             ];
-        }, self::groupedApiPermissions());
+        }, array_values($crudModules));
+    }
+
+    /**
+     * On/off switches that sit beside the CRUD grid in the role form.
+     *
+     * @param  list<string>  $grantedNames
+     * @return list<array{name: string, label: string, granted: bool}>
+     */
+    public static function visibilityToggles(array $grantedNames = []): array
+    {
+        return array_map(fn (string $name, string $label): array => [
+            'name' => $name,
+            'label' => $label,
+            'granted' => in_array($name, $grantedNames, true),
+        ], array_keys(self::VISIBILITY_TOGGLE_LABELS), self::VISIBILITY_TOGGLE_LABELS);
     }
 }

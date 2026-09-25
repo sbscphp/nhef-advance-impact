@@ -4,7 +4,6 @@ namespace App\Services\Reporting;
 
 use App\Enums\ReportDatasetEnum;
 use App\Exceptions\ApiException;
-use App\Models\Institution;
 use App\Services\Reporting\Datasets\AdminUserReportDataset;
 use App\Services\Reporting\Datasets\AlumniReportDataset;
 use App\Services\Reporting\Datasets\CampaignReportDataset;
@@ -44,7 +43,7 @@ class ReportDatasetResolver
     {
         $enum = ReportDatasetEnum::tryFrom($dataset);
 
-        if ($enum?->landlordOnly() && Institution::checkCurrent()) {
+        if ($enum !== null && ! $enum->availableToViewer()) {
             throw new ApiException('You do not have access to this report dataset.', 403);
         }
 

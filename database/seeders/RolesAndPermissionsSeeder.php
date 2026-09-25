@@ -77,87 +77,80 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     private function grantDefaultRolePermissions(): void
     {
-        $allPermissions = Permission::query()
-            ->where('guard_name', self::GUARD)
-            ->whereIn('name', PermissionEnum::values())
-            ->get();
+        $everything = PermissionEnum::cases();
 
-        $superAdmin = Role::query()
-            ->where('name', RoleEnum::SUPER_ADMIN->value)
-            ->where('guard_name', self::GUARD)
-            ->firstOrFail();
+        // NHEF-level accounts see institution aggregates, never individual donor/alumni records.
+        $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS]));
 
-        foreach ($allPermissions as $permission) {
-            $superAdmin->givePermissionTo($permission);
-        }
+        $this->grant(RoleEnum::ADMIN, $this->except($everything, [
+            PermissionEnum::ROLES_DELETE,
+            PermissionEnum::ADMINS_DELETE,
+        ]));
 
-        $adminDenied = [
-            PermissionEnum::ROLES_DELETE->value,
-            PermissionEnum::ADMINS_DELETE->value,
-        ];
+        // Fail closed: only tenant-scoped modules, never delete. Left off: dashboard (national snapshot),
+        // custom fields, system configuration, roles.
+        $this->grant(RoleEnum::INSTITUTION_ADMIN, [
+            PermissionEnum::CONSTITUENTS_CREATE,
+            PermissionEnum::CONSTITUENTS_READ,
+            PermissionEnum::CONSTITUENTS_UPDATE,
+            PermissionEnum::DONATIONS_READ,
+            PermissionEnum::CAMPAIGNS_READ,
+            PermissionEnum::ADMINS_CREATE,
+            PermissionEnum::ADMINS_READ,
+            PermissionEnum::ADMINS_UPDATE,
+            PermissionEnum::EVENTS_CREATE,
+            PermissionEnum::EVENTS_READ,
+            PermissionEnum::EVENTS_UPDATE,
+            PermissionEnum::COMMUNICATIONS_CREATE,
+            PermissionEnum::COMMUNICATIONS_READ,
+            PermissionEnum::COMMUNICATIONS_UPDATE,
+            PermissionEnum::MENTORSHIP_READ,
+            PermissionEnum::MENTORSHIP_UPDATE,
+            PermissionEnum::NETWORKING_CREATE,
+            PermissionEnum::NETWORKING_READ,
+            PermissionEnum::NETWORKING_UPDATE,
+            PermissionEnum::CRM_CREATE,
+            PermissionEnum::CRM_READ,
+            PermissionEnum::CRM_UPDATE,
+            PermissionEnum::REPORTS_CREATE,
+            PermissionEnum::REPORTS_READ,
+            PermissionEnum::AUDIT_TRAIL_READ,
+            PermissionEnum::VISIBILITY_MONETARY,
+            PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
+        ]);
 
-        foreach ([RoleEnum::ADMIN] as $roleEnum) {
-            $role = Role::query()
-                ->where('name', $roleEnum->value)
-                ->where('guard_name', self::GUARD)
-                ->firstOrFail();
-
-            foreach ($allPermissions as $permission) {
-                if (in_array($permission->name, $adminDenied, true)) {
-                    continue;
-                }
-                $role->givePermissionTo($permission);
-            }
-        }
-
-        $this->grantInstitutionAdminPermissions($allPermissions);
+        // Read-only evaluator: institution-level summaries, no money, no individual records, no audit trail.
+        // Reports.create is only the export/download action.
+        $this->grant(RoleEnum::MINISTRY_OF_EDUCATION, [
+            PermissionEnum::DASHBOARD_READ,
+            PermissionEnum::CONSTITUENTS_READ,
+            PermissionEnum::CAMPAIGNS_READ,
+            PermissionEnum::EVENTS_READ,
+            PermissionEnum::REPORTS_READ,
+            PermissionEnum::REPORTS_CREATE,
+        ]);
     }
 
     /**
-     * Only modules whose data is tenant-scoped are granted (fail closed), and never delete.
-     * Left off: dashboard (national snapshot), custom fields, system configuration, roles.
-     *
-     * @param  \Illuminate\Support\Collection<int, Permission>  $allPermissions
+     * @param  list<PermissionEnum>  $permissions
      */
-    private function grantInstitutionAdminPermissions($allPermissions): void
+    private function grant(RoleEnum $roleEnum, array $permissions): void
     {
         $role = Role::query()
-            ->where('name', RoleEnum::INSTITUTION_ADMIN->value)
+            ->where('name', $roleEnum->value)
             ->where('guard_name', self::GUARD)
             ->firstOrFail();
 
-        $granted = [
-            PermissionEnum::CONSTITUENTS_CREATE->value,
-            PermissionEnum::CONSTITUENTS_READ->value,
-            PermissionEnum::CONSTITUENTS_UPDATE->value,
-            PermissionEnum::DONATIONS_READ->value,
-            PermissionEnum::CAMPAIGNS_READ->value,
-            PermissionEnum::ADMINS_CREATE->value,
-            PermissionEnum::ADMINS_READ->value,
-            PermissionEnum::ADMINS_UPDATE->value,
-            PermissionEnum::EVENTS_CREATE->value,
-            PermissionEnum::EVENTS_READ->value,
-            PermissionEnum::EVENTS_UPDATE->value,
-            PermissionEnum::COMMUNICATIONS_CREATE->value,
-            PermissionEnum::COMMUNICATIONS_READ->value,
-            PermissionEnum::COMMUNICATIONS_UPDATE->value,
-            PermissionEnum::MENTORSHIP_READ->value,
-            PermissionEnum::MENTORSHIP_UPDATE->value,
-            PermissionEnum::NETWORKING_CREATE->value,
-            PermissionEnum::NETWORKING_READ->value,
-            PermissionEnum::NETWORKING_UPDATE->value,
-            PermissionEnum::CRM_CREATE->value,
-            PermissionEnum::CRM_READ->value,
-            PermissionEnum::CRM_UPDATE->value,
-            PermissionEnum::REPORTS_CREATE->value,
-            PermissionEnum::REPORTS_READ->value,
-            PermissionEnum::AUDIT_TRAIL_READ->value,
-        ];
+        $role->givePermissionTo(array_map(fn (PermissionEnum $permission): string => $permission->value, $permissions));
+    }
 
-        foreach ($allPermissions as $permission) {
-            if (in_array($permission->name, $granted, true)) {
-                $role->givePermissionTo($permission);
-            }
-        }
+    /**
+     * @param  list<PermissionEnum>  $permissions
+     * @param  list<PermissionEnum>  $excluded
+     * @return list<PermissionEnum>
+     */
+    private function except(array $permissions, array $excluded): array
+    {
+        return array_values(array_filter($permissions, fn (PermissionEnum $permission): bool => ! in_array($permission, $excluded, true)));
     }
 }

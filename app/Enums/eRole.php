@@ -8,6 +8,7 @@ enum eRole: string
     case CUSTOMER = 'Customer';
     case SUPER_ADMIN = 'Super Admin';
     case INSTITUTION_ADMIN = 'Institution Admin';
+    case MINISTRY_OF_EDUCATION = 'Ministry of Education';
 
     /**
      * Role names synced by the roles/permissions database seeder.
@@ -27,6 +28,16 @@ enum eRole: string
     public static function institutionAssignable(): array
     {
         return [self::INSTITUTION_ADMIN->value];
+    }
+
+    /**
+     * Roles only a Super Admin may hand out: they carry NHEF-wide reach.
+     *
+     * @return list<string>
+     */
+    public static function superAdminAssignable(): array
+    {
+        return [self::SUPER_ADMIN->value, self::MINISTRY_OF_EDUCATION->value];
     }
 
     public static function values(): array

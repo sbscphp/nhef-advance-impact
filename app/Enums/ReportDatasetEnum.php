@@ -2,6 +2,9 @@
 
 namespace App\Enums;
 
+use App\Models\Institution;
+use App\Support\ViewerVisibility;
+
 enum ReportDatasetEnum: string
 {
     case ALUMNI = 'alumni';
@@ -72,9 +75,45 @@ enum ReportDatasetEnum: string
     }
 
     /** Institution admins only ever see their own institution, so this dataset is NHEF-only. */
-    public function landlordOnly(): bool
+    private function landlordOnly(): bool
     {
         return $this === self::INSTITUTION;
+    }
+
+    /** Rows are individual people (alumni, donors, attendees, mentors), so viewers limited to summaries cannot use them. */
+    private function individualLevel(): bool
+    {
+        return in_array($this, [
+            self::ALUMNI,
+            self::DONATION,
+            self::PLEDGE,
+            self::EVENT,
+            self::EVENT_WAITLIST,
+            self::PROSPECT,
+            self::MENTORSHIP,
+        ], true);
+    }
+
+    public function availableToViewer(): bool
+    {
+        if ($this->landlordOnly() && Institution::checkCurrent()) {
+            return false;
+        }
+
+        return ! $this->individualLevel() || ViewerVisibility::canSeeIndividualRecords();
+    }
+
+    /**
+     * Dataset keys the current viewer cannot use, for filtering saved-report history.
+     *
+     * @return list<string>
+     */
+    public static function hiddenFromViewer(): array
+    {
+        return array_values(array_map(
+            fn (self $dataset): string => $dataset->value,
+            array_filter(self::cases(), fn (self $dataset): bool => ! $dataset->availableToViewer()),
+        ));
     }
 
     /** @return list<string> */

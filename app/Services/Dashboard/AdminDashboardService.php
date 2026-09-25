@@ -9,6 +9,7 @@ use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Mentorship\MentorProfileRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Support\Money;
+use App\Support\ViewerVisibility;
 
 class AdminDashboardService
 {
@@ -37,8 +38,10 @@ class AdminDashboardService
                 'total_events' => $this->eventRepository->countByStatusBuckets(null, null)['all'],
                 'active_campaigns' => $this->campaignRepository->countActive(),
                 'total_mentors' => $totalMentors,
-                'total_raised' => $totalRaised,
-                'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
+                ...ViewerVisibility::money([
+                    'total_raised' => $totalRaised,
+                    'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
+                ]),
             ],
             'donation_intelligence' => $this->donationIntelligence($totalRaised),
             'alumni_intelligence' => [
@@ -63,13 +66,17 @@ class AdminDashboardService
         $averageDonation = $totalPayments > 0 ? bcdiv($totalRaised, (string) $totalPayments, 2) : '0.00';
 
         return [
-            'total_raised' => $totalRaised,
-            'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
-            'raised_this_month' => $raisedThisMonth,
-            'raised_this_month_formatted' => Money::format($raisedThisMonth, 'NGN'),
+            ...ViewerVisibility::money([
+                'total_raised' => $totalRaised,
+                'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
+                'raised_this_month' => $raisedThisMonth,
+                'raised_this_month_formatted' => Money::format($raisedThisMonth, 'NGN'),
+            ]),
             'total_donors' => $totalDonors,
-            'average_donation' => $averageDonation,
-            'average_donation_formatted' => Money::format($averageDonation, 'NGN'),
+            ...ViewerVisibility::money([
+                'average_donation' => $averageDonation,
+                'average_donation_formatted' => Money::format($averageDonation, 'NGN'),
+            ]),
         ];
     }
 }

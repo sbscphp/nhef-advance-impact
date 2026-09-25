@@ -4,14 +4,14 @@ namespace App\Http\Resources\Fundraising;
 
 use App\Models\Campaign;
 use App\Support\Money;
-use App\Http\Resources\Concerns\PresentsCampaignSchedule;
+use App\Http\Resources\Concerns\PresentsCampaign;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /** @mixin Campaign */
 class CampaignResource extends JsonResource
 {
-    use PresentsCampaignSchedule;
+    use PresentsCampaign;
 
     /**
      * @return array<string, mixed>

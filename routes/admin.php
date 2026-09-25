@@ -168,11 +168,11 @@ Route::prefix('v1/admin')->group(function () {
             Route::delete('/{uuid}/institutions/{institutionUuid}', [AdminCampaignController::class, 'removeInstitution'])
                 ->middleware(['permission:campaigns.delete']);
             Route::get('/{uuid}/donations', [AdminCampaignController::class, 'donations'])
-                ->middleware(['permission:campaigns.read']);
+                ->middleware(['permission:campaigns.read', 'individual.records']);
             Route::get('/{uuid}/donations/overview', [AdminCampaignController::class, 'donationsOverview'])
                 ->middleware(['permission:campaigns.read']);
             Route::get('/{uuid}/pledges', [AdminCampaignController::class, 'pledges'])
-                ->middleware(['permission:campaigns.read']);
+                ->middleware(['permission:campaigns.read', 'individual.records']);
             Route::get('/{uuid}/donor-breakdown', [AdminCampaignController::class, 'donorBreakdown'])
                 ->middleware(['permission:campaigns.read']);
         });
@@ -203,16 +203,16 @@ Route::prefix('v1/admin')->group(function () {
             Route::get('/{uuid}/analytics', [AdminEventController::class, 'analytics'])
                 ->middleware(['permission:events.read']);
             Route::get('/{uuid}/ticket-sales', [AdminEventController::class, 'ticketSales'])
-                ->middleware(['permission:events.read']);
+                ->middleware(['permission:events.read', 'individual.records']);
             Route::get('/{uuid}/ticket-sales/{saleUuid}', [AdminEventController::class, 'ticketSale'])
-                ->middleware(['permission:events.read']);
+                ->middleware(['permission:events.read', 'individual.records']);
             Route::get('/{uuid}/waitlist', [AdminEventController::class, 'waitlist'])
-                ->middleware(['permission:events.read']);
+                ->middleware(['permission:events.read', 'individual.records']);
             Route::get('/{uuid}/waitlist/{entryUuid}', [AdminEventController::class, 'waitlistEntry'])
-                ->middleware(['permission:events.read']);
+                ->middleware(['permission:events.read', 'individual.records']);
         });
 
-        Route::prefix('constituents/individuals')->group(function () {
+        Route::prefix('constituents/individuals')->middleware('individual.records')->group(function () {
             Route::post('/', [ConstituentController::class, 'store'])
                 ->middleware(['permission:constituents.create']);
             Route::get('/', [ConstituentController::class, 'index'])
@@ -259,11 +259,11 @@ Route::prefix('v1/admin')->group(function () {
             Route::get('/overview', [AdminDonationController::class, 'overview'])
                 ->middleware(['permission:donations.read']);
             Route::get('/leaderboard', [AdminDonationController::class, 'leaderboard'])
-                ->middleware(['permission:donations.read']);
+                ->middleware(['permission:donations.read', 'individual.records']);
             Route::get('/', [AdminDonationController::class, 'index'])
-                ->middleware(['permission:donations.read']);
+                ->middleware(['permission:donations.read', 'individual.records']);
             Route::get('/{uuid}', [AdminDonationController::class, 'show'])
-                ->middleware(['permission:donations.read']);
+                ->middleware(['permission:donations.read', 'individual.records']);
         });
 
         Route::prefix('donation-tiers')->group(function () {
@@ -280,7 +280,7 @@ Route::prefix('v1/admin')->group(function () {
             Route::delete('/{uuid}', [DonorTierController::class, 'destroy'])
                 ->middleware(['permission:system_configuration.delete']);
             Route::get('/{uuid}/alumni', [DonorTierController::class, 'alumni'])
-                ->middleware(['permission:system_configuration.read']);
+                ->middleware(['permission:system_configuration.read', 'individual.records']);
         });
 
         Route::prefix('custom-fields')->group(function () {
@@ -311,7 +311,7 @@ Route::prefix('v1/admin')->group(function () {
             Route::get('/institution-ranking', [AdminDashboardController::class, 'institutionRanking'])
                 ->middleware(['permission:dashboard.read']);
             Route::get('/live-activity', [AdminDashboardController::class, 'liveActivity'])
-                ->middleware(['permission:dashboard.read']);
+                ->middleware(['permission:dashboard.read', 'permission:audit_trail.read']);
         });
 
         Route::prefix('reports')->group(function () {
@@ -437,7 +437,7 @@ Route::prefix('v1/admin')->group(function () {
             Route::get('/mails/dashboard', [MailController::class, 'dashboard'])
                 ->middleware(['permission:communications.read']);
             Route::get('/mails/unsubscribers', [MailController::class, 'unsubscribers'])
-                ->middleware(['permission:communications.read']);
+                ->middleware(['permission:communications.read', 'individual.records']);
 
             Route::get('/mails', [MailController::class, 'index'])
                 ->middleware(['permission:communications.read']);
@@ -454,12 +454,12 @@ Route::prefix('v1/admin')->group(function () {
             Route::post('/mails/{uuid}/resend', [MailController::class, 'resend'])
                 ->middleware(['permission:communications.update']);
             Route::get('/mails/{uuid}/recipients', [MailController::class, 'recipients'])
-                ->middleware(['permission:communications.read']);
+                ->middleware(['permission:communications.read', 'individual.records']);
             Route::get('/mails/{uuid}/analytics', [MailController::class, 'analytics'])
                 ->middleware(['permission:communications.read']);
 
             Route::get('/constituents', [ConstituentPickerController::class, 'index'])
-                ->middleware(['permission:communications.read']);
+                ->middleware(['permission:communications.read', 'individual.records']);
             Route::get('/assignable-admins', [CommunicationTaskController::class, 'assignableAdmins'])
                 ->middleware(['permission:communications.read']);
 
@@ -522,7 +522,7 @@ Route::prefix('v1/admin')->group(function () {
             Route::post('/{uuid}/resend-invite', [ConstituentInstitutionController::class, 'resendInvite'])
                 ->middleware(['permission:constituents.update']);
             Route::get('/{uuid}/alumni', [ConstituentInstitutionController::class, 'alumni'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:constituents.read', 'individual.records']);
             Route::get('/{uuid}/campaigns', [ConstituentInstitutionController::class, 'campaigns'])
                 ->middleware(['permission:constituents.read']);
         });

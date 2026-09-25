@@ -164,7 +164,8 @@ class RoleService
      * @return array{
      *     permissions: list<string>,
      *     permissions_by_module: list<array{key: string, label: string, permissions: list<array{name: string}>}>,
-     *     permission_matrix: list<array<string, mixed>>
+     *     permission_matrix: list<array<string, mixed>>,
+     *     visibility_toggles: list<array{name: string, label: string, granted: bool}>
      * }
      */
     public function listAllPermissions(): array
@@ -182,6 +183,7 @@ class RoleService
             'permissions' => $permissions,
             'permissions_by_module' => $permissionsByModule,
             'permission_matrix' => PermissionModuleMapper::matrix(),
+            'visibility_toggles' => PermissionModuleMapper::visibilityToggles(),
         ];
     }
 
@@ -253,7 +255,7 @@ class RoleService
         }
 
         if (is_array($permissions) && $role->name === eRole::SUPER_ADMIN->value) {
-            throw new ApiException('The Super Admin role always keeps every permission and cannot be edited.', 422);
+            throw new ApiException('The Super Admin permissions are fixed and cannot be edited.', 422);
         }
 
         $deactivating = array_key_exists('is_active', $payload) && (bool) $role->is_active && ! (bool) $payload['is_active'];
@@ -408,8 +410,8 @@ class RoleService
             throw new ApiException('This role cannot be used as a reassignment target.', 422);
         }
 
-        if ($target->name === eRole::SUPER_ADMIN->value && ! $actor->hasRole(eRole::SUPER_ADMIN->value)) {
-            throw new ApiException('Only a Super Admin can assign the Super Admin role.', 403);
+        if (in_array($target->name, eRole::superAdminAssignable(), true) && ! $actor->hasRole(eRole::SUPER_ADMIN->value)) {
+            throw new ApiException('Only a Super Admin can assign the '.$target->name.' role.', 403);
         }
 
         foreach ($admins as $admin) {

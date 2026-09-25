@@ -32,6 +32,7 @@ class RoleResource extends JsonResource
             'permissions' => $permissionNames,
             'permissions_by_module' => PermissionModuleMapper::groupedApiPermissionsForNames($permissionNames),
             'permission_matrix' => PermissionModuleMapper::matrix($permissionNames),
+            'visibility_toggles' => PermissionModuleMapper::visibilityToggles($permissionNames),
             'updated_at' => $this->updated_at,
         ];
     }

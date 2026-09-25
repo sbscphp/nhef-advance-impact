@@ -64,13 +64,13 @@ class Institution extends Tenant
     }
 
     /**
-     * Headline numbers for the institution list and detail, present only when the service attached them.
+     * Headline counts for the institution list and detail, present only when the service attached them.
      *
-     * @return array<string, mixed>
+     * @return array<string, int>
      */
     public function statsPayload(): array
     {
-        if (! array_key_exists('alumni_count', $this->attributes)) {
+        if (! $this->hasAttachedStats()) {
             return [];
         }
 
@@ -80,11 +80,31 @@ class Institution extends Tenant
             'organisation_count' => (int) $this->attributes['organisation_count'],
             'campaigns_count' => (int) $this->attributes['campaigns_count'],
             'donors_count' => (int) $this->attributes['donors_count'],
+        ];
+    }
+
+    /**
+     * The money side of the same numbers, kept apart so it can be hidden from viewers without monetary access.
+     *
+     * @return array<string, string>
+     */
+    public function moneyStatsPayload(): array
+    {
+        if (! $this->hasAttachedStats()) {
+            return [];
+        }
+
+        return [
             'total_donations' => (string) $this->attributes['total_donations'],
             'total_donations_formatted' => Money::format($this->attributes['total_donations'], 'NGN'),
             'total_pledges' => (string) $this->attributes['total_pledges'],
             'total_pledges_formatted' => Money::format($this->attributes['total_pledges'], 'NGN'),
         ];
+    }
+
+    private function hasAttachedStats(): bool
+    {
+        return array_key_exists('alumni_count', $this->attributes);
     }
 
     public function logoUrl(): ?string

@@ -12,6 +12,7 @@ use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Support\PasswordRules;
+use App\Support\ViewerVisibility;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 
@@ -67,6 +68,7 @@ class AccountSettingsService
             'role' => $admin->roles->first()?->name,
             'roles' => $admin->roles->pluck('name')->values(),
             'permissions' => $admin->getAllPermissions()->pluck('name')->values(),
+            'visibility' => ViewerVisibility::flagsFor($admin),
             'institution' => $admin->institution === null ? null : ['uuid' => $admin->institution->uuid, 'name' => $admin->institution->name],
             'last_login_at' => $admin->last_login_at,
             'last_active_at' => $admin->last_active_at,

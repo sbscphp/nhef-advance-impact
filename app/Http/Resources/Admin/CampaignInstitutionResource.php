@@ -4,6 +4,7 @@ namespace App\Http\Resources\Admin;
 
 use App\Models\CampaignInstitution;
 use App\Support\Money;
+use App\Support\ViewerVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,21 +28,23 @@ class CampaignInstitutionResource extends JsonResource
                 'uuid' => $this->institution->uuid,
                 'name' => $this->institution->name,
             ]),
-            'goal_amount' => (string) $this->goal_amount,
-            'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
             'currency' => $this->currency,
-            'raised_amount' => $raisedAmount,
-            'raised_amount_formatted' => Money::format($raisedAmount, $this->currency),
-            'progress_percentage' => $this->progressPercentage($raisedAmount),
+            ...ViewerVisibility::money([
+                'goal_amount' => (string) $this->goal_amount,
+                'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
+                'raised_amount' => $raisedAmount,
+                'raised_amount_formatted' => Money::format($raisedAmount, $this->currency),
+                'progress_percentage' => $this->progressPercentage($raisedAmount),
+                'pledges_total' => (string) ($this->pledges_total ?? '0'),
+                'pledges_total_formatted' => Money::format($this->pledges_total ?? '0', $this->currency),
+            ]),
             'pledges_count' => (int) ($this->pledges_count ?? 0),
-            'pledges_total' => (string) ($this->pledges_total ?? '0'),
-            'pledges_total_formatted' => Money::format($this->pledges_total ?? '0', $this->currency),
-            'bank_account' => $this->whenLoaded('bankAccount', fn () => $this->bankAccount === null ? null : [
+            ...ViewerVisibility::money(['bank_account' => $this->whenLoaded('bankAccount', fn () => $this->bankAccount === null ? null : [
                 'bank_account_id' => $this->bankAccount->uuid,
                 'account_number' => $this->bankAccount->account_number,
                 'account_name' => $this->bankAccount->account_name,
                 'bank_name' => $this->bankAccount->relationLoaded('bank') ? $this->bankAccount->bank->name : null,
-            ]),
+            ])]),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

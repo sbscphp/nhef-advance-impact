@@ -12,6 +12,7 @@ use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Support\Money;
+use App\Support\ViewerVisibility;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -66,10 +67,12 @@ class NationalDashboardService
                 'campaign_name' => $row->campaign->title,
                 'starts_at' => $row->campaign->starts_at?->toIso8601String(),
                 'ends_at' => $row->campaign->ends_at?->toIso8601String(),
-                'target' => (string) $row->goal_amount,
-                'target_formatted' => Money::format($row->goal_amount, $row->currency),
                 'currency' => $row->currency,
-                'percent_completed' => $row->progressPercentage($raised),
+                ...ViewerVisibility::money([
+                    'target' => (string) $row->goal_amount,
+                    'target_formatted' => Money::format($row->goal_amount, $row->currency),
+                    'percent_completed' => $row->progressPercentage($raised),
+                ]),
                 'donors_count' => $this->paymentRepository->countDonorsForCampaignAndInstitution($row->campaign_id, $tertiaryId),
             ];
         }));

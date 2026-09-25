@@ -28,6 +28,7 @@ use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Support\HtmlSanitizer;
 use App\Support\Money;
+use App\Support\ViewerVisibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -795,8 +796,10 @@ class CampaignService
         return array_merge(ListingFilterRules::periodMeta($filters), [
             'active_campaigns' => $this->campaignRepository->countActive(),
             'ongoing_campaigns' => $this->campaignRepository->countOngoing($type),
-            'total_raised' => $totalRaised,
-            'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
+            ...ViewerVisibility::money([
+                'total_raised' => $totalRaised,
+                'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
+            ]),
             'total_donors' => $totalDonors,
         ]);
     }
@@ -813,10 +816,12 @@ class CampaignService
         );
 
         return array_merge(ListingFilterRules::periodMeta($filters), [
-            'target_amount' => (string) $campaign->goal_amount,
-            'target_amount_formatted' => Money::format($campaign->goal_amount, $campaign->currency),
-            'received_amount' => $received,
-            'received_amount_formatted' => Money::format($received, $campaign->currency),
+            ...ViewerVisibility::money([
+                'target_amount' => (string) $campaign->goal_amount,
+                'target_amount_formatted' => Money::format($campaign->goal_amount, $campaign->currency),
+                'received_amount' => $received,
+                'received_amount_formatted' => Money::format($received, $campaign->currency),
+            ]),
         ]);
     }
 

@@ -110,4 +110,24 @@ enum ModuleEnums: string
             self::events->value,
         ];
     }
+
+    /**
+     * Modules whose events and notifications name individual donors, alumni or attendees.
+     *
+     * @return list<string>
+     */
+    public static function individualLevelValues(): array
+    {
+        return array_map(fn (self $module): string => $module->value, [
+            self::alumni,
+            self::constituent_management,
+            self::fundraising,
+            self::donation,
+            self::communications,
+            self::crm,
+            self::events,
+            self::mentorship,
+            self::networking,
+        ]);
+    }
 }

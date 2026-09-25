@@ -5,6 +5,7 @@ namespace App\Http\Resources\Auth;
 use App\Enums\CustomerRegistrationStepEnum;
 use App\Enums\UserTypeEnum;
 use App\Helpers\PermissionModuleMapper;
+use App\Support\ViewerVisibility;
 use App\Http\Resources\UserResource;
 use App\Models\Admin;
 use Illuminate\Http\Request;
@@ -68,6 +69,7 @@ class AuthResource extends JsonResource
             'roles' => $admin->roles->pluck('name')->values(),
             'permissions' => $permissionNames,
             'permissions_by_module' => PermissionModuleMapper::groupedApiPermissionsForNames($permissionNames),
+            'visibility' => ViewerVisibility::flagsFor($admin),
         ]);
     }
 }

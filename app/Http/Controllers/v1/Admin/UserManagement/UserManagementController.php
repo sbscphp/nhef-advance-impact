@@ -160,7 +160,7 @@ class UserManagementController extends Controller
     {
         try {
             $admin = $this->requireAdmin($request);
-            $this->assertCanAssignSuperAdminRole($request->validated('role_id'));
+            $this->assertCanAssignPrivilegedRole($request->validated('role_id'));
             $created = $this->adminUserService->create($request->validated(), $admin, $request);
 
             return JsonResponser::send(false, 'Admin user created successfully.', AdminFullResource::make($created)->resolve());
@@ -186,7 +186,7 @@ class UserManagementController extends Controller
             $actor = $this->requireAdmin($request);
             $roleUuid = $request->validated('role_id');
             if (is_string($roleUuid) && $roleUuid !== '') {
-                $this->assertCanAssignSuperAdminRole($roleUuid);
+                $this->assertCanAssignPrivilegedRole($roleUuid);
             }
             $admin = $this->adminUserService->update($adminId, $request->validated(), $actor, $request);
 
@@ -471,20 +471,20 @@ class UserManagementController extends Controller
         return $payload;
     }
 
-    private function assertCanAssignSuperAdminRole(string $roleUuid): void
+    private function assertCanAssignPrivilegedRole(string $roleUuid): void
     {
         $role = Role::query()
             ->where('guard_name', 'api')
             ->where('uuid', $roleUuid)
             ->first();
 
-        if ($role === null || $role->name !== eRole::SUPER_ADMIN->value) {
+        if ($role === null || ! in_array($role->name, eRole::superAdminAssignable(), true)) {
             return;
         }
 
         $authAdmin = request()->user();
         if (! ($authAdmin instanceof Admin) || ! $authAdmin->hasRole(eRole::SUPER_ADMIN->value)) {
-            abort(403, 'Only a Super Admin can assign the Super Admin role.');
+            abort(403, 'Only a Super Admin can assign the '.$role->name.' role.');
         }
     }
 

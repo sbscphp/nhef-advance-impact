@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
-class InstitutionReportDataset implements PreparesReportRecords, ReportDatasetInterface
+class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecords, ReportDatasetInterface
 {
     use BuildsSimpleAggregateQuery;
 
@@ -19,6 +19,11 @@ class InstitutionReportDataset implements PreparesReportRecords, ReportDatasetIn
     public function label(): string
     {
         return 'Institution';
+    }
+
+    public function monetaryFieldKeys(): array
+    {
+        return ['total_donations', 'total_pledges'];
     }
 
     public function nativeFields(): array
@@ -83,9 +88,8 @@ class InstitutionReportDataset implements PreparesReportRecords, ReportDatasetIn
             'phone_number' => $record->phone_number,
             'state' => $record->state,
             'country' => $record->country,
-            ...array_intersect_key($record->statsPayload(), array_flip([
-                'alumni_count', 'non_alumni_count', 'organisation_count', 'campaigns_count', 'donors_count', 'total_donations', 'total_pledges',
-            ])),
+            ...$record->statsPayload(),
+            ...$record->moneyStatsPayload(),
             'status' => $record->status,
             'invited_at' => $record->invited_at?->toIso8601String(),
             'onboarded_at' => $record->onboarded_at?->toIso8601String(),

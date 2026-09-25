@@ -2,8 +2,10 @@
 
 namespace App\Services\Notifications;
 
+use App\Enums\ModuleEnums;
 use App\Enums\NotificationCategoryEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
+use App\Support\ViewerVisibility;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -43,7 +45,7 @@ class NotificationInboxService
     public function findForRecipient(Model $recipient, string $id): DatabaseNotification
     {
         /** @var DatabaseNotification $notification */
-        $notification = $recipient->notifications()->whereKey($id)->firstOrFail();
+        $notification = $this->inbox($recipient)->whereKey($id)->firstOrFail();
 
         return $notification;
     }
@@ -53,14 +55,12 @@ class NotificationInboxService
      */
     public function markAllRead(Model $recipient, ?NotificationCategoryEnum $category = null): void
     {
-        if ($category === null) {
-            $recipient->unreadNotifications->markAsRead();
+        $query = $this->inbox($recipient)->whereNull('read_at');
 
-            return;
+        if ($category !== null) {
+            $this->constrainToCategory($query, $category);
         }
 
-        $query = $recipient->unreadNotifications();
-        $this->constrainToCategory($query, $category);
         $query->update(['read_at' => now()]);
     }
 
@@ -72,8 +72,8 @@ class NotificationInboxService
      */
     public function summary(Model $recipient): array
     {
-        $total = $recipient->notifications()->count();
-        $unread = $recipient->notifications()->whereNull('read_at')->count();
+        $total = $this->inbox($recipient)->count();
+        $unread = $this->inbox($recipient)->whereNull('read_at')->count();
 
         return [
             'total_count' => $total,
@@ -156,7 +156,7 @@ class NotificationInboxService
      */
     private function categoryCount(Model $recipient, NotificationCategoryEnum $category, bool $unreadOnly = false): int
     {
-        $query = $recipient->notifications();
+        $query = $this->inbox($recipient);
         $this->constrainToCategory($query, $category);
 
         if ($unreadOnly) {
@@ -184,12 +184,31 @@ class NotificationInboxService
     }
 
     /**
+     * The recipient's notifications, minus those from modules that name individual people when the
+     * viewer is limited to institution-level summaries.
+     *
+     * @param  Model&object{notifications(): mixed}  $recipient
+     */
+    private function inbox(Model $recipient): Builder|Relation
+    {
+        $query = $recipient->notifications();
+
+        if (! ViewerVisibility::canSeeIndividualRecords()) {
+            $query->where(fn (Builder|Relation $q) => $q
+                ->whereNotIn('data->module', ModuleEnums::individualLevelValues())
+                ->orWhereNull('data->module'));
+        }
+
+        return $query;
+    }
+
+    /**
      * @param  Model&object{notifications(): mixed}  $recipient
      * @param  array<string, mixed>  $validated
      */
     private function scopedQuery(Model $recipient, array $validated): Builder|Relation
     {
-        $query = $recipient->notifications();
+        $query = $this->inbox($recipient);
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         return $query;
