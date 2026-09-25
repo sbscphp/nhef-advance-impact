@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin\UserManagement;
 
+use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
 use App\Enums\eRole;
 use App\Enums\ModuleEnums;
@@ -196,9 +197,7 @@ class RoleService
             ->where('guard_name', 'api')
             ->where('name', '!=', eRole::CUSTOMER->value);
 
-        Institution::checkCurrent()
-            ? $query->whereIn('name', eRole::institutionAssignable())
-            : $query->whereNotIn('name', eRole::institutionAssignable());
+        AdminScopeEnum::current()->constrainRoles($query);
 
         if ($status === 'active') {
             $query->where('is_active', true);
@@ -406,7 +405,7 @@ class RoleService
             throw new ApiException('Choose a different, active role to reassign users to.', 422);
         }
 
-        if (in_array($target->name, eRole::institutionAssignable(), true) !== Institution::checkCurrent()) {
+        if (! AdminScopeEnum::current()->allowsRole($target->name)) {
             throw new ApiException('This role cannot be used as a reassignment target.', 422);
         }
 

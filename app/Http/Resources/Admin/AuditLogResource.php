@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
 use App\Enums\UserTypeEnum;
 use App\Models\AuditLog;
@@ -34,6 +35,7 @@ class AuditLogResource extends JsonResource
             'user_agent' => $this->user_agent,
             'http_outcome' => $this->httpOutcome(),
             'created_at' => $this->created_at,
+            'scope' => $this->user_type === UserTypeEnum::ADMIN ? ($this->institution_id === null ? AdminScopeEnum::NHEF : AdminScopeEnum::INSTITUTION)->value : null,
             'created_at_label' => $this->created_at?->format('F j | h:i a'),
             'institution' => $this->whenLoaded('institution', fn (): ?array => $this->institution === null ? null : [
                 'uuid' => $this->institution->uuid,

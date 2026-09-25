@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin\UserManagement;
 
+use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
 use App\Enums\eRole;
 use App\Enums\ModuleEnums;
@@ -387,15 +388,15 @@ class AdminUserService
 
     private function assertRoleAssignable(Role $role): void
     {
-        $isInstitutionRole = in_array($role->name, eRole::institutionAssignable(), true);
+        $scope = AdminScopeEnum::current();
 
-        if (Institution::checkCurrent() && ! $isInstitutionRole) {
-            throw new ApiException('This role cannot be assigned to an institution admin.', 403);
+        if ($scope->allowsRole($role->name)) {
+            return;
         }
 
-        if (! Institution::checkCurrent() && $isInstitutionRole) {
-            throw new ApiException('The Institution Admin role is assigned through institution onboarding.', 422);
-        }
+        throw $scope === AdminScopeEnum::INSTITUTION
+            ? new ApiException('This role cannot be assigned to an institution admin.', 403)
+            : new ApiException('The Institution Admin role is assigned through institution onboarding.', 422);
     }
 
     /**

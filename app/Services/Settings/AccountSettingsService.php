@@ -65,6 +65,7 @@ class AccountSettingsService
             'must_reset_password' => (bool) $admin->must_reset_password,
             'email_notifications_enabled' => (bool) $admin->email_notifications_enabled,
             'push_notifications_enabled' => (bool) $admin->push_notifications_enabled,
+            'scope' => $admin->scope()->value,
             'role' => $admin->roles->first()?->name,
             'roles' => $admin->roles->pluck('name')->values(),
             'permissions' => $admin->getAllPermissions()->pluck('name')->values(),

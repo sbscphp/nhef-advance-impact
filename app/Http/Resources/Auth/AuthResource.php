@@ -38,6 +38,8 @@ class AuthResource extends JsonResource
      */
     private function adminPayload(Admin $admin): array
     {
+        $admin->loadMissing(['roles', 'institution']);
+
         $payload = [
             'uuid' => $admin->uuid,
             'name' => $admin->name,
@@ -51,6 +53,9 @@ class AuthResource extends JsonResource
             'is_active' => $admin->is_active,
             'can_login' => $admin->can_login,
             'must_reset_password' => (bool) $admin->must_reset_password,
+            'scope' => $admin->scope()->value,
+            'role' => $admin->roles->first()?->name,
+            'institution' => $admin->institution === null ? null : ['uuid' => $admin->institution->uuid, 'name' => $admin->institution->name],
             'workspace' => $admin->institution?->workspaceData(),
             'last_login_at' => $admin->last_login_at,
             'last_active_at' => $admin->last_active_at,
@@ -62,7 +67,7 @@ class AuthResource extends JsonResource
             return $payload;
         }
 
-        $admin->loadMissing(['roles', 'permissions']);
+        $admin->loadMissing('permissions');
         $permissionNames = $admin->getAllPermissions()->pluck('name')->values()->all();
 
         return array_merge($payload, [
