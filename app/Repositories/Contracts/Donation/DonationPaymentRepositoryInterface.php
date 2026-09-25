@@ -144,4 +144,9 @@ interface DonationPaymentRepositoryInterface
      * @return array<int, array{total: string, donors: int}>
      */
     public function totalsByInstitutions(array $tertiaryInstitutionIds): array;
+
+    /**
+     * Distinct successful donors to one campaign who belong to one tertiary institution.
+     */
+    public function countDonorsForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): int;
 }

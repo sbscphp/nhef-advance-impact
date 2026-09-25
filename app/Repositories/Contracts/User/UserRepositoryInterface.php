@@ -96,4 +96,18 @@ interface UserRepositoryInterface
      * @return array<int, array{alumni: int, non_alumni: int, organization: int}>
      */
     public function countByConstituentTypeForInstitutions(array $tertiaryInstitutionIds): array;
+
+    /**
+     * Headcount per constituent type, optionally limited to accounts created in the window.
+     *
+     * @return array{alumni: int, non_alumni: int, organization: int}
+     */
+    public function countByConstituentType(?CarbonInterface $start, ?CarbonInterface $end): array;
+
+    /**
+     * Institutions ranked by total constituents, with the per-type split, for the dashboard ranking table.
+     *
+     * @return list<array{institution_uuid: string, name: string, alumni: int, non_alumni: int, organization: int, total: int}>
+     */
+    public function rankInstitutionsByConstituents(?CarbonInterface $start, ?CarbonInterface $end, int $limit): array;
 }

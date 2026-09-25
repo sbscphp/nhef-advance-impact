@@ -2,6 +2,7 @@
 
 namespace App\Repositories\CampaignInstitution;
 
+use App\Enums\CampaignStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Campaign;
 use App\Models\CampaignInstitution;
@@ -140,5 +141,28 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
             ->orderBy('id')
             ->limit(5000)
             ->get();
+    }
+
+    public function paginateActiveTracking(array $filters, int $perPage): LengthAwarePaginator
+    {
+        $window = ListingFilterRules::resolveDateWindow($filters);
+
+        return CampaignInstitution::query()
+            ->select('campaign_institutions.*')
+            ->with(['campaign', 'institution'])
+            ->join('campaigns', 'campaigns.id', '=', 'campaign_institutions.campaign_id')
+            ->where('campaigns.status', CampaignStatusEnum::ACTIVE->value)
+            ->when($window['start'] !== null, fn ($query) => $query->where(fn ($inner) => $inner->whereNull('campaigns.ends_at')->orWhere('campaigns.ends_at', '>=', $window['start'])))
+            ->when($window['end'] !== null, fn ($query) => $query->where(fn ($inner) => $inner->whereNull('campaigns.starts_at')->orWhere('campaigns.starts_at', '<=', $window['end'])))
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->where(function ($inner) use ($filters): void {
+                    $inner->where('campaigns.title', 'like', '%'.$filters['search'].'%')
+                        ->orWhereHas('institution', fn ($q) => $q->where('name', 'like', '%'.$filters['search'].'%'));
+                })
+            )
+            ->orderByDesc('campaigns.starts_at')
+            ->orderBy('campaign_institutions.id')
+            ->paginate($perPage);
     }
 }

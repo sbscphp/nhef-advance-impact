@@ -302,6 +302,16 @@ Route::prefix('v1/admin')->group(function () {
         Route::prefix('dashboard')->group(function () {
             Route::get('/overview', [AdminDashboardController::class, 'overview'])
                 ->middleware(['permission:dashboard.read']);
+            Route::get('/national-snapshot', [AdminDashboardController::class, 'nationalSnapshot'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/campaign-tracking', [AdminDashboardController::class, 'campaignTracking'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/event-tracking', [AdminDashboardController::class, 'eventTracking'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/institution-ranking', [AdminDashboardController::class, 'institutionRanking'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/live-activity', [AdminDashboardController::class, 'liveActivity'])
+                ->middleware(['permission:dashboard.read']);
         });
 
         Route::prefix('reports')->group(function () {

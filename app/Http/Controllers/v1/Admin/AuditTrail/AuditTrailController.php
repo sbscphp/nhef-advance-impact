@@ -7,13 +7,13 @@ use App\Enums\UserTypeEnum;
 use App\Helpers\GeneralHelper;
 use App\Helpers\PDFReportHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\v1\Admin\Concerns\RespondsWithAuditTimeline;
 use App\Http\Requests\Admin\AuditTrail\AuditTrailListingRequest;
 use App\Http\Resources\Admin\AuditLogResource;
 use App\Models\AuditLog;
 use App\Responser\JsonResponser;
 use App\Services\Audit\AuditTrailQueryService;
 use App\Support\ListingQuery;
-use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -21,6 +21,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuditTrailController extends Controller
 {
+    use RespondsWithAuditTimeline;
+
     public function __construct(
         private readonly AuditTrailQueryService $auditTrailQuery,
         private readonly PDFReportHelper $pdfReportHelper,
@@ -47,23 +49,7 @@ class AuditTrailController extends Controller
         try {
             $listing = ListingQuery::fromValidated($request->validated(), defaultPerPage: 50);
 
-            [$paginator, $dayCounts] = $this->auditTrailQuery->timelinePage($listing);
-
-            $days = $paginator->getCollection()
-                ->groupBy(fn (AuditLog $log): string => $log->created_at->toDateString())
-                ->map(fn (Collection $logs, string $day): array => [
-                    'date' => $day,
-                    'label' => Carbon::parse($day)->format('F j, Y'),
-                    'events_count' => $dayCounts[$day] ?? $logs->count(),
-                    'events' => AuditLogResource::collection($logs)->resolve(),
-                ])
-                ->values()
-                ->all();
-
-            $payload = $paginator->toArray();
-            $payload['data'] = $days;
-
-            return JsonResponser::send(false, 'Audit timeline retrieved.', $payload);
+            return $this->auditTimelineResponse($this->auditTrailQuery, $listing, 'Audit timeline retrieved.');
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\AuditTrail\AuditTrailController@timeline');
         }

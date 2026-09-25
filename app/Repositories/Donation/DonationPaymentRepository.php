@@ -403,4 +403,16 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->where('campaigns.type', $campaignType)
             ->select('donations.id'));
     }
+
+    public function countDonorsForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): int
+    {
+        return (int) DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('users', 'users.id', '=', 'donations.user_id')
+            ->where('donations.campaign_id', $campaignId)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('users.tertiary_institution_id', $tertiaryInstitutionId)
+            ->distinct()
+            ->count('donations.user_id');
+    }
 }

@@ -67,4 +67,12 @@ interface CampaignInstitutionRepositoryInterface
      * @return Collection<int, CampaignInstitution>
      */
     public function exportForCampaign(int $campaignId, array $filters): Collection;
+
+    /**
+     * One row per institution on every active campaign that overlaps the window (or all active
+     * campaigns when none is given), with the campaign and institution loaded.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateActiveTracking(array $filters, int $perPage): LengthAwarePaginator;
 }

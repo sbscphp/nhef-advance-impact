@@ -272,4 +272,46 @@ class UserRepository implements UserRepositoryInterface
 
         return $counts;
     }
+
+    public function countByConstituentType(?CarbonInterface $start, ?CarbonInterface $end): array
+    {
+        $rows = User::query()
+            ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
+            ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
+            ->groupBy('constituent_type')
+            ->selectRaw('constituent_type, count(*) as total')
+            ->pluck('total', 'constituent_type');
+
+        return [
+            'alumni' => (int) ($rows['alumni'] ?? 0),
+            'non_alumni' => (int) ($rows['non_alumni'] ?? 0),
+            'organization' => (int) ($rows['organization'] ?? 0),
+        ];
+    }
+
+    public function rankInstitutionsByConstituents(?CarbonInterface $start, ?CarbonInterface $end, int $limit): array
+    {
+        return DB::table('users')
+            ->join('institutions', 'institutions.tertiary_institution_id', '=', 'users.tertiary_institution_id')
+            ->when($start !== null, fn ($query) => $query->where('users.created_at', '>=', $start))
+            ->when($end !== null, fn ($query) => $query->where('users.created_at', '<=', $end))
+            ->groupBy('institutions.id', 'institutions.uuid', 'institutions.name')
+            ->selectRaw("institutions.uuid as institution_uuid, institutions.name as name,
+                sum(users.constituent_type = 'alumni') as alumni,
+                sum(users.constituent_type = 'non_alumni') as non_alumni,
+                sum(users.constituent_type = 'organization') as organization,
+                count(*) as total")
+            ->orderByDesc('total')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($row): array => [
+                'institution_uuid' => (string) $row->institution_uuid,
+                'name' => (string) $row->name,
+                'alumni' => (int) $row->alumni,
+                'non_alumni' => (int) $row->non_alumni,
+                'organization' => (int) $row->organization,
+                'total' => (int) $row->total,
+            ])
+            ->all();
+    }
 }
