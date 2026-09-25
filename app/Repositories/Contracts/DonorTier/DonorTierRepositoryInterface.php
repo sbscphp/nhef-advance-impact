@@ -10,13 +10,15 @@ use Illuminate\Support\Collection;
 interface DonorTierRepositoryInterface
 {
     /**
+     * Deactivated tiers are skipped everywhere a donor's tier is resolved.
+     *
      * @return Collection<int, DonorTier>
      */
-    public function allOrderedByThreshold(): Collection;
+    public function activeOrderedByThreshold(): Collection;
 
     /**
-     * The highest tier whose minimum_amount the given lifetime total meets or exceeds, or
-     * null if the total doesn't qualify for even the lowest tier.
+     * The highest active tier whose minimum_amount the given lifetime total meets or exceeds,
+     * or null if the total doesn't qualify for even the lowest active tier.
      */
     public function findForAmount(string $amount): ?DonorTier;
 

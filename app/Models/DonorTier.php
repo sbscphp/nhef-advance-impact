@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Donor recognition tiers (BRD REC-02). A donor's tier is the highest minimum_amount
- * threshold their lifetime NGN total meets or exceeds; seeded by DonorTierSeeder, now with
- * admin CRUD ({@see DonorTierService}). `maximum_amount` is a display/
+ * threshold (among active tiers) their lifetime NGN total meets or exceeds; seeded by
+ * DonorTierSeeder, now with admin CRUD ({@see DonorTierService}). `maximum_amount` is a display/
  * validation field only, not used for tier resolution, which stays governed purely by
  * minimum_amount brackets to avoid two conflicting definitions of tier membership.
  */

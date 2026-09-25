@@ -95,8 +95,9 @@ class DonorTierService
         $tier = $this->findForAdmin($uuid);
         $tier->loadMissing(['creator.roles:id,name']);
 
-        $bounds = $this->resolveBounds($tier);
-        $stats = $this->tierRepository->statsForRange($bounds['min'], $bounds['max']);
+        $stats = $tier->is_active
+            ? $this->tierRepository->statsForRange(...array_values($this->resolveBounds($tier)))
+            : ['alumni_count' => 0, 'institution_count' => 0];
 
         $tier->setAttribute('alumni_count', $stats['alumni_count']);
         $tier->setAttribute('institution_count', $stats['institution_count']);
@@ -210,8 +211,13 @@ class DonorTierService
     public function paginateAlumni(string $uuid, array $filters): LengthAwarePaginator
     {
         $tier = $this->findForAdmin($uuid);
-        $bounds = $this->resolveBounds($tier);
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        if (! $tier->is_active) {
+            return new LengthAwarePaginator([], 0, $perPage);
+        }
+
+        $bounds = $this->resolveBounds($tier);
 
         $paginator = $this->tierRepository->paginateUsersInRange($bounds['min'], $bounds['max'], $filters, $perPage);
         $paginator->setCollection($this->attachUpgradeDates($paginator->getCollection(), $tier));
@@ -226,6 +232,11 @@ class DonorTierService
     public function exportAlumni(string $uuid, array $filters): array
     {
         $tier = $this->findForAdmin($uuid);
+
+        if (! $tier->is_active) {
+            return [new Collection, false];
+        }
+
         $bounds = $this->resolveBounds($tier);
 
         [$rows, $truncated] = $this->tierRepository->exportUsersInRange($bounds['min'], $bounds['max'], $filters);
@@ -247,15 +258,15 @@ class DonorTierService
     }
 
     /**
-     * The bracket [minimum_amount, next tier's minimum_amount) that a donor's lifetime total
-     * must fall in to currently resolve to this tier (see {@see RecognitionService::tierFor()}
+     * The bracket [minimum_amount, next active tier's minimum_amount) that a donor's lifetime
+     * total must fall in to currently resolve to this (active) tier (see {@see RecognitionService::tierFor()}
      * for the same open-ended-above logic used everywhere else tier membership is decided).
      *
      * @return array{min: string, max: ?string}
      */
     private function resolveBounds(DonorTier $tier): array
     {
-        $tiers = $this->tierRepository->allOrderedByThreshold();
+        $tiers = $this->tierRepository->activeOrderedByThreshold();
         $next = $tiers->first(fn (DonorTier $candidate) => (float) $candidate->minimum_amount > (float) $tier->minimum_amount);
 
         return [

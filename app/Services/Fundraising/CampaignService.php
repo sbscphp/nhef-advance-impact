@@ -674,7 +674,7 @@ class CampaignService
             $window['end']?->toDateString(),
         );
 
-        $tiers = $this->donorTierRepository->allOrderedByThreshold();
+        $tiers = $this->donorTierRepository->activeOrderedByThreshold();
         $counts = [];
         foreach ($tiers as $tier) {
             $counts[$tier->name] = 0;
