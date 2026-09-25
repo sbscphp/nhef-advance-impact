@@ -2,10 +2,12 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Enums\AuditActionEnum;
 use App\Enums\UserTypeEnum;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Str;
 
 /**
  * @mixin AuditLog
@@ -20,13 +22,13 @@ class AuditLogResource extends JsonResource
         return [
             'uuid' => $this->uuid,
             'user_type' => $this->user_type->value,
-            'action_module' => $this->action_module->value,
-            'action' => $this->action->value,
+            'action_module' => $this->getRawOriginal('action_module'),
+            'action' => $this->getRawOriginal('action'),
             'actor' => $this->actorName(),
-            'action_verb' => $this->action->presentation()['verb'],
-            'action_tone' => $this->action->presentation()['tone'],
-            'action_object' => $this->action->objectLabel(),
-            'action_label' => $this->action->humanised(),
+            'action_verb' => $this->action instanceof AuditActionEnum ? $this->action->presentation()['verb'] : Str::headline((string) $this->action),
+            'action_tone' => $this->action instanceof AuditActionEnum ? $this->action->presentation()['tone'] : 'neutral',
+            'action_object' => $this->action instanceof AuditActionEnum ? $this->action->objectLabel() : '',
+            'action_label' => $this->action instanceof AuditActionEnum ? $this->action->humanised() : Str::headline((string) $this->action),
             'description' => $this->description,
             'ip_address' => $this->ip_address,
             'user_agent' => $this->user_agent,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\v1\Admin\AuditTrail;
 
+use App\Enums\AuditActionEnum;
 use App\Enums\UserTypeEnum;
 use App\Helpers\GeneralHelper;
 use App\Helpers\PDFReportHelper;
@@ -15,6 +16,7 @@ use App\Support\ListingQuery;
 use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuditTrailController extends Controller
@@ -140,7 +142,7 @@ class AuditTrailController extends Controller
             (string) ($index + 1),
             $log->created_at?->format('Y-m-d H:i') ?? '',
             $this->actorSummary($log),
-            $log->action->presentation()['verb'].' '.$log->action->objectLabel(),
+            $log->action instanceof AuditActionEnum ? $log->action->presentation()['verb'].' '.$log->action->objectLabel() : Str::headline((string) $log->action),
             $this->truncatePdfCell((string) ($log->description ?? '')),
         ]);
 
@@ -172,8 +174,8 @@ class AuditTrailController extends Controller
             $email,
             $name,
             $log->institution?->name ?? '',
-            $log->action_module->value,
-            $log->action->value,
+            $log->getRawOriginal('action_module'),
+            $log->getRawOriginal('action'),
             $log->model ?? '',
             $log->model_id ?? '',
             $log->description ?? '',

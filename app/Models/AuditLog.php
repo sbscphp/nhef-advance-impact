@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\LenientEnum;
 use App\Enums\AuditActionEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
@@ -20,8 +21,8 @@ class AuditLog extends Model
     {
         return [
             'user_type' => UserTypeEnum::class,
-            'action_module' => ModuleEnums::class,
-            'action' => AuditActionEnum::class,
+            'action_module' => LenientEnum::class.':'.ModuleEnums::class,
+            'action' => LenientEnum::class.':'.AuditActionEnum::class,
             'metadata' => 'array',
             'http_status' => 'integer',
         ];
