@@ -4,12 +4,15 @@ namespace App\Http\Resources\Fundraising;
 
 use App\Models\Campaign;
 use App\Support\Money;
+use App\Http\Resources\Concerns\PresentsCampaignSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /** @mixin Campaign */
 class CampaignResource extends JsonResource
 {
+    use PresentsCampaignSchedule;
+
     /**
      * @return array<string, mixed>
      */
@@ -32,8 +35,12 @@ class CampaignResource extends JsonResource
             'allow_recurring' => (bool) $this->allow_recurring,
             'allow_anonymous' => (bool) $this->allow_anonymous,
             'status' => $this->status,
-            'starts_at' => $this->starts_at?->toDateString(),
-            'ends_at' => $this->ends_at?->toDateString(),
+            'type' => $this->type,
+            'cover_media_type' => $this->cover_media_type,
+            'starts_at' => $this->starts_at?->toIso8601String(),
+            'ends_at' => $this->ends_at?->toIso8601String(),
+            'timer' => $this->timer(),
+            ...$this->projectsPayload(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

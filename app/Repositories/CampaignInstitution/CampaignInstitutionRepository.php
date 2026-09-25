@@ -112,4 +112,33 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
             ->map(fn ($total) => (int) $total)
             ->all();
     }
+
+    public function countByCampaigns(array $campaignIds): array
+    {
+        if ($campaignIds === []) {
+            return [];
+        }
+
+        return CampaignInstitution::query()
+            ->whereIn('campaign_id', $campaignIds)
+            ->groupBy('campaign_id')
+            ->selectRaw('campaign_id, count(*) as total')
+            ->pluck('total', 'campaign_id')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+    }
+
+    public function exportForCampaign(int $campaignId, array $filters): Collection
+    {
+        return CampaignInstitution::query()
+            ->with(['institution', 'bankAccount.bank'])
+            ->where('campaign_id', $campaignId)
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->whereHas('institution', fn ($q) => $q->where('name', 'like', '%'.$filters['search'].'%'))
+            )
+            ->orderBy('id')
+            ->limit(5000)
+            ->get();
+    }
 }

@@ -15,6 +15,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     {
         $query = Campaign::query()
             ->active()
+            ->with('projects')
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
@@ -60,6 +61,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function findActiveByUuid(string $uuid): ?Campaign
     {
         return Campaign::query()
+            ->with('projects')
             ->where('status', CampaignStatusEnum::ACTIVE->value)
             ->where('uuid', $uuid)
             ->first();
@@ -68,7 +70,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function findByUuid(string $uuid): ?Campaign
     {
         return Campaign::query()
-            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator'])
+            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator', 'projects'])
             ->where('uuid', $uuid)
             ->first();
     }
@@ -111,10 +113,12 @@ class CampaignRepository implements CampaignRepositoryInterface
         return Campaign::query()->active()->count();
     }
 
-    public function countOngoing(): int
+    public function countOngoing(?string $type = null): int
     {
         return Campaign::query()
             ->active()
+            ->when($type !== null, fn ($query) => $query->where('type', $type))
+            ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
             ->where(function ($query) {
                 $query->whereNull('ends_at')->orWhere('ends_at', '>=', now());
             })

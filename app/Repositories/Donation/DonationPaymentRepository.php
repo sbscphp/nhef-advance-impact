@@ -11,6 +11,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 {
@@ -280,11 +281,12 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->first();
     }
 
-    public function sumSuccessfulForAdmin(?string $from, ?string $to): string
+    public function sumSuccessfulForAdmin(?string $from, ?string $to, ?string $campaignType = null): string
     {
         return (string) DonationPayment::query()
             ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
             ->where('currency', 'NGN')
+            ->when($campaignType !== null, fn ($query) => $this->ofCampaignType($query, $campaignType))
             ->when($from !== null, fn ($query) => $query->whereDate('paid_at', '>=', $from))
             ->when($to !== null, fn ($query) => $query->whereDate('paid_at', '<=', $to))
             ->sum('amount');
@@ -300,11 +302,12 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->count();
     }
 
-    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to): array
+    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to, ?string $campaignType = null): array
     {
         return DonationPayment::query()
             ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
             ->whereNotNull('user_id')
+            ->when($campaignType !== null, fn ($query) => $this->ofCampaignType($query, $campaignType))
             ->when($from !== null, fn ($query) => $query->whereDate('paid_at', '>=', $from))
             ->when($to !== null, fn ($query) => $query->whereDate('paid_at', '<=', $to))
             ->distinct()
@@ -366,5 +369,38 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
         }
 
         return $totals;
+    }
+
+    public function statsByCampaigns(array $campaignIds): array
+    {
+        if ($campaignIds === []) {
+            return [];
+        }
+
+        $rows = DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->whereIn('donations.campaign_id', $campaignIds)
+            ->groupBy('donations.campaign_id')
+            ->selectRaw('donations.campaign_id as campaign_id, count(*) as donations, count(distinct coalesce(donation_payments.user_id, donations.guest_email)) as donors')
+            ->get();
+
+        $stats = [];
+        foreach ($rows as $row) {
+            $stats[(int) $row->campaign_id] = ['donations' => (int) $row->donations, 'donors' => (int) $row->donors];
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param  Builder<DonationPayment>  $query
+     */
+    private function ofCampaignType(Builder $query, string $campaignType): void
+    {
+        $query->whereIn('donation_payments.donation_id', DB::table('donations')
+            ->join('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+            ->where('campaigns.type', $campaignType)
+            ->select('donations.id'));
     }
 }

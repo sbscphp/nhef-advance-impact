@@ -15,17 +15,22 @@ use App\Models\Admin;
 use App\Models\BankAccount;
 use App\Models\Campaign;
 use App\Models\CampaignInstitution;
+use App\Models\CampaignProject;
 use App\Models\Institution;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\BankAccount\BankAccountRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
+use App\Repositories\Contracts\CampaignProject\CampaignProjectRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
+use App\Support\HtmlSanitizer;
 use App\Support\Money;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +47,7 @@ class CampaignService
         private readonly DonorTierRepositoryInterface $donorTierRepository,
         private readonly InstitutionRepositoryInterface $institutionRepository,
         private readonly CampaignInstitutionRepositoryInterface $campaignInstitutionRepository,
+        private readonly CampaignProjectRepositoryInterface $campaignProjectRepository,
     ) {}
 
     /**
@@ -135,8 +141,8 @@ class CampaignService
      */
     public function create(array $payload, Admin $actor, Request $request): Campaign
     {
-        $allocatedAdmin = $this->adminRepository->findByUuid((string) $payload['allocated_admin_id']);
-        if (! $allocatedAdmin instanceof Admin) {
+        $assignedAdmin = $this->adminRepository->findByUuid((string) $payload['assigned_admin_id']);
+        if (! $assignedAdmin instanceof Admin) {
             throw new ApiException('The selected officer does not exist.', 422);
         }
 
@@ -159,14 +165,15 @@ class CampaignService
             'allow_recurring' => true,
             'allow_anonymous' => true,
             'status' => CampaignStatusEnum::ACTIVE->value,
-            'starts_at' => $payload['starts_at'],
-            'ends_at' => $payload['ends_at'] ?? null,
+            'cover_media_type' => $this->coverMediaType($payload['cover'] ?? null, $coverUrl),
+            'starts_at' => $this->scheduleValue($payload['starts_at'], false),
+            'ends_at' => $this->scheduleValue($payload['ends_at'] ?? null, true),
             'created_by' => $actor->uuid,
-            'allocated_admin_id' => $allocatedAdmin->id,
+            'allocated_admin_id' => $assignedAdmin->id,
             'bank_account_id' => $bankAccount->id,
         ]);
 
-        $campaign->setRelation('allocatedAdmin', $allocatedAdmin);
+        $campaign->setRelation('allocatedAdmin', $assignedAdmin);
         $campaign->setRelation('bankAccount', $bankAccount);
 
         GeneralHelper::storeAuditLog(
@@ -198,8 +205,8 @@ class CampaignService
      */
     public function createNationalGivingDay(array $payload, Admin $actor, Request $request): Campaign
     {
-        $allocatedAdmin = $this->adminRepository->findByUuid((string) $payload['allocated_admin_id']);
-        if (! $allocatedAdmin instanceof Admin) {
+        $assignedAdmin = $this->adminRepository->findByUuid((string) $payload['assigned_admin_id']);
+        if (! $assignedAdmin instanceof Admin) {
             throw new ApiException('The selected officer does not exist.', 422);
         }
 
@@ -220,17 +227,20 @@ class CampaignService
             'allow_recurring' => true,
             'allow_anonymous' => true,
             'status' => CampaignStatusEnum::ACTIVE->value,
-            'starts_at' => $payload['starts_at'],
-            'ends_at' => $payload['ends_at'] ?? null,
+            'cover_media_type' => $this->coverMediaType($payload['cover'] ?? null, $coverUrl),
+            'starts_at' => $this->scheduleValue($payload['starts_at'], false),
+            'ends_at' => $this->scheduleValue($payload['ends_at'] ?? null, true),
+            'timer_lead_hours' => $payload['timer_lead_hours'] ?? null,
             'created_by' => $actor->uuid,
-            'allocated_admin_id' => $allocatedAdmin->id,
+            'allocated_admin_id' => $assignedAdmin->id,
             'bank_account_id' => null,
         ]);
 
         $this->campaignInstitutionRepository->createMany($campaign, $institutionRows);
+        $this->syncProjects($campaign, (array) ($payload['projects'] ?? []));
 
-        $campaign->setRelation('allocatedAdmin', $allocatedAdmin);
-        $campaign->load('campaignInstitutions.institution', 'campaignInstitutions.bankAccount.bank');
+        $campaign->setRelation('allocatedAdmin', $assignedAdmin);
+        $campaign->load('campaignInstitutions.institution', 'campaignInstitutions.bankAccount.bank', 'projects');
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
@@ -242,6 +252,7 @@ class CampaignService
                 'title' => $campaign->title,
                 'type' => $campaign->type,
                 'institution_count' => count($institutionRows),
+                'project_count' => count((array) ($payload['projects'] ?? [])),
             ],
             $actor->displayName().' created a National Giving Day campaign: '.$campaign->title.'.',
             Campaign::class,
@@ -294,18 +305,30 @@ class CampaignService
         $campaign = $this->findForAdmin($uuid);
 
         $updates = [];
-        foreach (['title', 'description', 'goal_amount', 'currency', 'starts_at', 'ends_at'] as $field) {
+        foreach (['title', 'description', 'goal_amount', 'currency', 'timer_lead_hours'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $updates[$field] = $payload[$field];
             }
         }
 
-        if (array_key_exists('allocated_admin_id', $payload)) {
-            $allocatedAdmin = $this->adminRepository->findByUuid((string) $payload['allocated_admin_id']);
-            if (! $allocatedAdmin instanceof Admin) {
+        if (array_key_exists('starts_at', $payload)) {
+            $updates['starts_at'] = $this->scheduleValue($payload['starts_at'], false);
+        }
+
+        if (array_key_exists('ends_at', $payload)) {
+            $updates['ends_at'] = $this->scheduleValue($payload['ends_at'], true);
+        }
+
+        if (array_key_exists('timer_lead_hours', $payload) || array_key_exists('projects', $payload)) {
+            $this->assertNationalGivingDay($campaign, 'The countdown lead time and projects can only be set on a National Giving Day campaign.');
+        }
+
+        if (array_key_exists('assigned_admin_id', $payload)) {
+            $assignedAdmin = $this->adminRepository->findByUuid((string) $payload['assigned_admin_id']);
+            if (! $assignedAdmin instanceof Admin) {
                 throw new ApiException('The selected officer does not exist.', 422);
             }
-            $updates['allocated_admin_id'] = $allocatedAdmin->id;
+            $updates['allocated_admin_id'] = $assignedAdmin->id;
         }
 
         if (array_key_exists('bank_account_id', $payload)) {
@@ -318,13 +341,25 @@ class CampaignService
 
         if (! empty($payload['cover'])) {
             $updates['cover_image_url'] = FileUploadHelper::smartSingleFileUpload($payload['cover'], 'campaigns/covers');
+            $updates['cover_media_type'] = $this->coverMediaType($payload['cover'], $updates['cover_image_url']);
         }
 
-        if ($updates === []) {
+        $projectsChanged = array_key_exists('projects', $payload);
+
+        if ($updates === [] && ! $projectsChanged) {
             return $campaign;
         }
 
-        $campaign = $this->campaignRepository->update($campaign, $updates);
+        DB::transaction(function () use ($campaign, $updates, $payload, $projectsChanged): void {
+            if ($updates !== []) {
+                $this->campaignRepository->update($campaign, $updates);
+            }
+
+            if ($projectsChanged) {
+                $this->syncProjects($campaign, (array) $payload['projects']);
+            }
+        });
+
         $campaign = $this->campaignRepository->findByUuid($campaign->uuid) ?? $campaign;
 
         GeneralHelper::storeAuditLog(
@@ -332,7 +367,7 @@ class CampaignService
             AuditActionEnum::CAMPAIGN_UPDATED,
             $request,
             $actor->uuid,
-            ['campaign_uuid' => $campaign->uuid, 'fields' => array_keys($updates)],
+            ['campaign_uuid' => $campaign->uuid, 'fields' => array_merge(array_keys($updates), $projectsChanged ? ['projects'] : [])],
             $actor->displayName().' updated a campaign: '.$campaign->title.'.',
             Campaign::class,
             $campaign->uuid,
@@ -412,9 +447,73 @@ class CampaignService
             $raised = (float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id)
                 + (float) $this->pledgeRepository->sumReceivedForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id);
             $row->setAttribute('raised_amount', (string) $raised);
+
+            $pledges = $this->pledgeRepository->totalsForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id);
+            $row->setAttribute('pledges_count', $pledges['count']);
+            $row->setAttribute('pledges_total', $pledges['total']);
         }
 
         return $paginator;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, CampaignInstitution>
+     */
+    public function exportInstitutions(string $uuid, array $filters): Collection
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $rows = $this->campaignInstitutionRepository->exportForCampaign($campaign->id, $filters);
+
+        foreach ($rows as $row) {
+            $tertiaryId = $row->institution->tertiary_institution_id;
+            $row->setAttribute('raised_amount', (string) ((float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($campaign->id, $tertiaryId)
+                + (float) $this->pledgeRepository->sumReceivedForCampaignAndInstitution($campaign->id, $tertiaryId)));
+
+            $pledges = $this->pledgeRepository->totalsForCampaignAndInstitution($campaign->id, $tertiaryId);
+            $row->setAttribute('pledges_count', $pledges['count']);
+            $row->setAttribute('pledges_total', $pledges['total']);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Adds the list columns (donations, donors, institutions) in three grouped queries for the page.
+     *
+     * @param  iterable<Campaign>  $campaigns
+     */
+    public function attachListStats(iterable $campaigns): void
+    {
+        $campaigns = collect($campaigns);
+        $ids = $campaigns->pluck('id')->all();
+
+        $payments = $this->paymentRepository->statsByCampaigns($ids);
+        $institutions = $this->campaignInstitutionRepository->countByCampaigns($ids);
+
+        foreach ($campaigns as $campaign) {
+            $campaign->setAttribute('donations_count', $payments[$campaign->id]['donations'] ?? 0);
+            $campaign->setAttribute('donors_count', $payments[$campaign->id]['donors'] ?? 0);
+            $campaign->setAttribute('institutions_count', $institutions[$campaign->id] ?? 0);
+        }
+    }
+
+    /**
+     * Backs the "View Campaign" Overview cards: donation and pledge counts and values.
+     *
+     * @return array{donations_count: int, amount_generated: string, pledges_count: int, pledges_total: string}
+     */
+    public function detailOverview(Campaign $campaign): array
+    {
+        $payments = $this->paymentRepository->statsByCampaigns([$campaign->id]);
+        $pledges = $this->pledgeRepository->totalsByCampaigns([$campaign->id]);
+
+        return [
+            'donations_count' => $payments[$campaign->id]['donations'] ?? 0,
+            'amount_generated' => (string) $campaign->raised_amount,
+            'pledges_count' => $pledges[$campaign->id]['count'] ?? 0,
+            'pledges_total' => $pledges[$campaign->id]['total'] ?? '0',
+        ];
     }
 
     /**
@@ -490,7 +589,7 @@ class CampaignService
             $request,
             $actor->uuid,
             ['campaign_uuid' => $campaign->uuid, 'institution_count' => $campaignInstitutions->count()],
-            $actor->displayName().' updated the institution allocations for campaign: '.$campaign->title.'.',
+            $actor->displayName().' updated the institutions on campaign: '.$campaign->title.'.',
             Campaign::class,
             $campaign->uuid,
             ModuleEnums::fundraising,
@@ -539,7 +638,7 @@ class CampaignService
             $request,
             $actor->uuid,
             ['campaign_uuid' => $campaign->uuid, 'campaign_institution_uuid' => $campaignInstitution->uuid, 'fields' => array_keys($updates)],
-            $actor->displayName().' updated an institution allocation on campaign: '.$campaign->title.'.',
+            $actor->displayName().' updated an institution on campaign: '.$campaign->title.'.',
             Campaign::class,
             $campaign->uuid,
             ModuleEnums::fundraising,
@@ -576,10 +675,74 @@ class CampaignService
         );
     }
 
-    private function assertNationalGivingDay(Campaign $campaign): void
+    private function assertNationalGivingDay(Campaign $campaign, string $message = 'Institutions can only be managed on a National Giving Day campaign.'): void
     {
         if ($campaign->type !== CampaignTypeEnum::NATIONAL_GIVING_DAY->value) {
-            throw new ApiException('Institutions can only be managed on a National Giving Day campaign.', 422);
+            throw new ApiException($message, 422);
+        }
+    }
+
+    /** Date-only input means the whole day: start-of-day for a start, end-of-day for an end. */
+    private function scheduleValue(mixed $value, bool $isEnd): ?Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $moment = Carbon::parse((string) $value, config('app.timezone'));
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim((string) $value)) === 1) {
+            return $isEnd ? $moment->endOfDay() : $moment->startOfDay();
+        }
+
+        return $moment;
+    }
+
+    private function coverMediaType(mixed $input, ?string $url): string
+    {
+        $isVideo = match (true) {
+            $input instanceof UploadedFile => str_starts_with((string) $input->getMimeType(), 'video/'),
+            is_string($input) && str_starts_with(trim($input), 'data:video/') => true,
+            default => $url !== null && preg_match('/\.(mp4|webm|mov)(\?|$)/i', $url) === 1,
+        };
+
+        return $isVideo ? 'video' : 'image';
+    }
+
+    /**
+     * Full replace: rows carrying an existing `uuid` are updated, new ones created, missing ones
+     * removed. Project-level donations are not routed yet (planned for a later phase), so nothing
+     * references a project row.
+     *
+     * @param  list<array<string, mixed>>  $projects
+     */
+    private function syncProjects(Campaign $campaign, array $projects): void
+    {
+        $existing = $this->campaignProjectRepository->allForCampaign($campaign->id)->keyBy('uuid');
+        $keep = [];
+
+        foreach (array_values($projects) as $index => $entry) {
+            $data = [
+                'name' => $entry['name'],
+                'goal_amount' => $entry['goal_amount'],
+                'description' => HtmlSanitizer::clean($entry['description'] ?? null),
+                'sort_order' => $index,
+            ];
+
+            $current = isset($entry['uuid']) ? $existing->get($entry['uuid']) : null;
+
+            if ($current instanceof CampaignProject) {
+                $this->campaignProjectRepository->update($current, $data);
+                $keep[] = $current->uuid;
+            } else {
+                $keep[] = $this->campaignProjectRepository->create($campaign, $data)->uuid;
+            }
+        }
+
+        foreach ($existing as $uuid => $project) {
+            if (! in_array($uuid, $keep, true)) {
+                $this->campaignProjectRepository->delete($project);
+            }
         }
     }
 
@@ -624,12 +787,14 @@ class CampaignService
         $start = $window['start']?->toDateString();
         $end = $window['end']?->toDateString();
 
-        $totalRaised = $this->paymentRepository->sumSuccessfulForAdmin($start, $end);
-        $totalDonors = count($this->paymentRepository->distinctSuccessfulDonorUserIdsForAdmin($start, $end));
+        $type = filled($filters['type'] ?? null) ? (string) $filters['type'] : null;
+
+        $totalRaised = $this->paymentRepository->sumSuccessfulForAdmin($start, $end, $type);
+        $totalDonors = count($this->paymentRepository->distinctSuccessfulDonorUserIdsForAdmin($start, $end, $type));
 
         return array_merge(ListingFilterRules::periodMeta($filters), [
             'active_campaigns' => $this->campaignRepository->countActive(),
-            'ongoing_campaigns' => $this->campaignRepository->countOngoing(),
+            'ongoing_campaigns' => $this->campaignRepository->countOngoing($type),
             'total_raised' => $totalRaised,
             'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
             'total_donors' => $totalDonors,

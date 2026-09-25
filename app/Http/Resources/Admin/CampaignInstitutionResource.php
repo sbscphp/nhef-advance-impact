@@ -33,6 +33,9 @@ class CampaignInstitutionResource extends JsonResource
             'raised_amount' => $raisedAmount,
             'raised_amount_formatted' => Money::format($raisedAmount, $this->currency),
             'progress_percentage' => $this->progressPercentage($raisedAmount),
+            'pledges_count' => (int) ($this->pledges_count ?? 0),
+            'pledges_total' => (string) ($this->pledges_total ?? '0'),
+            'pledges_total_formatted' => Money::format($this->pledges_total ?? '0', $this->currency),
             'bank_account' => $this->whenLoaded('bankAccount', fn () => $this->bankAccount === null ? null : [
                 'bank_account_id' => $this->bankAccount->uuid,
                 'account_number' => $this->bankAccount->account_number,

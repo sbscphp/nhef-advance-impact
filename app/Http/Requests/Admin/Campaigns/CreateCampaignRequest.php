@@ -4,14 +4,17 @@ namespace App\Http\Requests\Admin\Campaigns;
 
 use App\Enums\CurrencyEnum;
 use App\Http\Requests\ApiFormRequest;
-use Illuminate\Http\UploadedFile;
+use App\Http\Requests\Concerns\ValidatesCampaignInput;
 use Illuminate\Validation\Rule;
 
 class CreateCampaignRequest extends ApiFormRequest
 {
-    private const ALLOWED_COVER_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    use ValidatesCampaignInput;
 
-    private const MAX_COVER_BYTES = 10 * 1024 * 1024;
+    protected function prepareForValidation(): void
+    {
+        $this->mergeAssigneeAlias();
+    }
 
     /**
      * @return array<string, array<int, mixed>>
@@ -22,50 +25,20 @@ class CreateCampaignRequest extends ApiFormRequest
             'title' => ['required', 'string', 'max:255'],
             'goal_amount' => ['required', 'numeric', 'min:0.01'],
             'currency' => ['required', Rule::in(CurrencyEnum::values())],
-            'allocated_admin_id' => ['required', 'uuid', 'exists:admins,uuid'],
+            'assigned_admin_id' => ['required', 'uuid', 'exists:admins,uuid'],
             'bank_account_id' => ['required', 'uuid', 'exists:bank_accounts,uuid'],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_at'],
             'description' => ['required', 'string'],
-            'cover' => ['required', $this->coverRule()],
+            'cover' => ['required', $this->campaignCoverRule()],
         ];
-    }
-
-    private function coverRule(): \Closure
-    {
-        return function (string $attribute, mixed $value, \Closure $fail): void {
-            if ($value instanceof UploadedFile) {
-                if (! $value->isValid()) {
-                    $fail('The cover upload failed. Please try again.');
-
-                    return;
-                }
-
-                if (! in_array($value->getMimeType(), self::ALLOWED_COVER_MIME_TYPES, true)) {
-                    $fail('The cover must be a JPG, PNG, GIF, or WEBP image.');
-
-                    return;
-                }
-
-                if ($value->getSize() > self::MAX_COVER_BYTES) {
-                    $fail('The cover must not be larger than 10MB.');
-                }
-
-                return;
-            }
-
-            // Accepts a base64/data-URI string or an existing http(s) URL (see FileUploadHelper).
-            if (! is_string($value) || trim($value) === '') {
-                $fail('The cover must be an uploaded image, a URL, or a base64-encoded image.');
-            }
-        };
     }
 
     public function messages(): array
     {
         return array_merge(parent::messages(), [
-            'allocated_admin_id.required' => 'Please select an officer to allocate this campaign to.',
-            'allocated_admin_id.exists' => 'The selected officer does not exist.',
+            'assigned_admin_id.required' => 'Please select an officer to assign this campaign to.',
+            'assigned_admin_id.exists' => 'The selected officer does not exist.',
             'bank_account_id.required' => 'Please select or add a bank account for remittance.',
             'bank_account_id.exists' => 'The selected bank account does not exist.',
         ]);

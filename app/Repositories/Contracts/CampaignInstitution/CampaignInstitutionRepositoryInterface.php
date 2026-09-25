@@ -53,4 +53,18 @@ interface CampaignInstitutionRepositoryInterface
      * @return array<int, int> institution id => number of campaigns it participates in
      */
     public function countByInstitutions(array $institutionIds): array;
+
+    /**
+     * @param  list<int>  $campaignIds
+     * @return array<int, int>
+     */
+    public function countByCampaigns(array $campaignIds): array;
+
+    /**
+     * Every row for a campaign with its bank account, unpaginated, for exporting the Institutions tab.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, CampaignInstitution>
+     */
+    public function exportForCampaign(int $campaignId, array $filters): Collection;
 }

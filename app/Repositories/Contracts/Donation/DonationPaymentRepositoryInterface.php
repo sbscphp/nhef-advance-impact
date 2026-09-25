@@ -100,7 +100,7 @@ interface DonationPaymentRepositoryInterface
     /**
      * Org-wide sum of successful NGN payments, optionally date-scoped.
      */
-    public function sumSuccessfulForAdmin(?string $from, ?string $to): string;
+    public function sumSuccessfulForAdmin(?string $from, ?string $to, ?string $campaignType = null): string;
 
     /**
      * Count of successful NGN payments, optionally date-scoped; feeds the dashboard's average
@@ -114,7 +114,15 @@ interface DonationPaymentRepositoryInterface
      *
      * @return list<int>
      */
-    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to): array;
+    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to, ?string $campaignType = null): array;
+
+    /**
+     * Successful payment count and distinct donors (registered or guest) per campaign, for the campaign list.
+     *
+     * @param  list<int>  $campaignIds
+     * @return array<int, array{donations: int, donors: int}>
+     */
+    public function statsByCampaigns(array $campaignIds): array;
 
     /**
      * Sum of goal_amount across every campaign that has ever received a successful NGN payment;

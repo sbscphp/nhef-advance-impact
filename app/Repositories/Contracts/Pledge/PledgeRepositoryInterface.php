@@ -56,4 +56,19 @@ interface PledgeRepositoryInterface
      * @return array<int, string>
      */
     public function totalCommittedByInstitutions(array $tertiaryInstitutionIds): array;
+
+    /**
+     * Pledge count and committed value (cancelled excluded) per campaign.
+     *
+     * @param  list<int>  $campaignIds
+     * @return array<int, array{count: int, total: string}>
+     */
+    public function totalsByCampaigns(array $campaignIds): array;
+
+    /**
+     * Same as {@see self::totalsByCampaigns()} but narrowed to donors of one tertiary institution.
+     *
+     * @return array{count: int, total: string}
+     */
+    public function totalsForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): array;
 }
