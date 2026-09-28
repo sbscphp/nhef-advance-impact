@@ -51,4 +51,12 @@ interface InstitutionRepositoryInterface
      * @return array{all: int, active: int, access_revoked: int}
      */
     public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array;
+
+    /**
+     * Onboarded, fully active institutions for the public "Join Your University Community"
+     * directory; excludes invite_sent/on_hold/access_revoked/completed ones.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginatePublic(array $filters, int $perPage): LengthAwarePaginator;
 }

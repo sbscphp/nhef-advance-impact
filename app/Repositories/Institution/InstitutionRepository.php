@@ -120,4 +120,17 @@ class InstitutionRepository implements InstitutionRepositoryInterface
             'access_revoked' => (int) $scoped()->where('status', InstitutionStatusEnum::ACCESS_REVOKED->value)->count(),
         ];
     }
+
+    public function paginatePublic(array $filters, int $perPage): LengthAwarePaginator
+    {
+        return Institution::query()
+            ->with('tertiaryInstitution')
+            ->where('status', InstitutionStatusEnum::ACTIVE->value)
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->where('name', 'like', '%'.$filters['search'].'%')
+            )
+            ->orderBy('name')
+            ->paginate($perPage);
+    }
 }

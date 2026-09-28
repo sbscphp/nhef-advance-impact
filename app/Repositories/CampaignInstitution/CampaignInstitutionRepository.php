@@ -114,6 +114,23 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
             ->all();
     }
 
+    public function countActiveByInstitutions(array $institutionIds): array
+    {
+        if ($institutionIds === []) {
+            return [];
+        }
+
+        return CampaignInstitution::query()
+            ->join('campaigns', 'campaigns.id', '=', 'campaign_institutions.campaign_id')
+            ->whereIn('campaign_institutions.institution_id', $institutionIds)
+            ->where('campaigns.status', CampaignStatusEnum::ACTIVE->value)
+            ->groupBy('campaign_institutions.institution_id')
+            ->selectRaw('campaign_institutions.institution_id, count(*) as total')
+            ->pluck('total', 'institution_id')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+    }
+
     public function countByCampaigns(array $campaignIds): array
     {
         if ($campaignIds === []) {

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\v1\Communications\MailTrackingController;
 use App\Http\Controllers\v1\Communications\MailUnsubscribeController;
+use App\Http\Controllers\v1\ConstituentManagement\InstitutionController;
 use App\Http\Controllers\v1\Events\EventController;
 use App\Http\Controllers\v1\Events\EventRegistrationPaymentController;
 use App\Http\Controllers\v1\Fundraising\CampaignController;
@@ -47,6 +48,9 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::post('events/registrations/payments/{reference}/verify', [EventRegistrationPaymentController::class, 'verify']);
+
+    // Landing page's "Join Your University Community" directory; no account needed.
+    Route::get('institutions', [InstitutionController::class, 'index']);
 
     // Matches RequestResponseEncryptionMiddleware::BYPASS_REGEX: opened from an emailed link
     // with no X-ClientKey header, so the `signed` middleware's signature is the credential.

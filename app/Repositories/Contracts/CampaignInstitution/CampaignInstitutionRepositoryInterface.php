@@ -55,6 +55,15 @@ interface CampaignInstitutionRepositoryInterface
     public function countByInstitutions(array $institutionIds): array;
 
     /**
+     * Same as {@see self::countByInstitutions()} but counting only currently active campaigns;
+     * feeds the public institution directory's "Active Campaign" card figure.
+     *
+     * @param  list<int>  $institutionIds
+     * @return array<int, int>
+     */
+    public function countActiveByInstitutions(array $institutionIds): array;
+
+    /**
      * @param  list<int>  $campaignIds
      * @return array<int, int>
      */
