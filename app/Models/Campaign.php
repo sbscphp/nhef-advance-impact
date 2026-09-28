@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CampaignStatusEnum;
+use App\Models\Concerns\BelongsToTenant;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaign extends Model
 {
-    use HasUuid;
+    use BelongsToTenant, HasUuid;
+
+    /**
+     * A campaign has no institution_id of its own; for an institution admin, "theirs" means a
+     * National Giving Day campaign that targets their institution. A standard campaign never has
+     * a campaign_institutions row for anyone, so it's correctly invisible to institution admins
+     * (NHEF-only, same fail-closed rule as every other un-owned admin-authored record). No-ops
+     * for NHEF and for public/customer requests, which never have a current tenant.
+     */
+    public static function constrainToTenant(Builder $query, Institution $tenant): void
+    {
+        $query->whereExists(function ($sub) use ($tenant): void {
+            $sub->selectRaw('1')
+                ->from('campaign_institutions')
+                ->whereColumn('campaign_institutions.campaign_id', 'campaigns.id')
+                ->where('campaign_institutions.institution_id', $tenant->id);
+        });
+    }
 
     protected $guarded = ['id', 'uuid'];
 

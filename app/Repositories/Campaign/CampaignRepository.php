@@ -5,6 +5,7 @@ namespace App\Repositories\Campaign;
 use App\Enums\CampaignStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Campaign;
+use App\Models\Scopes\TenantScope;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -82,9 +83,10 @@ class CampaignRepository implements CampaignRepositoryInterface
         return $campaign;
     }
 
+    /** Slugs are unique platform-wide, not per institution, so this ignores the tenant scope. */
     public function slugExists(string $slug): bool
     {
-        return Campaign::query()->where('slug', $slug)->exists();
+        return Campaign::query()->withoutGlobalScope(TenantScope::class)->where('slug', $slug)->exists();
     }
 
     public function create(array $data): Campaign

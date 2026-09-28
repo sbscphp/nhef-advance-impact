@@ -6,6 +6,7 @@ use App\Enums\PaymentStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Campaign;
 use App\Models\DonationPayment;
+use App\Models\Scopes\TenantScope;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -136,7 +137,7 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->distinct()
             ->pluck('donations.campaign_id');
 
-        return (string) Campaign::query()->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
+        return (string) Campaign::query()->withoutGlobalScope(TenantScope::class)->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
     }
 
     public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator
@@ -324,7 +325,10 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->distinct()
             ->pluck('donations.campaign_id');
 
-        return (string) Campaign::query()->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
+        // $campaignIds already came from a tenant-scoped payment query, which correctly includes any
+        // standard campaign this tenant's own donors gave to; re-applying Campaign's tenant scope here
+        // would wrongly drop those (a standard campaign never has a campaign_institutions row for anyone).
+        return (string) Campaign::query()->withoutGlobalScope(TenantScope::class)->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
     }
 
     public function resolveTierUpgradeDate(int $userId, string $thresholdAmount): ?CarbonInterface
