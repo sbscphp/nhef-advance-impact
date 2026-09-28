@@ -29,6 +29,9 @@ class CreateNationalGivingDayCampaignRequest extends ApiFormRequest
             'ends_at' => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_at'],
             'description' => ['required', 'string'],
             'cover' => ['required', $this->campaignCoverRule()],
+            // Overrides projectAndTimerRules()'s optional 'projects': the campaign's target is the
+            // sum of its projects' goals, so a National Giving Day campaign needs at least one.
+            'projects' => ['required', 'array', 'min:1'],
             'institutions' => ['required', 'array', 'min:1'],
             'institutions.*.institution_id' => ['required', 'uuid', 'exists:institutions,uuid'],
             'institutions.*.goal_amount' => ['required', 'numeric', 'min:0.01'],
@@ -41,6 +44,8 @@ class CreateNationalGivingDayCampaignRequest extends ApiFormRequest
     {
         return array_merge(parent::messages(), $this->projectMessages(), [
             'assigned_admin_id.required' => 'Please select who this campaign is assigned to.',
+            'projects.required' => 'Please add at least one project.',
+            'projects.min' => 'Please add at least one project.',
             'institutions.required' => 'Please add at least one institution.',
             'institutions.min' => 'Please add at least one institution.',
             'institutions.*.institution_id.required' => 'Please select an institution.',
@@ -50,5 +55,4 @@ class CreateNationalGivingDayCampaignRequest extends ApiFormRequest
             'institutions.*.bank_account_id.exists' => 'The selected bank account does not exist.',
         ]);
     }
-
 }

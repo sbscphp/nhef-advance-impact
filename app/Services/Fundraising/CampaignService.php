@@ -114,16 +114,21 @@ class CampaignService
     }
 
     /**
-     * Summing across currencies isn't meaningful, so this aggregates NGN institutions only.
+     * The campaign's overall target is the sum of its projects' goals, not the institutions'
+     * goals: an institution's own goal is how much *that institution* intends to raise toward
+     * the shared target, not a second definition of the target itself. `$campaign->projects`
+     * must be eager-loaded by the caller. Raised amount still aggregates actual institution-level
+     * payments and pledges (summing across currencies isn't meaningful, so NGN institutions
+     * only); Phase 1 only tracks money at the institution level, not per project.
      *
      * @return array{goal_amount: string, raised_amount: string, currency: string}
      */
     public function nationalGivingDayTotals(Campaign $campaign): array
     {
+        $goalAmount = (string) $campaign->projects->sum('goal_amount');
+
         $rows = $this->campaignInstitutionRepository->allForCampaign($campaign->id)
             ->filter(fn (CampaignInstitution $row) => $row->currency === 'NGN');
-
-        $goalAmount = (string) $rows->sum(fn (CampaignInstitution $row) => (float) $row->goal_amount);
 
         $raisedAmount = (string) $rows->sum(function (CampaignInstitution $row) use ($campaign) {
             return (float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id)

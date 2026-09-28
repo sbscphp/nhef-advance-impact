@@ -35,7 +35,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function paginateAdmin(array $filters, int $perPage): LengthAwarePaginator
     {
         $query = Campaign::query()
-            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator'])
+            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator', 'projects'])
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
