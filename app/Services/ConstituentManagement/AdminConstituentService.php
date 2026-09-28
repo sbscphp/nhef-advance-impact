@@ -98,8 +98,10 @@ class AdminConstituentService
     public function paginateForAdmin(array $filters): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $paginator = $this->userRepository->paginateForAdmin($filters, $perPage);
+        $this->attachDonationStats($paginator->items());
 
-        return $this->userRepository->paginateForAdmin($filters, $perPage);
+        return $paginator;
     }
 
     /**
@@ -108,7 +110,27 @@ class AdminConstituentService
      */
     public function exportForAdmin(array $filters): array
     {
-        return $this->userRepository->exportForAdmin($filters);
+        [$rows, $truncated] = $this->userRepository->exportForAdmin($filters);
+        $this->attachDonationStats($rows);
+
+        return [$rows, $truncated];
+    }
+
+    /**
+     * Attaches `donations_count` and `total_donations` (lifetime, NGN successful payments) read
+     * back by {@see ConstituentAdminResource}, in one grouped query rather than one per row.
+     *
+     * @param  iterable<User>  $users
+     */
+    private function attachDonationStats(iterable $users): void
+    {
+        $users = collect($users);
+        $totals = $this->paymentRepository->totalsByUserIds($users->pluck('id')->all());
+
+        foreach ($users as $user) {
+            $user->setAttribute('donations_count', $totals[$user->id]['count'] ?? 0);
+            $user->setAttribute('total_donations', $totals[$user->id]['total'] ?? '0');
+        }
     }
 
     /**
@@ -140,6 +162,7 @@ class AdminConstituentService
         $user = $this->findForAdmin($uuid);
         $user->loadMissing('tertiaryInstitution');
         $user->setAttribute('tier', $this->resolveTierLabel($user));
+        $this->attachDonationStats([$user]);
 
         return $user;
     }

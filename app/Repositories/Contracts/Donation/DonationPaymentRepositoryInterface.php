@@ -149,4 +149,13 @@ interface DonationPaymentRepositoryInterface
      * Distinct successful donors to one campaign who belong to one tertiary institution.
      */
     public function countDonorsForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): int;
+
+    /**
+     * Lifetime successful NGN payment count and total per donor, for the constituent list's
+     * "No. of Donations" / "Total Donations" columns.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, array{count: int, total: string}>
+     */
+    public function totalsByUserIds(array $userIds): array;
 }

@@ -419,4 +419,28 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->distinct()
             ->count('donations.user_id');
     }
+
+    public function totalsByUserIds(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        // Summing across currencies isn't meaningful (₦ + $ isn't a real number), same NGN-only
+        // scoping as sumSuccessfulForUser().
+        $rows = DonationPayment::query()
+            ->whereIn('user_id', $userIds)
+            ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('currency', 'NGN')
+            ->groupBy('user_id')
+            ->selectRaw('user_id, count(*) as payments, sum(amount) as total')
+            ->get();
+
+        $totals = [];
+        foreach ($rows as $row) {
+            $totals[(int) $row->user_id] = ['count' => (int) $row->payments, 'total' => (string) $row->total];
+        }
+
+        return $totals;
+    }
 }
