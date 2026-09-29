@@ -148,8 +148,8 @@ class CampaignService
      */
     public function create(array $payload, Admin $actor, Request $request): Campaign
     {
-        if (AdminScopeEnum::current() === AdminScopeEnum::INSTITUTION) {
-            throw new ApiException('Standard campaigns can only be created by NHEF. Institutions create National Giving Day campaigns instead.', 403);
+        if (AdminScopeEnum::current() === AdminScopeEnum::NHEF) {
+            throw new ApiException('Standard campaigns can only be created by an institution. NHEF creates National Giving Day campaigns on an institution\'s behalf instead.', 403);
         }
 
         $assignedAdmin = $this->adminRepository->findByUuid((string) $payload['assigned_admin_id']);
@@ -161,6 +161,8 @@ class CampaignService
         if (! $bankAccount instanceof BankAccount) {
             throw new ApiException('The selected bank account does not exist.', 422);
         }
+
+        $tenant = $this->assertBelongsToOwnInstitution($assignedAdmin, $bankAccount);
 
         $coverUrl = FileUploadHelper::smartSingleFileUpload($payload['cover'] ?? null, 'campaigns/covers');
 
@@ -181,6 +183,15 @@ class CampaignService
             'ends_at' => $this->scheduleValue($payload['ends_at'] ?? null, true),
             'created_by' => $actor->uuid,
             'allocated_admin_id' => $assignedAdmin->id,
+            'bank_account_id' => $bankAccount->id,
+        ]);
+
+        // A standard campaign has no institution_id of its own; this row is what makes it visible
+        // to the creating institution afterward, via Campaign::constrainToTenant().
+        $this->campaignInstitutionRepository->create($campaign, [
+            'institution_id' => $tenant->id,
+            'goal_amount' => $payload['goal_amount'],
+            'currency' => $payload['currency'],
             'bank_account_id' => $bankAccount->id,
         ]);
 
@@ -288,22 +299,47 @@ class CampaignService
      */
     private function assertOwnInstitutionOnly(array $institutions, Admin $assignedAdmin): void
     {
+        if (count($institutions) !== 1) {
+            throw new ApiException('An institution can only create a National Giving Day campaign scoped to its own institution.', 403);
+        }
+
+        $tenant = $this->assertBelongsToOwnInstitution($assignedAdmin, null);
+
+        if ((string) ($institutions[0]['institution_id'] ?? '') !== $tenant->uuid) {
+            throw new ApiException('An institution can only create a National Giving Day campaign scoped to its own institution.', 403);
+        }
+
+        $bankAccount = $this->bankAccountRepository->findByUuid((string) ($institutions[0]['bank_account_id'] ?? ''));
+        $this->assertBankAccountBelongsToInstitution($bankAccount, $tenant);
+    }
+
+    /**
+     * Backstop for an institution admin creating their own campaign (standard or National Giving
+     * Day): the assigned officer, and optionally a bank account, must belong to their own
+     * institution, never NHEF's or another institution's.
+     */
+    private function assertBelongsToOwnInstitution(Admin $assignedAdmin, ?BankAccount $bankAccount): Institution
+    {
         $tenant = Institution::current();
         if ($tenant === null) {
             throw new ApiException('Your institution could not be determined.', 403);
-        }
-
-        if (count($institutions) !== 1 || (string) ($institutions[0]['institution_id'] ?? '') !== $tenant->uuid) {
-            throw new ApiException('An institution can only create a National Giving Day campaign scoped to its own institution.', 403);
         }
 
         if ($assignedAdmin->institution_id !== $tenant->id) {
             throw new ApiException('The assigned officer must belong to your own institution.', 422);
         }
 
-        $bankAccount = $this->bankAccountRepository->findByUuid((string) ($institutions[0]['bank_account_id'] ?? ''));
-        $bankAccountOwner = $bankAccount === null ? null : $this->adminRepository->findByUuid((string) $bankAccount->created_by);
-        if ($bankAccountOwner === null || $bankAccountOwner->institution_id !== $tenant->id) {
+        if ($bankAccount !== null) {
+            $this->assertBankAccountBelongsToInstitution($bankAccount, $tenant);
+        }
+
+        return $tenant;
+    }
+
+    private function assertBankAccountBelongsToInstitution(?BankAccount $bankAccount, Institution $tenant): void
+    {
+        $owner = $bankAccount === null ? null : $this->adminRepository->findByUuid((string) $bankAccount->created_by);
+        if ($owner === null || $owner->institution_id !== $tenant->id) {
             throw new ApiException('The selected bank account must belong to your own institution.', 422);
         }
     }

@@ -15,11 +15,13 @@ class Campaign extends Model
     use BelongsToTenant, HasUuid;
 
     /**
-     * A campaign has no institution_id of its own; for an institution admin, "theirs" means a
-     * National Giving Day campaign that targets their institution. A standard campaign never has
-     * a campaign_institutions row for anyone, so it's correctly invisible to institution admins
-     * (NHEF-only, same fail-closed rule as every other un-owned admin-authored record). No-ops
-     * for NHEF and for public/customer requests, which never have a current tenant.
+     * A campaign has no institution_id of its own; "theirs" means having a campaign_institutions
+     * row for their institution. National Giving Day campaigns get one row per targeted
+     * institution; a standard campaign created by an institution admin gets exactly one row (its
+     * own institution) purely so this scope picks it up (see CampaignService::create()). A
+     * standard campaign created by NHEF (before institutions could create their own) has no row
+     * for anyone and stays NHEF-only. No-ops for NHEF and for public/customer requests, which
+     * never have a current tenant.
      */
     public static function constrainToTenant(Builder $query, Institution $tenant): void
     {
