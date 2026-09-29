@@ -19,6 +19,7 @@ use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
@@ -36,6 +37,7 @@ class AdminConstituentService
         private readonly DonationPaymentRepositoryInterface $paymentRepository,
         private readonly PledgeRepositoryInterface $pledgeRepository,
         private readonly DonorTierRepositoryInterface $donorTierRepository,
+        private readonly EventRegistrationRepositoryInterface $eventRegistrationRepository,
         private readonly NotificationDispatchService $notificationDispatchService,
     ) {}
 
@@ -375,6 +377,18 @@ class AdminConstituentService
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         return $this->pledgeRepository->paginateForUser($user->id, $filters, $perPage);
+    }
+
+    /**
+     * The "Events" tab on a constituent's detail screen: every event they've registered for.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateEvents(User $user, array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->eventRegistrationRepository->paginateForUser($user->id, $filters, $perPage);
     }
 
     public function findPledgeForAdmin(User $user, string $uuid): Pledge

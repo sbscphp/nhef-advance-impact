@@ -6,6 +6,7 @@ use App\Helpers\GeneralHelper;
 use App\Helpers\PDFReportHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentDonationListRequest;
+use App\Http\Requests\Admin\ConstituentManagement\ConstituentEventListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentPaymentListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentPaymentOverviewRequest;
@@ -17,6 +18,7 @@ use App\Http\Requests\Admin\DateRangeStatsRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Http\Resources\Admin\ConstituentManagement\ConstituentAdminResource;
 use App\Http\Resources\Admin\ConstituentManagement\ConstituentDetailResource;
+use App\Http\Resources\Events\EventRegistrationResource;
 use App\Http\Resources\Fundraising\DonationPaymentResource;
 use App\Http\Resources\Fundraising\DonationResource;
 use App\Http\Resources\Fundraising\PledgeResource;
@@ -217,6 +219,18 @@ class ConstituentController extends Controller
             return JsonResponser::send(false, 'Constituent donations retrieved.', $this->paginatedPayload($paginator, DonationResource::class));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@donations');
+        }
+    }
+
+    public function events(ConstituentEventListRequest $request, string $uuid)
+    {
+        try {
+            $user = $this->constituentService->findForAdmin($uuid);
+            $paginator = $this->constituentService->paginateEvents($user, $request->validated());
+
+            return JsonResponser::send(false, 'Constituent events retrieved.', $this->paginatedPayload($paginator, EventRegistrationResource::class));
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@events');
         }
     }
 
