@@ -20,6 +20,10 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
+            )
+            ->when(
+                filled($filters['filters']['type'] ?? null),
+                fn ($query) => $query->where('type', $filters['filters']['type'])
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
