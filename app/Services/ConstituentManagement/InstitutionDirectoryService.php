@@ -3,6 +3,7 @@
 namespace App\Services\ConstituentManagement;
 
 use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
+use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -15,6 +16,7 @@ class InstitutionDirectoryService
     public function __construct(
         private readonly InstitutionRepositoryInterface $institutionRepository,
         private readonly CampaignInstitutionRepositoryInterface $campaignInstitutionRepository,
+        private readonly EventRepositoryInterface $eventRepository,
         private readonly InstitutionStatsLoader $statsLoader,
     ) {}
 
@@ -29,9 +31,12 @@ class InstitutionDirectoryService
         $institutions = collect($paginator->items());
         $this->statsLoader->attach($institutions);
 
-        $activeCampaigns = $this->campaignInstitutionRepository->countActiveByInstitutions($institutions->pluck('id')->all());
+        $institutionIds = $institutions->pluck('id')->all();
+        $activeCampaigns = $this->campaignInstitutionRepository->countActiveByInstitutions($institutionIds);
+        $activeEvents = $this->eventRepository->countActiveByInstitutions($institutionIds);
         foreach ($institutions as $institution) {
             $institution->setAttribute('active_campaigns_count', $activeCampaigns[$institution->id] ?? 0);
+            $institution->setAttribute('active_events_count', $activeEvents[$institution->id] ?? 0);
         }
 
         return $paginator;

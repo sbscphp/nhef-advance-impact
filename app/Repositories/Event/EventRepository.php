@@ -121,4 +121,23 @@ class EventRepository implements EventRepositoryInterface
             'archived' => (int) $scoped()->where('status', EventStatusEnum::ARCHIVED->value)->count(),
         ];
     }
+
+    public function countActiveByInstitutions(array $institutionIds): array
+    {
+        if ($institutionIds === []) {
+            return [];
+        }
+
+        $now = now();
+
+        return Event::query()
+            ->whereIn('institution_id', $institutionIds)
+            ->where('status', EventStatusEnum::PUBLISHED->value)
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', $now))
+            ->groupBy('institution_id')
+            ->selectRaw('institution_id, count(*) as total')
+            ->pluck('total', 'institution_id')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+    }
 }

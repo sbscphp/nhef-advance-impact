@@ -45,4 +45,13 @@ interface EventRepositoryInterface
      * @return array{all: int, scheduled: int, ongoing: int, completed: int, archived: int}
      */
     public function countByStatusBuckets(?CarbonInterface $start, ?CarbonInterface $end): array;
+
+    /**
+     * Published events that haven't ended yet, per institution; feeds the public institution
+     * directory's "No. of Active Events" card figure.
+     *
+     * @param  list<int>  $institutionIds
+     * @return array<int, int>
+     */
+    public function countActiveByInstitutions(array $institutionIds): array;
 }

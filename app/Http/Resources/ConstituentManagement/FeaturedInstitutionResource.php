@@ -22,6 +22,7 @@ class FeaturedInstitutionResource extends JsonResource
             'logo_url' => $this->logoUrl(),
             'tertiary_institution' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : TertiaryInstitutionResource::make($this->tertiaryInstitution)),
             'active_campaigns_count' => (int) $this->active_campaigns_count,
+            'active_events_count' => (int) $this->active_events_count,
             'total_donations' => (string) $this->total_donations,
             'total_donations_formatted' => Money::format($this->total_donations, 'NGN'),
             'donors_count' => (int) $this->donors_count,

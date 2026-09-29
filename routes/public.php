@@ -10,6 +10,7 @@ use App\Http\Controllers\v1\Fundraising\DonationPaymentController;
 use App\Http\Controllers\v1\Fundraising\DonationReceiptController;
 use App\Http\Controllers\v1\Fundraising\PaymentController;
 use App\Http\Controllers\v1\Recognition\LeaderboardController;
+use App\Http\Controllers\v1\Stats\PlatformStatsController;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 use App\Http\Controllers\v1\Webhooks\StripeWebhookController;
 use App\Http\Controllers\v1\Workspace\WorkspaceLookupController;
@@ -51,6 +52,9 @@ Route::prefix('v1')->group(function () {
 
     // Landing page's "Join Your University Community" directory; no account needed.
     Route::get('institutions', [InstitutionController::class, 'index']);
+
+    // Landing page's top banner stat cards; no account needed.
+    Route::get('platform-stats', [PlatformStatsController::class, 'overview']);
 
     // Matches RequestResponseEncryptionMiddleware::BYPASS_REGEX: opened from an emailed link
     // with no X-ClientKey header, so the `signed` middleware's signature is the credential.
