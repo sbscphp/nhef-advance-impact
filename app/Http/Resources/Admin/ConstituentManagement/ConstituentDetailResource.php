@@ -22,6 +22,7 @@ class ConstituentDetailResource extends JsonResource
             'code' => $this->code(),
             'first_name' => $this->firstname,
             'last_name' => $this->lastname,
+            'middle_name' => $this->middlename,
             'name' => $this->displayName(),
             'email' => $this->email,
             'constituent_type' => $this->constituent_type,
@@ -31,6 +32,9 @@ class ConstituentDetailResource extends JsonResource
             'university' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : TertiaryInstitutionResource::make($this->tertiaryInstitution)),
             'department' => $this->department,
             'year_of_graduation' => $this->year_of_graduation,
+            'degree_earned' => $this->degree_earned,
+            'organisation_name' => $this->organisation_name,
+            'position' => $this->position,
             'tier' => $this->tier,
             'invite_message' => $this->invite_message,
             // Present only when the service has attached them (showForAdmin);
