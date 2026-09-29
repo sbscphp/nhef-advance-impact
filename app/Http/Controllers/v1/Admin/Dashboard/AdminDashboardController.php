@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\Dashboard\DashboardSectionRequest;
 use App\Responser\JsonResponser;
 use App\Services\Audit\AuditTrailQueryService;
 use App\Services\Dashboard\AdminDashboardService;
+use App\Services\Dashboard\InstitutionDashboardService;
 use App\Services\Dashboard\NationalDashboardService;
 use App\Support\ListingQuery;
 
@@ -19,6 +20,7 @@ class AdminDashboardController extends Controller
     public function __construct(
         private readonly AdminDashboardService $dashboardService,
         private readonly NationalDashboardService $nationalDashboard,
+        private readonly InstitutionDashboardService $institutionDashboard,
         private readonly AuditTrailQueryService $auditTrailQuery,
     ) {}
 
@@ -66,6 +68,24 @@ class AdminDashboardController extends Controller
             return JsonResponser::send(false, 'Institution ranking retrieved.', $this->nationalDashboard->institutionRanking($request->validated()));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Dashboard\AdminDashboardController@institutionRanking');
+        }
+    }
+
+    public function institutionOverview()
+    {
+        try {
+            return JsonResponser::send(false, 'Dashboard overview retrieved.', $this->institutionDashboard->overview());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Dashboard\AdminDashboardController@institutionOverview');
+        }
+    }
+
+    public function institutionEventIntelligence()
+    {
+        try {
+            return JsonResponser::send(false, 'Event intelligence retrieved.', $this->institutionDashboard->eventIntelligence());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Dashboard\AdminDashboardController@institutionEventIntelligence');
         }
     }
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\v1\Admin\Communications\ConstituentPickerController;
 use App\Http\Controllers\v1\Admin\Communications\MailController;
 use App\Http\Controllers\v1\Admin\Communications\TaskController as CommunicationTaskController;
 use App\Http\Controllers\v1\Admin\ConstituentManagement\ConstituentController;
+use App\Http\Controllers\v1\Admin\ConstituentManagement\InstitutionController as ConstituentInstitutionController;
 use App\Http\Controllers\v1\Admin\Crm\ProposalCollaboratorController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectCallLogController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectController;
@@ -17,7 +18,6 @@ use App\Http\Controllers\v1\Admin\Crm\ProspectProposalController;
 use App\Http\Controllers\v1\Admin\CustomFields\CustomFieldDefinitionController;
 use App\Http\Controllers\v1\Admin\Dashboard\AdminDashboardController;
 use App\Http\Controllers\v1\Admin\Donation\DonationController as AdminDonationController;
-use App\Http\Controllers\v1\Admin\ConstituentManagement\InstitutionController as ConstituentInstitutionController;
 use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
@@ -312,6 +312,13 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:dashboard.read']);
             Route::get('/live-activity', [AdminDashboardController::class, 'liveActivity'])
                 ->middleware(['permission:dashboard.read', 'permission:audit_trail.read']);
+
+            // Institution admin's own scoped dashboard; NationalDashboardService/AdminDashboardService's
+            // NHEF-only actions above and these both guard the caller's scope internally too.
+            Route::get('/institution/overview', [AdminDashboardController::class, 'institutionOverview'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/institution/event-intelligence', [AdminDashboardController::class, 'institutionEventIntelligence'])
+                ->middleware(['permission:dashboard.read']);
         });
 
         Route::prefix('reports')->group(function () {

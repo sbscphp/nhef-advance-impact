@@ -3,6 +3,7 @@
 namespace App\Repositories\Event;
 
 use App\Enums\EventRegistrationStatusEnum;
+use App\Enums\EventStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -137,5 +138,27 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
             ->with(['items.ticketType', 'payments'])
             ->where('event_id', $event->id)
             ->where('status', EventRegistrationStatusEnum::COMPLETED->value);
+    }
+
+    public function averageAttendanceForAdmin(): string
+    {
+        // Event::query() carries its own tenant scope (OwnedByInstitution), so this already
+        // narrows to one institution's own events for an institution admin, all events for NHEF.
+        $completedEventIds = Event::query()
+            ->where('status', EventStatusEnum::PUBLISHED->value)
+            ->whereNotNull('ends_at')
+            ->where('ends_at', '<', now())
+            ->pluck('id');
+
+        if ($completedEventIds->isEmpty()) {
+            return '0';
+        }
+
+        $totalRegistrations = EventRegistration::query()
+            ->whereIn('event_id', $completedEventIds)
+            ->where('status', EventRegistrationStatusEnum::COMPLETED->value)
+            ->count();
+
+        return bcdiv((string) $totalRegistrations, (string) $completedEventIds->count(), 2);
     }
 }

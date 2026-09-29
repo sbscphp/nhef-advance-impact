@@ -110,4 +110,10 @@ interface UserRepositoryInterface
      * @return list<array{institution_uuid: string, name: string, alumni: int, non_alumni: int, organization: int, total: int}>
      */
     public function rankInstitutionsByConstituents(?CarbonInterface $start, ?CarbonInterface $end, int $limit): array;
+
+    /**
+     * Count of constituents whose `last_active_at` falls on/after $since; feeds the institution
+     * admin dashboard's "X% active last 30 days" figure.
+     */
+    public function countActiveSince(CarbonInterface $since): int;
 }

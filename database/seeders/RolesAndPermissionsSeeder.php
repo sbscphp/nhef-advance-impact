@@ -87,9 +87,13 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::ADMINS_DELETE,
         ]));
 
-        // Fail closed: only tenant-scoped modules, never delete. Left off: dashboard (national snapshot),
-        // custom fields, system configuration, roles.
+        // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields, system
+        // configuration, roles. dashboard.read IS granted, but the NHEF-only dashboard actions
+        // (national snapshot, campaign/event tracking, institution ranking) each additionally
+        // assert AdminScopeEnum::NHEF internally, so this only unlocks the institution-scoped
+        // dashboard/institution/* endpoints, not the NHEF-wide ones.
         $this->grant(RoleEnum::INSTITUTION_ADMIN, [
+            PermissionEnum::DASHBOARD_READ,
             PermissionEnum::CONSTITUENTS_CREATE,
             PermissionEnum::CONSTITUENTS_READ,
             PermissionEnum::CONSTITUENTS_UPDATE,

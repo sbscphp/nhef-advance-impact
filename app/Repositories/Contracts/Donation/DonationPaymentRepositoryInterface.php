@@ -158,4 +158,12 @@ interface DonationPaymentRepositoryInterface
      * @return array<int, array{count: int, total: string}>
      */
     public function totalsByUserIds(array $userIds): array;
+
+    /**
+     * Distinct successful NGN donors grouped by their constituent_type, optionally date-scoped;
+     * feeds the institution admin dashboard's Donation Intelligence donor breakdown.
+     *
+     * @return array{alumni: int, non_alumni: int, organization: int}
+     */
+    public function donorCountsByConstituentType(?string $from, ?string $to): array;
 }

@@ -2,6 +2,8 @@
 
 namespace App\Services\Dashboard;
 
+use App\Enums\AdminScopeEnum;
+use App\Exceptions\ApiException;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\CampaignInstitution;
 use App\Models\Event;
@@ -30,12 +32,21 @@ class NationalDashboardService
         private readonly PledgeRepositoryInterface $pledgeRepository,
     ) {}
 
+    private function assertNhefScope(): void
+    {
+        if (AdminScopeEnum::current() !== AdminScopeEnum::NHEF) {
+            throw new ApiException('This dashboard is only available to NHEF-level accounts.', 403);
+        }
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function nationalSnapshot(array $filters): array
     {
+        $this->assertNhefScope();
+
         $window = ListingFilterRules::resolveDateWindow($filters);
         $types = $this->userRepository->countByConstituentType($window['start'], $window['end']);
 
@@ -52,6 +63,8 @@ class NationalDashboardService
      */
     public function campaignTracking(array $filters): LengthAwarePaginator
     {
+        $this->assertNhefScope();
+
         $perPage = max(1, min((int) ($filters['per_page'] ?? 10), 100));
         $paginator = $this->campaignInstitutionRepository->paginateActiveTracking($filters, $perPage);
 
@@ -85,6 +98,8 @@ class NationalDashboardService
      */
     public function eventTracking(array $filters): LengthAwarePaginator
     {
+        $this->assertNhefScope();
+
         $perPage = max(1, min((int) ($filters['per_page'] ?? 10), 100));
         $paginator = $this->eventRepository->paginateAdmin($filters, $perPage);
 
@@ -106,6 +121,8 @@ class NationalDashboardService
      */
     public function institutionRanking(array $filters): array
     {
+        $this->assertNhefScope();
+
         $window = ListingFilterRules::resolveDateWindow($filters);
         $limit = max(1, min((int) ($filters['limit'] ?? 10), 50));
 

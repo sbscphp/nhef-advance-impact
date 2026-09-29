@@ -2,6 +2,8 @@
 
 namespace App\Services\Dashboard;
 
+use App\Enums\AdminScopeEnum;
+use App\Exceptions\ApiException;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
@@ -27,6 +29,10 @@ class AdminDashboardService
      */
     public function overview(): array
     {
+        if (AdminScopeEnum::current() !== AdminScopeEnum::NHEF) {
+            throw new ApiException('This dashboard is only available to NHEF-level accounts.', 403);
+        }
+
         $totalRaised = $this->donationPaymentRepository->sumSuccessfulForAdmin(null, null);
         $totalMentors = $this->mentorProfileRepository->countActive();
         $alumniStatus = $this->userRepository->countByStatus(null, null);

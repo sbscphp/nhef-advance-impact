@@ -62,4 +62,12 @@ interface EventRegistrationRepositoryInterface
      * @return Collection<int, EventRegistration>
      */
     public function completedForEvent(Event $event): Collection;
+
+    /**
+     * Average completed registrations per already-ended event, for whichever events
+     * {@see Event}'s own tenant scope currently resolves to (all events for an
+     * NHEF-level caller, only this institution's own events for an institution admin); the
+     * "Average Attendance" figure on the dashboard's Event Intelligence panel.
+     */
+    public function averageAttendanceForAdmin(): string;
 }

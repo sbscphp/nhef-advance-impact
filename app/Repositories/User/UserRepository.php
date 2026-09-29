@@ -314,4 +314,9 @@ class UserRepository implements UserRepositoryInterface
             ])
             ->all();
     }
+
+    public function countActiveSince(CarbonInterface $since): int
+    {
+        return (int) User::query()->where('last_active_at', '>=', $since)->count();
+    }
 }

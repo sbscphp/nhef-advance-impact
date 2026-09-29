@@ -443,4 +443,23 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 
         return $totals;
     }
+
+    public function donorCountsByConstituentType(?string $from, ?string $to): array
+    {
+        $rows = DonationPayment::query()
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donation_payments.currency', 'NGN')
+            ->when($from !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '>=', $from))
+            ->when($to !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '<=', $to))
+            ->groupBy('users.constituent_type')
+            ->selectRaw('users.constituent_type, count(distinct donation_payments.user_id) as total')
+            ->pluck('total', 'constituent_type');
+
+        return [
+            'alumni' => (int) ($rows['alumni'] ?? 0),
+            'non_alumni' => (int) ($rows['non_alumni'] ?? 0),
+            'organization' => (int) ($rows['organization'] ?? 0),
+        ];
+    }
 }
