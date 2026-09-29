@@ -22,6 +22,7 @@ class ConstituentAdminResource extends JsonResource
             'code' => $this->code(),
             'name' => $this->displayName(),
             'email' => $this->email,
+            'phone_number' => $this->phone_number,
             'constituent_type' => $this->constituent_type,
             'constituent_type_label' => ConstituentTypeEnum::tryFrom((string) $this->constituent_type)?->label(),
             'avatar_url' => $this->profile_picture_url,
