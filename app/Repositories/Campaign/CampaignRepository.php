@@ -62,7 +62,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function findActiveByUuid(string $uuid): ?Campaign
     {
         return Campaign::query()
-            ->with('projects')
+            ->with(['projects', 'allocatedAdmin'])
             ->where('status', CampaignStatusEnum::ACTIVE->value)
             ->where('uuid', $uuid)
             ->first();

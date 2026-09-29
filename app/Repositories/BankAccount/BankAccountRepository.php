@@ -2,8 +2,10 @@
 
 namespace App\Repositories\BankAccount;
 
+use App\Enums\AdminScopeEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\BankAccount;
+use App\Models\Institution;
 use App\Repositories\Contracts\BankAccount\BankAccountRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -13,10 +15,18 @@ class BankAccountRepository implements BankAccountRepositoryInterface
     public function paginate(array $filters, int $perPage): LengthAwarePaginator
     {
         $search = trim((string) ($filters['search'] ?? ''));
+        $tenant = AdminScopeEnum::current() === AdminScopeEnum::INSTITUTION ? Institution::current() : null;
 
         $query = BankAccount::query()
             ->select('bank_accounts.*')
             ->with('bank')
+            ->when(
+                $tenant !== null,
+                fn (Builder $query) => $query->whereIn(
+                    'bank_accounts.created_by',
+                    fn ($sub) => $sub->select('admins.uuid')->from('admins')->where('admins.institution_id', $tenant->id)
+                )
+            )
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $query->where(function (Builder $inner) use ($search): void {
                     $inner->where('account_number', 'like', '%'.$search.'%')

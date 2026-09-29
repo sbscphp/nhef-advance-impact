@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources\Fundraising;
 
+use App\Http\Resources\Concerns\PresentsCampaign;
 use App\Models\Campaign;
 use App\Support\Money;
-use App\Http\Resources\Concerns\PresentsCampaign;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -41,6 +41,7 @@ class CampaignResource extends JsonResource
             'ends_at' => $this->ends_at?->toIso8601String(),
             'timer' => $this->timer(),
             ...$this->projectsPayload(),
+            'organizer' => $this->assigneePayload(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

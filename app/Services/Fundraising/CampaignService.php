@@ -2,6 +2,7 @@
 
 namespace App\Services\Fundraising;
 
+use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
 use App\Enums\CampaignStatusEnum;
 use App\Enums\CampaignTypeEnum;
@@ -147,6 +148,10 @@ class CampaignService
      */
     public function create(array $payload, Admin $actor, Request $request): Campaign
     {
+        if (AdminScopeEnum::current() === AdminScopeEnum::INSTITUTION) {
+            throw new ApiException('Standard campaigns can only be created by NHEF. Institutions create National Giving Day campaigns instead.', 403);
+        }
+
         $assignedAdmin = $this->adminRepository->findByUuid((string) $payload['assigned_admin_id']);
         if (! $assignedAdmin instanceof Admin) {
             throw new ApiException('The selected officer does not exist.', 422);
@@ -216,6 +221,10 @@ class CampaignService
             throw new ApiException('The selected officer does not exist.', 422);
         }
 
+        if (AdminScopeEnum::current() === AdminScopeEnum::INSTITUTION) {
+            $this->assertOwnInstitutionOnly((array) $payload['institutions'], $assignedAdmin);
+        }
+
         $institutionRows = $this->resolveInstitutionRows((array) $payload['institutions']);
 
         $coverUrl = FileUploadHelper::smartSingleFileUpload($payload['cover'] ?? null, 'campaigns/covers');
@@ -268,6 +277,35 @@ class CampaignService
         );
 
         return $campaign;
+    }
+
+    /**
+     * Backstop for an institution admin creating their own National Giving Day campaign: the
+     * campaign must target exactly their own institution, never another one, and the assigned
+     * officer must belong to that same institution.
+     *
+     * @param  list<array<string, mixed>>  $institutions
+     */
+    private function assertOwnInstitutionOnly(array $institutions, Admin $assignedAdmin): void
+    {
+        $tenant = Institution::current();
+        if ($tenant === null) {
+            throw new ApiException('Your institution could not be determined.', 403);
+        }
+
+        if (count($institutions) !== 1 || (string) ($institutions[0]['institution_id'] ?? '') !== $tenant->uuid) {
+            throw new ApiException('An institution can only create a National Giving Day campaign scoped to its own institution.', 403);
+        }
+
+        if ($assignedAdmin->institution_id !== $tenant->id) {
+            throw new ApiException('The assigned officer must belong to your own institution.', 422);
+        }
+
+        $bankAccount = $this->bankAccountRepository->findByUuid((string) ($institutions[0]['bank_account_id'] ?? ''));
+        $bankAccountOwner = $bankAccount === null ? null : $this->adminRepository->findByUuid((string) $bankAccount->created_by);
+        if ($bankAccountOwner === null || $bankAccountOwner->institution_id !== $tenant->id) {
+            throw new ApiException('The selected bank account must belong to your own institution.', 422);
+        }
     }
 
     /**
@@ -527,6 +565,10 @@ class CampaignService
      */
     public function addInstitution(string $uuid, array $payload, Admin $actor, Request $request): CampaignInstitution
     {
+        if (AdminScopeEnum::current() === AdminScopeEnum::INSTITUTION) {
+            throw new ApiException('Only NHEF can add another institution to a campaign.', 403);
+        }
+
         $campaign = $this->findForAdmin($uuid);
         $this->assertNationalGivingDay($campaign);
 

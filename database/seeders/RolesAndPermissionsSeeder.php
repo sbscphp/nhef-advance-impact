@@ -91,13 +91,19 @@ class RolesAndPermissionsSeeder extends Seeder
         // configuration, roles. dashboard.read IS granted, but the NHEF-only dashboard actions
         // (national snapshot, campaign/event tracking, institution ranking) each additionally
         // assert AdminScopeEnum::NHEF internally, so this only unlocks the institution-scoped
-        // dashboard/institution/* endpoints, not the NHEF-wide ones.
+        // dashboard/institution/* endpoints, not the NHEF-wide ones. Likewise campaigns.create IS
+        // granted (BSA: institutions can create their own scoped National Giving Day campaign),
+        // but CampaignService::create()/addInstitution() each assert AdminScopeEnum::NHEF
+        // internally, and createNationalGivingDay() forces the institutions/assigned-officer/
+        // bank-account payload to all belong to the caller's own institution, so this never
+        // unlocks a standard campaign or another institution's campaign.
         $this->grant(RoleEnum::INSTITUTION_ADMIN, [
             PermissionEnum::DASHBOARD_READ,
             PermissionEnum::CONSTITUENTS_CREATE,
             PermissionEnum::CONSTITUENTS_READ,
             PermissionEnum::CONSTITUENTS_UPDATE,
             PermissionEnum::DONATIONS_READ,
+            PermissionEnum::CAMPAIGNS_CREATE,
             PermissionEnum::CAMPAIGNS_READ,
             PermissionEnum::ADMINS_CREATE,
             PermissionEnum::ADMINS_READ,
