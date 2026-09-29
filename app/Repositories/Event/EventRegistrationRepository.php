@@ -161,4 +161,33 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
 
         return bcdiv((string) $totalRegistrations, (string) $completedEventIds->count(), 2);
     }
+
+    public function dailyAttendanceByCompletionStatus(array $completedEventIds, array $upcomingEventIds, CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        if ($completedEventIds === [] && $upcomingEventIds === []) {
+            return collect();
+        }
+
+        $completedIds = implode(',', array_map('intval', $completedEventIds)) ?: '-1';
+        $upcomingIds = implode(',', array_map('intval', $upcomingEventIds)) ?: '-1';
+
+        $rows = EventRegistration::query()
+            ->whereIn('event_id', array_merge($completedEventIds, $upcomingEventIds))
+            ->where('status', EventRegistrationStatusEnum::COMPLETED->value)
+            ->whereBetween('completed_at', [$start, $end])
+            ->groupBy('date')
+            ->selectRaw(
+                'DATE(completed_at) as date,'
+                ." sum(case when event_id in ({$completedIds}) then 1 else 0 end) as completed,"
+                ." sum(case when event_id in ({$upcomingIds}) then 1 else 0 end) as upcoming"
+            )
+            ->orderBy('date')
+            ->get();
+
+        return $rows->map(fn ($row) => (object) [
+            'date' => (string) $row->date,
+            'completed' => (int) $row->completed,
+            'upcoming' => (int) $row->upcoming,
+        ]);
+    }
 }

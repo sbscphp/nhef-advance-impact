@@ -166,4 +166,12 @@ interface DonationPaymentRepositoryInterface
      * @return array{alumni: int, non_alumni: int, organization: int}
      */
     public function donorCountsByConstituentType(?string $from, ?string $to): array;
+
+    /**
+     * Daily sum of successful NGN payments per donor constituent_type; feeds the dashboard's
+     * "Capital inflow by donor segment" trend chart.
+     *
+     * @return Collection<int, object{date: string, constituent_type: string, total: string}>
+     */
+    public function dailyTotalsByConstituentType(CarbonInterface $start, CarbonInterface $end): Collection;
 }

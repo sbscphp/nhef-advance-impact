@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use Carbon\CarbonInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class EventRepository implements EventRepositoryInterface
 {
@@ -139,5 +140,44 @@ class EventRepository implements EventRepositoryInterface
             ->pluck('total', 'institution_id')
             ->map(fn ($total) => (int) $total)
             ->all();
+    }
+
+    public function dailyCountByCompletionStatus(CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        $now = now();
+
+        $rows = Event::query()
+            ->where('status', EventStatusEnum::PUBLISHED->value)
+            ->whereBetween('starts_at', [$start, $end])
+            ->groupBy('date')
+            ->selectRaw(
+                'DATE(starts_at) as date,'
+                .' sum(case when ends_at is not null and ends_at < ? then 1 else 0 end) as completed,'
+                .' sum(case when ends_at is null or ends_at >= ? then 1 else 0 end) as upcoming',
+                [$now, $now]
+            )
+            ->orderBy('date')
+            ->get();
+
+        return $rows->map(fn ($row) => (object) [
+            'date' => (string) $row->date,
+            'completed' => (int) $row->completed,
+            'upcoming' => (int) $row->upcoming,
+        ]);
+    }
+
+    public function idsByCompletionStatus(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $now = now();
+
+        $events = Event::query()
+            ->where('status', EventStatusEnum::PUBLISHED->value)
+            ->whereBetween('starts_at', [$start, $end])
+            ->get(['id', 'ends_at']);
+
+        return [
+            'completed' => $events->filter(fn (Event $event) => $event->ends_at !== null && $event->ends_at->isPast())->pluck('id')->all(),
+            'upcoming' => $events->filter(fn (Event $event) => $event->ends_at === null || ! $event->ends_at->isPast())->pluck('id')->all(),
+        ];
     }
 }

@@ -71,19 +71,19 @@ class AdminDashboardController extends Controller
         }
     }
 
-    public function institutionOverview()
+    public function institutionOverview(DashboardSectionRequest $request)
     {
         try {
-            return JsonResponser::send(false, 'Dashboard overview retrieved.', $this->institutionDashboard->overview());
+            return JsonResponser::send(false, 'Dashboard overview retrieved.', $this->institutionDashboard->overview($request->validated()));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Dashboard\AdminDashboardController@institutionOverview');
         }
     }
 
-    public function institutionEventIntelligence()
+    public function institutionEventIntelligence(DashboardSectionRequest $request)
     {
         try {
-            return JsonResponser::send(false, 'Event intelligence retrieved.', $this->institutionDashboard->eventIntelligence());
+            return JsonResponser::send(false, 'Event intelligence retrieved.', $this->institutionDashboard->eventIntelligence($request->validated()));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Dashboard\AdminDashboardController@institutionEventIntelligence');
         }

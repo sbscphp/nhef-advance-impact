@@ -319,4 +319,19 @@ class UserRepository implements UserRepositoryInterface
     {
         return (int) User::query()->where('last_active_at', '>=', $since)->count();
     }
+
+    public function dailyOnboardedByConstituentType(CarbonInterface $start, CarbonInterface $end): \Illuminate\Support\Collection
+    {
+        return User::query()
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy('date', 'constituent_type')
+            ->selectRaw('DATE(created_at) as date, constituent_type, count(*) as total')
+            ->orderBy('date')
+            ->get()
+            ->map(fn ($row) => (object) [
+                'date' => (string) $row->date,
+                'constituent_type' => (string) $row->constituent_type,
+                'total' => (int) $row->total,
+            ]);
+    }
 }

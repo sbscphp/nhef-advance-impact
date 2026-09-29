@@ -4,6 +4,7 @@ namespace App\Services\Dashboard;
 
 use App\Enums\AdminScopeEnum;
 use App\Exceptions\ApiException;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
@@ -11,6 +12,7 @@ use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Support\Money;
 use App\Support\ViewerVisibility;
+use Carbon\CarbonInterface;
 
 /**
  * Institution admin's own "Dashboard" home screen: every figure here is scoped to the caller's
@@ -36,9 +38,27 @@ class InstitutionDashboardService
     }
 
     /**
+     * Trend charts default to a trailing 7-day window when no period/date range is given, same
+     * default AdminEventService::analytics() uses for its own sales trend.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{start: CarbonInterface, end: CarbonInterface}
+     */
+    private function resolveTrendWindow(array $filters): array
+    {
+        $window = ListingFilterRules::resolveDateWindow($filters);
+
+        return [
+            'start' => $window['start'] ?? now()->subDays(6)->startOfDay(),
+            'end' => $window['end'] ?? now()->endOfDay(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    public function overview(): array
+    public function overview(array $filters = []): array
     {
         $this->assertInstitutionScope();
 
@@ -56,15 +76,16 @@ class InstitutionDashboardService
                 'total_raised' => $totalRaised,
                 'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
             ]),
-            'donation_intelligence' => $this->donationIntelligence($totalRaised),
-            'alumni_intelligence' => $this->alumniIntelligence($types),
+            'donation_intelligence' => $this->donationIntelligence($totalRaised, $filters),
+            'alumni_intelligence' => $this->alumniIntelligence($types, $filters),
         ];
     }
 
     /**
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    private function donationIntelligence(string $totalRaised): array
+    private function donationIntelligence(string $totalRaised, array $filters): array
     {
         $monthStart = now()->startOfMonth()->toDateString();
         $monthEnd = now()->endOfMonth()->toDateString();
@@ -88,14 +109,45 @@ class InstitutionDashboardService
             'organisation_donors' => $donorTypes['organization'],
             'alumni_donors' => $donorTypes['alumni'],
             'non_alumni_donors' => $donorTypes['non_alumni'],
+            ...ViewerVisibility::money(['trend' => $this->donationTrend($filters)]),
+        ];
+    }
+
+    /**
+     * "Capital inflow by donor segment": Corporate (organization), Individual (non_alumni) and
+     * Alumni, per day.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function donationTrend(array $filters): array
+    {
+        $window = $this->resolveTrendWindow($filters);
+        $rows = $this->donationPaymentRepository->dailyTotalsByConstituentType($window['start'], $window['end']);
+
+        $byDate = [];
+        foreach ($rows as $row) {
+            $byDate[$row->date][$row->constituent_type] = (string) $row->total;
+        }
+
+        return [
+            'start_date' => $window['start']->toDateString(),
+            'end_date' => $window['end']->toDateString(),
+            'points' => collect($byDate)->map(fn (array $totals, string $date) => [
+                'date' => $date,
+                'alumni' => $totals['alumni'] ?? '0',
+                'individual' => $totals['non_alumni'] ?? '0',
+                'corporate' => $totals['organization'] ?? '0',
+            ])->values()->all(),
         ];
     }
 
     /**
      * @param  array{alumni: int, non_alumni: int, organization: int}  $types
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    private function alumniIntelligence(array $types): array
+    private function alumniIntelligence(array $types, array $filters): array
     {
         $totalRegistered = $types['alumni'] + $types['non_alumni'] + $types['organization'];
         $activeLast30Days = $this->userRepository->countActiveSince(now()->subDays(30));
@@ -114,22 +166,99 @@ class InstitutionDashboardService
             'total_registered' => $totalRegistered,
             'active_last_30_days_percent' => $totalRegistered > 0 ? round(($activeLast30Days / $totalRegistered) * 100) : 0,
             'growth_yoy_percent' => $growthYoy,
+            'trend' => $this->onboardedTrend($filters),
         ];
     }
 
     /**
-     * @return array{upcoming: int, completed: int, average_attendance: string}
+     * "Number of New Alumni Onboarded": alumni vs non-alumni signups per day. Organisation is
+     * left off the chart, the Figma only plots Alumni/Non-Alumni.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
      */
-    public function eventIntelligence(): array
+    private function onboardedTrend(array $filters): array
+    {
+        $window = $this->resolveTrendWindow($filters);
+        $rows = $this->userRepository->dailyOnboardedByConstituentType($window['start'], $window['end']);
+
+        $byDate = [];
+        foreach ($rows as $row) {
+            $byDate[$row->date][$row->constituent_type] = $row->total;
+        }
+
+        return [
+            'start_date' => $window['start']->toDateString(),
+            'end_date' => $window['end']->toDateString(),
+            'points' => collect($byDate)->map(fn (array $counts, string $date) => [
+                'date' => $date,
+                'alumni' => $counts['alumni'] ?? 0,
+                'non_alumni' => $counts['non_alumni'] ?? 0,
+            ])->values()->all(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{upcoming: int, completed: int, average_attendance: string, distribution_trend: array<string, mixed>, attendance_trend: array<string, mixed>}
+     */
+    public function eventIntelligence(array $filters = []): array
     {
         $this->assertInstitutionScope();
 
         $events = $this->eventRepository->countByStatusBuckets(null, null);
+        $window = $this->resolveTrendWindow($filters);
 
         return [
             'upcoming' => $events['scheduled'] + $events['ongoing'],
             'completed' => $events['completed'],
             'average_attendance' => $this->eventRegistrationRepository->averageAttendanceForAdmin(),
+            'distribution_trend' => $this->eventDistributionTrend($window),
+            'attendance_trend' => $this->eventAttendanceTrend($window),
+        ];
+    }
+
+    /**
+     * @param  array{start: CarbonInterface, end: CarbonInterface}  $window
+     * @return array<string, mixed>
+     */
+    private function eventDistributionTrend(array $window): array
+    {
+        $rows = $this->eventRepository->dailyCountByCompletionStatus($window['start'], $window['end']);
+
+        return [
+            'start_date' => $window['start']->toDateString(),
+            'end_date' => $window['end']->toDateString(),
+            'points' => $rows->map(fn ($row) => [
+                'date' => $row->date,
+                'completed' => $row->completed,
+                'upcoming' => $row->upcoming,
+            ])->values()->all(),
+        ];
+    }
+
+    /**
+     * @param  array{start: CarbonInterface, end: CarbonInterface}  $window
+     * @return array<string, mixed>
+     */
+    private function eventAttendanceTrend(array $window): array
+    {
+        $ids = $this->eventRepository->idsByCompletionStatus($window['start'], $window['end']);
+        $rows = $this->eventRegistrationRepository->dailyAttendanceByCompletionStatus(
+            $ids['completed'],
+            $ids['upcoming'],
+            $window['start'],
+            $window['end'],
+        );
+
+        return [
+            'start_date' => $window['start']->toDateString(),
+            'end_date' => $window['end']->toDateString(),
+            'points' => $rows->map(fn ($row) => [
+                'date' => $row->date,
+                'completed' => $row->completed,
+                'upcoming' => $row->upcoming,
+            ])->values()->all(),
         ];
     }
 }

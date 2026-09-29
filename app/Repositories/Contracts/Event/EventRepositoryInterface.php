@@ -5,6 +5,7 @@ namespace App\Repositories\Contracts\Event;
 use App\Models\Event;
 use Carbon\CarbonInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface EventRepositoryInterface
 {
@@ -54,4 +55,21 @@ interface EventRepositoryInterface
      * @return array<int, int>
      */
     public function countActiveByInstitutions(array $institutionIds): array;
+
+    /**
+     * Daily count of published events by starts_at date, split by whether the event has already
+     * ended (as of now); feeds the dashboard's Event Intelligence "Distribution by Status" chart.
+     * Carries Event's own tenant scope (all events for NHEF, one institution's own for its admin).
+     *
+     * @return Collection<int, object{date: string, completed: int, upcoming: int}>
+     */
+    public function dailyCountByCompletionStatus(CarbonInterface $start, CarbonInterface $end): Collection;
+
+    /**
+     * Scoped event ids (Event's own tenant scope) whose starts_at falls in the window, split by
+     * whether they've already ended; feeds {@see EventRegistrationRepositoryInterface::dailyAttendanceByCompletionStatus()}.
+     *
+     * @return array{completed: list<int>, upcoming: list<int>}
+     */
+    public function idsByCompletionStatus(CarbonInterface $start, CarbonInterface $end): array;
 }

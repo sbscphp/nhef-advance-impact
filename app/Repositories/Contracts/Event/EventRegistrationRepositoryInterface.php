@@ -70,4 +70,14 @@ interface EventRegistrationRepositoryInterface
      * "Average Attendance" figure on the dashboard's Event Intelligence panel.
      */
     public function averageAttendanceForAdmin(): string;
+
+    /**
+     * Daily count of completed registrations for the given events, split by whether that event
+     * has already ended; feeds the dashboard's Event Intelligence "Attendance Trend" chart.
+     *
+     * @param  list<int>  $completedEventIds
+     * @param  list<int>  $upcomingEventIds
+     * @return Collection<int, object{date: string, completed: int, upcoming: int}>
+     */
+    public function dailyAttendanceByCompletionStatus(array $completedEventIds, array $upcomingEventIds, CarbonInterface $start, CarbonInterface $end): Collection;
 }

@@ -116,4 +116,12 @@ interface UserRepositoryInterface
      * admin dashboard's "X% active last 30 days" figure.
      */
     public function countActiveSince(CarbonInterface $since): int;
+
+    /**
+     * Daily count of new accounts by constituent_type within the window; feeds the dashboard's
+     * Alumni Intelligence "New Alumni Onboarded" trend chart.
+     *
+     * @return \Illuminate\Support\Collection<int, object{date: string, constituent_type: string, total: int}>
+     */
+    public function dailyOnboardedByConstituentType(CarbonInterface $start, CarbonInterface $end): \Illuminate\Support\Collection;
 }

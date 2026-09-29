@@ -462,4 +462,17 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             'organization' => (int) ($rows['organization'] ?? 0),
         ];
     }
+
+    public function dailyTotalsByConstituentType(CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        return DonationPayment::query()
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donation_payments.currency', 'NGN')
+            ->whereBetween('donation_payments.paid_at', [$start, $end])
+            ->groupBy('date', 'users.constituent_type')
+            ->selectRaw('DATE(donation_payments.paid_at) as date, users.constituent_type, sum(donation_payments.amount) as total')
+            ->orderBy('date')
+            ->get();
+    }
 }
