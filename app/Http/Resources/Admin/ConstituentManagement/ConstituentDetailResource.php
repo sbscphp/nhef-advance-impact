@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Admin\ConstituentManagement;
 
 use App\Enums\ConstituentTypeEnum;
+use App\Http\Resources\Admin\SystemConfiguration\ConstituencyTypeAdminResource;
 use App\Http\Resources\TertiaryInstitutionResource;
 use App\Models\User;
 use App\Support\Money;
@@ -36,6 +37,7 @@ class ConstituentDetailResource extends JsonResource
             'organisation_name' => $this->organisation_name,
             'position' => $this->position,
             'tier' => $this->tier,
+            'constituency_types' => $this->whenLoaded('constituencyTypes', fn () => ConstituencyTypeAdminResource::collection($this->constituencyTypes)->resolve()),
             'invite_message' => $this->invite_message,
             // Present only when the service has attached them (showForAdmin);
             // avoids a false "0" on call sites that build this resource without that batch query.

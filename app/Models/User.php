@@ -9,6 +9,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -62,6 +63,13 @@ class User extends Authenticatable
     public function tertiaryInstitution(): BelongsTo
     {
         return $this->belongsTo(TertiaryInstitution::class);
+    }
+
+    public function constituencyTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(ConstituencyType::class, 'constituency_type_user')
+            ->withPivot(['conferred_by', 'conferred_at'])
+            ->withTimestamps();
     }
 
     public function displayName(): string

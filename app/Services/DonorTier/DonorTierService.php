@@ -2,6 +2,7 @@
 
 namespace App\Services\DonorTier;
 
+use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
@@ -30,6 +31,8 @@ class DonorTierService
      */
     public function create(array $payload, Admin $actor, Request $request): DonorTier
     {
+        $this->assertNhefScope();
+
         $tier = $this->tierRepository->create([
             'name' => $payload['name'],
             'minimum_amount' => $payload['minimum_amount'],
@@ -60,6 +63,8 @@ class DonorTierService
      */
     public function paginateForAdmin(array $filters): LengthAwarePaginator
     {
+        $this->assertNhefScope();
+
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         return $this->tierRepository->paginateForAdmin($filters, $perPage);
@@ -71,11 +76,15 @@ class DonorTierService
      */
     public function exportForAdmin(array $filters): array
     {
+        $this->assertNhefScope();
+
         return $this->tierRepository->exportForAdmin($filters);
     }
 
     public function findForAdmin(string $uuid): DonorTier
     {
+        $this->assertNhefScope();
+
         $tier = $this->tierRepository->findByUuid($uuid);
 
         if (! $tier instanceof DonorTier) {
@@ -273,5 +282,17 @@ class DonorTierService
             'min' => (string) $tier->minimum_amount,
             'max' => $next !== null ? (string) $next->minimum_amount : null,
         ];
+    }
+
+    /**
+     * Donation tiers stay NHEF-wide. Institution Admin now also holds system_configuration.*
+     * (for Constituency Type), so this is a defensive backstop, not the only guard, mirroring how
+     * AdminDashboardService/NationalDashboardService assert NHEF scope internally.
+     */
+    private function assertNhefScope(): void
+    {
+        if (AdminScopeEnum::current() !== AdminScopeEnum::NHEF) {
+            throw new ApiException('Donation tiers are managed by NHEF only.', 403);
+        }
     }
 }

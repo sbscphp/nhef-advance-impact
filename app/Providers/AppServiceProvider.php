@@ -16,6 +16,7 @@ use App\Repositories\Communications\CommunicationTaskRepository;
 use App\Repositories\Communications\EmailUnsubscribeRepository;
 use App\Repositories\Communications\MailRecipientRepository;
 use App\Repositories\Communications\MailRepository;
+use App\Repositories\ConstituencyType\ConstituencyTypeRepository;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\ApiUser\ApiUserRepositoryInterface;
 use App\Repositories\Contracts\Auth\OtpRepositoryInterface;
@@ -30,6 +31,7 @@ use App\Repositories\Contracts\Communications\CommunicationTaskRepositoryInterfa
 use App\Repositories\Contracts\Communications\EmailUnsubscribeRepositoryInterface;
 use App\Repositories\Contracts\Communications\MailRecipientRepositoryInterface;
 use App\Repositories\Contracts\Communications\MailRepositoryInterface;
+use App\Repositories\Contracts\ConstituencyType\ConstituencyTypeRepositoryInterface;
 use App\Repositories\Contracts\Crm\ProposalCollaboratorRepositoryInterface;
 use App\Repositories\Contracts\Crm\ProposalRecipientRepositoryInterface;
 use App\Repositories\Contracts\Crm\ProspectCallLogRepositoryInterface;
@@ -121,6 +123,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CampaignRepositoryInterface::class, CampaignRepository::class);
         $this->app->bind(CampaignInstitutionRepositoryInterface::class, CampaignInstitutionRepository::class);
         $this->app->bind(CampaignProjectRepositoryInterface::class, CampaignProjectRepository::class);
+        $this->app->bind(ConstituencyTypeRepositoryInterface::class, ConstituencyTypeRepository::class);
         $this->app->bind(InstitutionRepositoryInterface::class, InstitutionRepository::class);
         $this->app->bind(BankRepositoryInterface::class, BankRepository::class);
         $this->app->bind(BankAccountRepositoryInterface::class, BankAccountRepository::class);

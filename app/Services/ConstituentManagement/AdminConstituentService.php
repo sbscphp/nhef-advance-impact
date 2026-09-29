@@ -162,7 +162,7 @@ class AdminConstituentService
     public function showForAdmin(string $uuid): User
     {
         $user = $this->findForAdmin($uuid);
-        $user->loadMissing('tertiaryInstitution');
+        $user->loadMissing(['tertiaryInstitution', 'constituencyTypes']);
         $user->setAttribute('tier', $this->resolveTierLabel($user));
         $this->attachDonationStats([$user]);
 

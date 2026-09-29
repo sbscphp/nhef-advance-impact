@@ -30,6 +30,7 @@ use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkin
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
 use App\Http\Controllers\v1\Admin\Reporting\ReportController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
+use App\Http\Controllers\v1\Admin\SystemConfiguration\ConstituencyTypeController;
 use App\Http\Controllers\v1\Admin\SystemConfiguration\DonorTierController;
 use App\Http\Controllers\v1\Admin\UserManagement\UserManagementController;
 use Illuminate\Support\Facades\Route;
@@ -255,6 +256,13 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:constituents.read']);
             Route::post('/{uuid}/pledges/{pledgeUuid}/send-reminder', [ConstituentController::class, 'sendPledgeReminder'])
                 ->middleware(['permission:constituents.update']);
+
+            // Constituency Type is a manual tag; institution-admin-only (ConstituencyTypeService
+            // asserts this internally), never NHEF, even though NHEF also holds constituents.update.
+            Route::post('/{uuid}/constituency-types', [ConstituentController::class, 'conferConstituencyTypes'])
+                ->middleware(['permission:constituents.update']);
+            Route::delete('/{uuid}/constituency-types/{typeUuid}', [ConstituentController::class, 'revokeConstituencyType'])
+                ->middleware(['permission:constituents.update']);
         });
 
         Route::prefix('donation')->group(function () {
@@ -285,6 +293,24 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:system_configuration.delete']);
             Route::get('/{uuid}/alumni', [DonorTierController::class, 'alumni'])
                 ->middleware(['permission:system_configuration.read', 'individual.records']);
+        });
+
+        // Master type list is shared platform-wide, read by both scopes; create/update/toggle/
+        // delete assert AdminScopeEnum::INSTITUTION internally (ConstituencyTypeService), so NHEF
+        // is blocked even though it also holds every system_configuration.* permission.
+        Route::prefix('constituency-types')->group(function () {
+            Route::post('/', [ConstituencyTypeController::class, 'store'])
+                ->middleware(['permission:system_configuration.create']);
+            Route::get('/', [ConstituencyTypeController::class, 'index'])
+                ->middleware(['permission:system_configuration.read']);
+            Route::get('/{uuid}', [ConstituencyTypeController::class, 'show'])
+                ->middleware(['permission:system_configuration.read']);
+            Route::patch('/{uuid}', [ConstituencyTypeController::class, 'update'])
+                ->middleware(['permission:system_configuration.update']);
+            Route::patch('/{uuid}/toggle-status', [ConstituencyTypeController::class, 'toggleStatus'])
+                ->middleware(['permission:system_configuration.update']);
+            Route::delete('/{uuid}', [ConstituencyTypeController::class, 'destroy'])
+                ->middleware(['permission:system_configuration.delete']);
         });
 
         Route::prefix('custom-fields')->group(function () {

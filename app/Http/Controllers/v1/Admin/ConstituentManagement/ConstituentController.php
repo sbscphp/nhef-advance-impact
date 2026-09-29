@@ -5,6 +5,7 @@ namespace App\Http\Controllers\v1\Admin\ConstituentManagement;
 use App\Helpers\GeneralHelper;
 use App\Helpers\PDFReportHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ConstituentManagement\ConferConstituencyTypeRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentDonationListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentEventListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentListRequest;
@@ -26,6 +27,7 @@ use App\Models\Admin;
 use App\Models\DonationPayment;
 use App\Models\User;
 use App\Responser\JsonResponser;
+use App\Services\ConstituencyType\ConstituencyTypeService;
 use App\Services\ConstituentManagement\AdminConstituentService;
 use App\Support\Money;
 use Illuminate\Http\Request;
@@ -39,6 +41,7 @@ class ConstituentController extends Controller
 {
     public function __construct(
         private readonly AdminConstituentService $constituentService,
+        private readonly ConstituencyTypeService $constituencyTypeService,
         private readonly PDFReportHelper $pdfReportHelper,
     ) {}
 
@@ -411,6 +414,30 @@ class ConstituentController extends Controller
             return JsonResponser::send(false, 'Reminder sent.', null);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@sendPledgeReminder');
+        }
+    }
+
+    public function conferConstituencyTypes(ConferConstituencyTypeRequest $request, string $uuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $user = $this->constituencyTypeService->confer($uuid, $request->validated()['constituency_type_ids'], $admin, $request);
+
+            return JsonResponser::send(false, 'Constituency type(s) conferred.', ConstituentDetailResource::make($user)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@conferConstituencyTypes');
+        }
+    }
+
+    public function revokeConstituencyType(Request $request, string $uuid, string $typeUuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $user = $this->constituencyTypeService->revoke($uuid, $typeUuid, $admin, $request);
+
+            return JsonResponser::send(false, 'Constituency type revoked.', ConstituentDetailResource::make($user)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@revokeConstituencyType');
         }
     }
 
