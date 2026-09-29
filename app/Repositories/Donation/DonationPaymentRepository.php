@@ -2,11 +2,10 @@
 
 namespace App\Repositories\Donation;
 
+use App\Enums\CampaignTypeEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
-use App\Models\Campaign;
 use App\Models\DonationPayment;
-use App\Models\Scopes\TenantScope;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -129,15 +128,58 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 
     public function distinctCampaignGoalTotalForUser(int $userId): string
     {
-        $campaignIds = DonationPayment::query()
-            ->where('donation_payments.user_id', $userId)
-            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
-            ->where('donation_payments.currency', 'NGN')
-            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
-            ->distinct()
-            ->pluck('donations.campaign_id');
+        return $this->campaignGoalTotal(
+            fn () => DonationPayment::query()
+                ->where('donation_payments.user_id', $userId)
+                ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+                ->where('donation_payments.currency', 'NGN')
+        );
+    }
 
-        return (string) Campaign::query()->withoutGlobalScope(TenantScope::class)->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
+    /**
+     * A standard campaign's own `goal_amount` is real and NGN-denominated, so it's summed
+     * directly. A National Giving Day campaign never has one (goal/currency are per-institution,
+     * on `campaign_institutions`, not the campaign itself), so its contribution is each distinct
+     * (campaign, donor's own tertiary institution) pair's own `campaign_institutions.goal_amount`
+     * instead, this is "the target that institution's own donors are giving toward", not the
+     * campaign's combined NHEF-wide target.
+     */
+    private function campaignGoalTotal(\Closure $scopedPayments): string
+    {
+        $standardTotal = (float) $scopedPayments()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+            ->where('campaigns.type', CampaignTypeEnum::STANDARD->value)
+            ->where('campaigns.currency', 'NGN')
+            ->distinct()
+            ->get(['campaigns.id', 'campaigns.goal_amount'])
+            ->unique('id')
+            ->sum(fn ($row) => (float) $row->goal_amount);
+
+        $pairs = $scopedPayments()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            ->where('campaigns.type', CampaignTypeEnum::NATIONAL_GIVING_DAY->value)
+            ->whereNotNull('users.tertiary_institution_id')
+            ->distinct()
+            ->get(['campaigns.id as campaign_id', 'users.tertiary_institution_id'])
+            ->unique(fn ($row) => $row->campaign_id.'-'.$row->tertiary_institution_id);
+
+        $ngdTotal = 0.0;
+        if ($pairs->isNotEmpty()) {
+            $rows = DB::table('campaign_institutions')
+                ->join('institutions', 'institutions.id', '=', 'campaign_institutions.institution_id')
+                ->whereIn('campaign_institutions.campaign_id', $pairs->pluck('campaign_id')->unique()->all())
+                ->get(['campaign_institutions.campaign_id', 'institutions.tertiary_institution_id', 'campaign_institutions.goal_amount']);
+
+            foreach ($pairs as $pair) {
+                $match = $rows->first(fn ($row) => $row->campaign_id == $pair->campaign_id && $row->tertiary_institution_id == $pair->tertiary_institution_id);
+                $ngdTotal += $match !== null ? (float) $match->goal_amount : 0.0;
+            }
+        }
+
+        return (string) ($standardTotal + $ngdTotal);
     }
 
     public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator
@@ -318,17 +360,11 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 
     public function distinctCampaignGoalTotalForAdmin(): string
     {
-        $campaignIds = DonationPayment::query()
-            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
-            ->where('donation_payments.currency', 'NGN')
-            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
-            ->distinct()
-            ->pluck('donations.campaign_id');
-
-        // $campaignIds already came from a tenant-scoped payment query, which correctly includes any
-        // standard campaign this tenant's own donors gave to; re-applying Campaign's tenant scope here
-        // would wrongly drop those (a standard campaign never has a campaign_institutions row for anyone).
-        return (string) Campaign::query()->withoutGlobalScope(TenantScope::class)->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
+        return $this->campaignGoalTotal(
+            fn () => DonationPayment::query()
+                ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+                ->where('donation_payments.currency', 'NGN')
+        );
     }
 
     public function resolveTierUpgradeDate(int $userId, string $thresholdAmount): ?CarbonInterface
