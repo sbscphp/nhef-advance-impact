@@ -147,6 +147,10 @@ class Campaign extends Model
             return false;
         }
 
+        if ($this->starts_at !== null && $this->starts_at->isFuture()) {
+            return false;
+        }
+
         return $this->ends_at === null || ! $this->ends_at->isPast();
     }
 }
