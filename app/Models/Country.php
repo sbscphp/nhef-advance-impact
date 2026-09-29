@@ -73,6 +73,15 @@ class Country extends Model
         return $country ?? static::defaultCountry();
     }
 
+    public static function findIdByUuid(?string $uuid): ?int
+    {
+        if ($uuid === null || $uuid === '') {
+            return null;
+        }
+
+        return static::query()->active()->where('uuid', $uuid)->value('id');
+    }
+
     public static function findActiveByDialCode(?string $dialCode): ?self
     {
         $normalized = static::normalizeDialCodeString($dialCode);

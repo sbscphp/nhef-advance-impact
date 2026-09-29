@@ -57,12 +57,26 @@ class User extends Authenticatable
             'last_active_at' => 'datetime',
             'invited_at' => 'datetime',
             'onboarded_at' => 'datetime',
+            'date_of_birth' => 'date',
+            'date_of_incorporation' => 'date',
+            'area_of_interest' => 'array',
+            'engagement_preference' => 'array',
         ];
     }
 
     public function tertiaryInstitution(): BelongsTo
     {
         return $this->belongsTo(TertiaryInstitution::class);
+    }
+
+    public function countryOfResidence(): BelongsTo
+    {
+        return $this->belongsTo(Country::class, 'country_of_residence_id');
+    }
+
+    public function countryOfOperation(): BelongsTo
+    {
+        return $this->belongsTo(Country::class, 'country_of_operation_id');
     }
 
     public function constituencyTypes(): BelongsToMany
@@ -72,6 +86,7 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    /** An Organization account has no personal name, so it falls back to its own organisation_name. */
     public function displayName(): string
     {
         $name = trim(implode(' ', array_filter([
@@ -79,7 +94,11 @@ class User extends Authenticatable
             (string) ($this->lastname ?? ''),
         ])));
 
-        return $name !== '' ? $name : (string) $this->email;
+        if ($name !== '') {
+            return $name;
+        }
+
+        return filled($this->organisation_name) ? (string) $this->organisation_name : (string) $this->email;
     }
 
     /** Presentational only, derived from the UUID (see EventTicketSaleResource for the same pattern); no persisted code column. */
