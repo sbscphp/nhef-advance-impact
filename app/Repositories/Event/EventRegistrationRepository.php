@@ -57,6 +57,25 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
         return $query->paginate($perPage);
     }
 
+    public function overviewForUser(int $userId): array
+    {
+        $now = now();
+
+        $base = fn () => EventRegistration::query()
+            ->join('events', 'events.id', '=', 'event_registrations.event_id')
+            ->where('event_registrations.user_id', $userId)
+            ->where('event_registrations.status', EventRegistrationStatusEnum::COMPLETED->value);
+
+        $attended = (int) $base()->whereNotNull('events.ends_at')->where('events.ends_at', '<', $now)->count();
+        $upcoming = (int) $base()->where(fn ($query) => $query->whereNull('events.ends_at')->orWhere('events.ends_at', '>=', $now))->count();
+
+        return [
+            'total' => $attended + $upcoming,
+            'attended' => $attended,
+            'upcoming' => $upcoming,
+        ];
+    }
+
     public function update(EventRegistration $registration, array $data): EventRegistration
     {
         $registration->forceFill($data)->save();

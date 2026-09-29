@@ -391,6 +391,14 @@ class AdminConstituentService
         return $this->eventRegistrationRepository->paginateForUser($user->id, $filters, $perPage);
     }
 
+    /**
+     * @return array{total: int, attended: int, upcoming: int}
+     */
+    public function eventsOverview(User $user): array
+    {
+        return $this->eventRegistrationRepository->overviewForUser($user->id);
+    }
+
     public function findPledgeForAdmin(User $user, string $uuid): Pledge
     {
         $pledge = $this->pledgeRepository->findByUuidForUser($user->id, $uuid);

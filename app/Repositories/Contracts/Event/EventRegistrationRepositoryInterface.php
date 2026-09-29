@@ -25,6 +25,14 @@ interface EventRegistrationRepositoryInterface
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator;
 
     /**
+     * Completed registrations for one user, split by whether the registered-for event has
+     * already ended; feeds the constituent detail screen's Events tab overview.
+     *
+     * @return array{total: int, attended: int, upcoming: int}
+     */
+    public function overviewForUser(int $userId): array;
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function update(EventRegistration $registration, array $data): EventRegistration;

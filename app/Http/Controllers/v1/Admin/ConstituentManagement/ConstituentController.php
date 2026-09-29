@@ -234,6 +234,18 @@ class ConstituentController extends Controller
         }
     }
 
+    public function eventsOverview(string $uuid)
+    {
+        try {
+            $user = $this->constituentService->findForAdmin($uuid);
+            $overview = $this->constituentService->eventsOverview($user);
+
+            return JsonResponser::send(false, 'Constituent events overview retrieved.', $overview);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@eventsOverview');
+        }
+    }
+
     public function payments(ConstituentPaymentListRequest $request, string $uuid)
     {
         try {

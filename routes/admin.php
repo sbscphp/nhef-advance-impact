@@ -235,6 +235,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:constituents.read']);
             Route::get('/{uuid}/events', [ConstituentController::class, 'events'])
                 ->middleware(['permission:constituents.read']);
+            Route::get('/{uuid}/events/overview', [ConstituentController::class, 'eventsOverview'])
+                ->middleware(['permission:constituents.read']);
 
             // Payment-level donations (Alumni Management's "Donations" tab); separate from
             // /{uuid}/donations above, which stays donation/subscription-level for its own consumers.
