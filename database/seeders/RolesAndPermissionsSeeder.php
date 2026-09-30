@@ -79,12 +79,19 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         $everything = PermissionEnum::cases();
 
-        // NHEF-level accounts see institution aggregates, never individual donor/alumni records.
-        $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS]));
+        // NHEF-level accounts see institution aggregates, never individual donor/alumni records,
+        // and may never create a standard campaign (only National Giving Day, on an institution's
+        // behalf) - campaigns.create_standard is excluded so this is enforced by permission, not
+        // just internal scope logic, and can't be toggled on for NHEF via Roles & Permissions.
+        $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [
+            PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
+            PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
+        ]));
 
         $this->grant(RoleEnum::ADMIN, $this->except($everything, [
             PermissionEnum::ROLES_DELETE,
             PermissionEnum::ADMINS_DELETE,
+            PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
         ]));
 
         // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields, roles.
@@ -93,13 +100,18 @@ class RolesAndPermissionsSeeder extends Seeder
         // AdminScopeEnum::NHEF internally, so this only unlocks the institution-scoped
         // dashboard/institution/* endpoints, not the NHEF-wide ones. Likewise campaigns.create IS
         // granted (BSA: institutions can create their own scoped National Giving Day campaign),
-        // but CampaignService::create()/addInstitution() each assert AdminScopeEnum::NHEF
-        // internally, and createNationalGivingDay() forces the institutions/assigned-officer/
+        // and CampaignService::addInstitution() still asserts AdminScopeEnum::NHEF internally
+        // (adding an institution to an existing campaign is an NHEF-only action, unrelated to
+        // creation); createNationalGivingDay() forces the institutions/assigned-officer/
         // bank-account payload to all belong to the caller's own institution, so this never
-        // unlocks a standard campaign or another institution's campaign. system_configuration.* IS
-        // now granted too (Constituency Type management is institution-admin-only), but
-        // DonorTierService asserts AdminScopeEnum::NHEF internally on every action, so this never
-        // unlocks Donation Tier Configuration for an institution.
+        // unlocks another institution's campaign. campaigns.create_standard and
+        // campaigns.create_national_giving_day are both granted too (2026-09-30): which campaign
+        // KIND an admin may create is now permission-based, checked inside
+        // CampaignService::create()/createNationalGivingDay() instead of scope logic, so the
+        // frontend can read these two directly. system_configuration.* IS now granted too
+        // (Constituency Type management is institution-admin-only), but DonorTierService asserts
+        // AdminScopeEnum::NHEF internally on every action, so this never unlocks Donation Tier
+        // Configuration for an institution.
         $this->grant(RoleEnum::INSTITUTION_ADMIN, [
             PermissionEnum::DASHBOARD_READ,
             PermissionEnum::CONSTITUENTS_CREATE,
@@ -107,6 +119,8 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CONSTITUENTS_UPDATE,
             PermissionEnum::DONATIONS_READ,
             PermissionEnum::CAMPAIGNS_CREATE,
+            PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
+            PermissionEnum::CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY,
             PermissionEnum::CAMPAIGNS_READ,
             PermissionEnum::ADMINS_CREATE,
             PermissionEnum::ADMINS_READ,

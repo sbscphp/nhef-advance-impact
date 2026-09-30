@@ -6,6 +6,7 @@ use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
 use App\Enums\CampaignStatusEnum;
 use App\Enums\CampaignTypeEnum;
+use App\Enums\ePermission;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
@@ -148,7 +149,7 @@ class CampaignService
      */
     public function create(array $payload, Admin $actor, Request $request): Campaign
     {
-        if (AdminScopeEnum::current() === AdminScopeEnum::NHEF) {
+        if (! $actor->checkPermissionTo(ePermission::CAMPAIGNS_CREATE_STANDARD->value)) {
             throw new ApiException('Standard campaigns can only be created by an institution. NHEF creates National Giving Day campaigns on an institution\'s behalf instead.', 403);
         }
 
@@ -231,6 +232,10 @@ class CampaignService
      */
     public function createNationalGivingDay(array $payload, Admin $actor, Request $request): Campaign
     {
+        if (! $actor->checkPermissionTo(ePermission::CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY->value)) {
+            throw new ApiException('You do not have permission to create a National Giving Day campaign.', 403);
+        }
+
         $assignedAdmin = $this->adminRepository->findByUuid((string) $payload['assigned_admin_id']);
         if (! $assignedAdmin instanceof Admin) {
             throw new ApiException('The selected officer does not exist.', 422);

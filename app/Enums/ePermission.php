@@ -24,6 +24,11 @@ enum ePermission: string
     case CAMPAIGNS_UPDATE = 'campaigns.update';
     case CAMPAIGNS_DELETE = 'campaigns.delete';
 
+    // Finer-grained than campaigns.create: which campaign KIND an admin may create. Institution
+    // Admin holds both; NHEF (Super Admin, Admin) holds only the National Giving Day one.
+    case CAMPAIGNS_CREATE_STANDARD = 'campaigns.create_standard';
+    case CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY = 'campaigns.create_national_giving_day';
+
     case DONATIONS_CREATE = 'donations.create';
     case DONATIONS_READ = 'donations.read';
     case DONATIONS_UPDATE = 'donations.update';
