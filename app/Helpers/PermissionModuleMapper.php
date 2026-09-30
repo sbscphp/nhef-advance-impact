@@ -37,6 +37,7 @@ final class PermissionModuleMapper
             'custom_field',
             'audit_trail',
             'system_configuration',
+            'constituency_type',
             'visibility',
         ];
     }
@@ -61,6 +62,7 @@ final class PermissionModuleMapper
             'custom_fields' => 'custom_field',
             'audit_trail' => 'audit_trail',
             'system_configuration' => 'system_configuration',
+            'constituency_types' => 'constituency_type',
             'visibility' => 'visibility',
             default => 'other',
         };
@@ -160,6 +162,7 @@ final class PermissionModuleMapper
             'audit_trail' => 'Audit Trail',
             'system_configuration' => 'System Configuration',
             'custom_field' => 'Custom Field',
+            'constituency_type' => 'Constituency Type Configuration',
         ];
 
         $crudModules = array_filter(self::groupedApiPermissions(), fn (array $module): bool => $module['key'] !== 'visibility');

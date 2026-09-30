@@ -295,22 +295,23 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:system_configuration.read', 'individual.records']);
         });
 
-        // Master type list is shared platform-wide, read by both scopes; create/update/toggle/
-        // delete assert AdminScopeEnum::INSTITUTION internally (ConstituencyTypeService), so NHEF
-        // is blocked even though it also holds every system_configuration.* permission.
+        // Own permission set (constituency_types.*), deliberately separate from
+        // system_configuration.* (Donation Tier Configuration's, NHEF-only): institution-admin
+        // only, granted to Institution Admin and excluded from NHEF's blanket permission grant, so
+        // the menu this gates only shows for admins who can actually use it.
         Route::prefix('constituency-types')->group(function () {
             Route::post('/', [ConstituencyTypeController::class, 'store'])
-                ->middleware(['permission:system_configuration.create']);
+                ->middleware(['permission:constituency_types.create']);
             Route::get('/', [ConstituencyTypeController::class, 'index'])
-                ->middleware(['permission:system_configuration.read']);
+                ->middleware(['permission:constituency_types.read']);
             Route::get('/{uuid}', [ConstituencyTypeController::class, 'show'])
-                ->middleware(['permission:system_configuration.read']);
+                ->middleware(['permission:constituency_types.read']);
             Route::patch('/{uuid}', [ConstituencyTypeController::class, 'update'])
-                ->middleware(['permission:system_configuration.update']);
+                ->middleware(['permission:constituency_types.update']);
             Route::patch('/{uuid}/toggle-status', [ConstituencyTypeController::class, 'toggleStatus'])
-                ->middleware(['permission:system_configuration.update']);
+                ->middleware(['permission:constituency_types.update']);
             Route::delete('/{uuid}', [ConstituencyTypeController::class, 'destroy'])
-                ->middleware(['permission:system_configuration.delete']);
+                ->middleware(['permission:constituency_types.delete']);
         });
 
         Route::prefix('custom-fields')->group(function () {

@@ -81,10 +81,18 @@ enum ePermission: string
     case CUSTOM_FIELDS_UPDATE = 'custom_fields.update';
     case CUSTOM_FIELDS_DELETE = 'custom_fields.delete';
 
+    // Donation Tier Configuration only, NHEF-only.
     case SYSTEM_CONFIGURATION_CREATE = 'system_configuration.create';
     case SYSTEM_CONFIGURATION_READ = 'system_configuration.read';
     case SYSTEM_CONFIGURATION_UPDATE = 'system_configuration.update';
     case SYSTEM_CONFIGURATION_DELETE = 'system_configuration.delete';
+
+    // Constituency Type Configuration only, institution-admin-only. Kept separate from
+    // system_configuration.* (a different audience) so a role can hold one without the other.
+    case CONSTITUENCY_TYPES_CREATE = 'constituency_types.create';
+    case CONSTITUENCY_TYPES_READ = 'constituency_types.read';
+    case CONSTITUENCY_TYPES_UPDATE = 'constituency_types.update';
+    case CONSTITUENCY_TYPES_DELETE = 'constituency_types.delete';
 
     // Read-only; there is no create/update/delete for the audit trail itself.
     case AUDIT_TRAIL_READ = 'audit_trail.read';

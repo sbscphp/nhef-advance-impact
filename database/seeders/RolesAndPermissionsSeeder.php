@@ -81,18 +81,47 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // NHEF-level accounts see institution aggregates, never individual donor/alumni records,
         // and may never create a standard campaign (only National Giving Day, on an institution's
-        // behalf) - campaigns.create_standard is excluded so this is enforced by permission, not
-        // just internal scope logic, and can't be toggled on for NHEF via Roles & Permissions.
+        // behalf) or manage Constituency Type Configuration (institution-admin-only) -
+        // campaigns.create_standard and constituency_types.* are excluded so both are enforced by
+        // permission, not just internal scope logic, and can't be toggled on for NHEF via Roles &
+        // Permissions. This also keeps the frontend's permission-driven menus honest: NHEF never
+        // holds a permission for a screen it would 403 on.
         $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [
             PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
             PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
+            PermissionEnum::CONSTITUENCY_TYPES_CREATE,
+            PermissionEnum::CONSTITUENCY_TYPES_READ,
+            PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
+            PermissionEnum::CONSTITUENCY_TYPES_DELETE,
         ]));
 
         $this->grant(RoleEnum::ADMIN, $this->except($everything, [
             PermissionEnum::ROLES_DELETE,
             PermissionEnum::ADMINS_DELETE,
             PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
+            PermissionEnum::CONSTITUENCY_TYPES_CREATE,
+            PermissionEnum::CONSTITUENCY_TYPES_READ,
+            PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
+            PermissionEnum::CONSTITUENCY_TYPES_DELETE,
         ]));
+
+        // One-time correction (2026-09-30): system_configuration.* was briefly granted to
+        // Institution Admin so they could reach Constituency Type Configuration, which shared
+        // that permission bucket with Donation Tier Configuration (NHEF-only). That accidentally
+        // also unlocked the Donation Tier Configuration menu for institutions (blocked internally,
+        // but still shown, the same frontend-menu mismatch this whole pass is fixing). Constituency
+        // Type Configuration now has its own constituency_types.* permission set below; explicitly
+        // revoke the old grant since `grant()`/givePermissionTo() only adds, never strips.
+        Role::query()
+            ->where('name', RoleEnum::INSTITUTION_ADMIN->value)
+            ->where('guard_name', self::GUARD)
+            ->first()
+            ?->revokePermissionTo([
+                PermissionEnum::SYSTEM_CONFIGURATION_CREATE->value,
+                PermissionEnum::SYSTEM_CONFIGURATION_READ->value,
+                PermissionEnum::SYSTEM_CONFIGURATION_UPDATE->value,
+                PermissionEnum::SYSTEM_CONFIGURATION_DELETE->value,
+            ]);
 
         // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields, roles.
         // dashboard.read IS granted, but the NHEF-only dashboard actions (national snapshot,
@@ -106,12 +135,11 @@ class RolesAndPermissionsSeeder extends Seeder
         // bank-account payload to all belong to the caller's own institution, so this never
         // unlocks another institution's campaign. campaigns.create_standard and
         // campaigns.create_national_giving_day are both granted too (2026-09-30): which campaign
-        // KIND an admin may create is now permission-based, checked inside
+        // KIND an admin may create is permission-based, checked inside
         // CampaignService::create()/createNationalGivingDay() instead of scope logic, so the
-        // frontend can read these two directly. system_configuration.* IS now granted too
-        // (Constituency Type management is institution-admin-only), but DonorTierService asserts
-        // AdminScopeEnum::NHEF internally on every action, so this never unlocks Donation Tier
-        // Configuration for an institution.
+        // frontend can read these two directly. constituency_types.* (its own permission set, NOT
+        // system_configuration.*, see the correction above) is granted too, checked inside
+        // ConstituencyTypeService the same way.
         $this->grant(RoleEnum::INSTITUTION_ADMIN, [
             PermissionEnum::DASHBOARD_READ,
             PermissionEnum::CONSTITUENTS_CREATE,
@@ -142,10 +170,10 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::REPORTS_CREATE,
             PermissionEnum::REPORTS_READ,
             PermissionEnum::AUDIT_TRAIL_READ,
-            PermissionEnum::SYSTEM_CONFIGURATION_CREATE,
-            PermissionEnum::SYSTEM_CONFIGURATION_READ,
-            PermissionEnum::SYSTEM_CONFIGURATION_UPDATE,
-            PermissionEnum::SYSTEM_CONFIGURATION_DELETE,
+            PermissionEnum::CONSTITUENCY_TYPES_CREATE,
+            PermissionEnum::CONSTITUENCY_TYPES_READ,
+            PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
+            PermissionEnum::CONSTITUENCY_TYPES_DELETE,
             PermissionEnum::VISIBILITY_MONETARY,
             PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
         ]);

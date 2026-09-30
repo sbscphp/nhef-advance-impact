@@ -45,6 +45,9 @@ enum ModuleEnums: string
     case custom_field = 'custom_field';
     case system_configuration = 'system_configuration';
 
+    /** Constituency Type Configuration; kept separate from system_configuration (a different audience). */
+    case constituency_type = 'constituency_type';
+
     public function label(): string
     {
         return match ($this) {
@@ -66,6 +69,7 @@ enum ModuleEnums: string
             self::networking => 'Networking',
             self::custom_field => 'Custom field',
             self::system_configuration => 'System configuration',
+            self::constituency_type => 'Constituency type',
         };
     }
 

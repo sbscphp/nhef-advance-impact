@@ -2,8 +2,8 @@
 
 namespace App\Services\ConstituencyType;
 
-use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
+use App\Enums\ePermission;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
@@ -29,7 +29,7 @@ class ConstituencyTypeService
      */
     public function create(array $payload, Admin $actor, Request $request): ConstituencyType
     {
-        $this->assertInstitutionScope();
+        $this->assertPermission($actor, ePermission::CONSTITUENCY_TYPES_CREATE);
 
         $type = $this->typeRepository->create([
             'name' => $payload['name'],
@@ -46,7 +46,7 @@ class ConstituencyTypeService
             $actor->displayName().' created a constituency type: '.$type->name.'.',
             ConstituencyType::class,
             $type->uuid,
-            ModuleEnums::system_configuration,
+            ModuleEnums::constituency_type,
             201,
         );
 
@@ -102,7 +102,7 @@ class ConstituencyTypeService
      */
     public function update(string $uuid, array $payload, Admin $actor, Request $request): ConstituencyType
     {
-        $this->assertInstitutionScope();
+        $this->assertPermission($actor, ePermission::CONSTITUENCY_TYPES_UPDATE);
 
         $type = $this->findForAdmin($uuid);
         $previousName = $type->name;
@@ -119,7 +119,7 @@ class ConstituencyTypeService
                 $actor->displayName().' updated a constituency type: '.$previousName.' -> '.$type->name.'.',
                 ConstituencyType::class,
                 $type->uuid,
-                ModuleEnums::system_configuration,
+                ModuleEnums::constituency_type,
                 200,
             );
         }
@@ -129,7 +129,7 @@ class ConstituencyTypeService
 
     public function toggleActiveStatus(string $uuid, Admin $actor, Request $request): ConstituencyType
     {
-        $this->assertInstitutionScope();
+        $this->assertPermission($actor, ePermission::CONSTITUENCY_TYPES_UPDATE);
 
         $type = $this->findForAdmin($uuid);
         $isActive = ! (bool) $type->is_active;
@@ -145,7 +145,7 @@ class ConstituencyTypeService
             $actor->displayName().($isActive ? ' reactivated' : ' deactivated').' a constituency type: '.$type->name.'.',
             ConstituencyType::class,
             $type->uuid,
-            ModuleEnums::system_configuration,
+            ModuleEnums::constituency_type,
             200,
         );
 
@@ -154,7 +154,7 @@ class ConstituencyTypeService
 
     public function delete(string $uuid, Admin $actor, Request $request): void
     {
-        $this->assertInstitutionScope();
+        $this->assertPermission($actor, ePermission::CONSTITUENCY_TYPES_DELETE);
 
         $type = $this->findForAdmin($uuid);
         $typeUuid = $type->uuid;
@@ -171,20 +171,22 @@ class ConstituencyTypeService
             $actor->displayName().' deleted a constituency type: '.$typeName.'.',
             ConstituencyType::class,
             $typeUuid,
-            ModuleEnums::system_configuration,
+            ModuleEnums::constituency_type,
             200,
         );
     }
 
     /**
      * Confers one or more constituency types on a constituent. Institution-admin-only: this is a
-     * manual tag an institution's own admin confers on their own constituent, never NHEF.
+     * manual tag an institution's own admin confers on their own constituent, never NHEF. Gated
+     * by `constituents.update` at the route level (shared by both scopes), so this permission
+     * check is the actual enforcement, not just a backstop.
      *
      * @param  list<string>  $typeUuids
      */
     public function confer(string $userUuid, array $typeUuids, Admin $actor, Request $request): User
     {
-        $this->assertInstitutionScope();
+        $this->assertPermission($actor, ePermission::CONSTITUENCY_TYPES_UPDATE);
 
         $user = $this->findUserForAdmin($userUuid);
         $types = $this->typeRepository->findManyByUuids($typeUuids)->where('is_active', true);
@@ -214,7 +216,7 @@ class ConstituencyTypeService
 
     public function revoke(string $userUuid, string $typeUuid, Admin $actor, Request $request): User
     {
-        $this->assertInstitutionScope();
+        $this->assertPermission($actor, ePermission::CONSTITUENCY_TYPES_UPDATE);
 
         $user = $this->findUserForAdmin($userUuid);
         $type = $this->findForAdmin($typeUuid);
@@ -250,14 +252,16 @@ class ConstituencyTypeService
     }
 
     /**
-     * The master type list is shared platform-wide and readable by both scopes, but only an
-     * institution admin may create/edit/deactivate a type or confer/revoke one on a constituent;
-     * NHEF/Super Admin is blocked even though it otherwise holds every system_configuration.*
-     * permission (see RolesAndPermissionsSeeder for the matching institution-admin grant note).
+     * The master type list is shared platform-wide and readable by both scopes (gated by
+     * constituency_types.read at the route level), but every mutation - create/edit/deactivate/
+     * delete a type, or confer/revoke one on a constituent - requires its own constituency_types.*
+     * permission, which only Institution Admin holds (see RolesAndPermissionsSeeder). Permission-
+     * based rather than scope-based so the frontend can read this straight from `permissions`,
+     * same treatment as CampaignService::create()/createNationalGivingDay().
      */
-    private function assertInstitutionScope(): void
+    private function assertPermission(Admin $actor, ePermission $permission): void
     {
-        if (AdminScopeEnum::current() !== AdminScopeEnum::INSTITUTION) {
+        if (! $actor->checkPermissionTo($permission->value)) {
             throw new ApiException('Only an institution admin can manage constituency types.', 403);
         }
     }
