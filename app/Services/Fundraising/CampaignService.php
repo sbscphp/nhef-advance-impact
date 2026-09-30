@@ -169,6 +169,10 @@ class CampaignService
         $campaign = $this->campaignRepository->create([
             'title' => $payload['title'],
             'slug' => $this->uniqueSlug((string) $payload['title']),
+            // Explicit, not left to the DB column default: create() returns the model as built in
+            // memory, never refreshed from DB, so a DB-only default would leave `type` null on the
+            // response to this very request (subsequent GETs would still show it correctly).
+            'type' => CampaignTypeEnum::STANDARD->value,
             'description' => $payload['description'],
             'cover_image_url' => $coverUrl,
             'currency' => $payload['currency'],

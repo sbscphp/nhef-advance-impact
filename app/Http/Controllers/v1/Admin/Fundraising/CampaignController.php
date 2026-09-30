@@ -49,7 +49,17 @@ class CampaignController extends Controller
     {
         try {
             $admin = $this->requireAdmin($request);
-            $campaign = $this->campaignService->create($request->validated(), $admin, $request);
+            $validated = $request->validated();
+            $isNationalGivingDay = ($validated['type'] ?? CampaignTypeEnum::STANDARD->value) === CampaignTypeEnum::NATIONAL_GIVING_DAY->value;
+
+            if ($isNationalGivingDay) {
+                $campaign = $this->campaignService->createNationalGivingDay($validated, $admin, $request);
+                $this->applyNationalGivingDayTotals($campaign);
+
+                return JsonResponser::send(false, 'National Giving Day campaign created successfully.', CampaignAdminResource::make($campaign)->resolve());
+            }
+
+            $campaign = $this->campaignService->create($validated, $admin, $request);
 
             return JsonResponser::send(false, 'Campaign created successfully.', CampaignAdminResource::make($campaign)->resolve());
         } catch (\Throwable $th) {
