@@ -285,9 +285,10 @@ class DonorTierService
     }
 
     /**
-     * Donation tiers stay NHEF-wide. Institution Admin now also holds system_configuration.*
-     * (for Constituency Type), so this is a defensive backstop, not the only guard, mirroring how
-     * AdminDashboardService/NationalDashboardService assert NHEF scope internally.
+     * Donation tiers stay NHEF-wide. Institution Admin no longer holds system_configuration.*
+     * at all (Constituency Type Configuration moved to its own permission set), so this is a
+     * defensive backstop, not the only guard, mirroring how DashboardService asserts scope
+     * internally for its own single-scope cards.
      */
     private function assertNhefScope(): void
     {

@@ -330,9 +330,13 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:custom_fields.delete']);
         });
 
+        // Every route below is shared by both scopes (DashboardService branches internally on
+        // AdminScopeEnum::current()), except campaign-tracking (NHEF-only, no Institution
+        // equivalent) and donation-intelligence (Institution-only, no NHEF equivalent). 2026-09-30:
+        // collapsed from separate NHEF (/dashboard/*) and Institution (/dashboard/institution/*)
+        // route families into these, since the Figma shows the same card on both dashboards for
+        // snapshot/event-stats/alumni-breakdown, just scoped and shaped differently.
         Route::prefix('dashboard')->group(function () {
-            Route::get('/overview', [AdminDashboardController::class, 'overview'])
-                ->middleware(['permission:dashboard.read']);
             Route::get('/national-snapshot', [AdminDashboardController::class, 'nationalSnapshot'])
                 ->middleware(['permission:dashboard.read']);
             Route::get('/campaign-tracking', [AdminDashboardController::class, 'campaignTracking'])
@@ -341,15 +345,10 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:dashboard.read']);
             Route::get('/institution-ranking', [AdminDashboardController::class, 'institutionRanking'])
                 ->middleware(['permission:dashboard.read']);
+            Route::get('/donation-intelligence', [AdminDashboardController::class, 'donationIntelligence'])
+                ->middleware(['permission:dashboard.read']);
             Route::get('/live-activity', [AdminDashboardController::class, 'liveActivity'])
                 ->middleware(['permission:dashboard.read', 'permission:audit_trail.read']);
-
-            // Institution admin's own scoped dashboard; NationalDashboardService/AdminDashboardService's
-            // NHEF-only actions above and these both guard the caller's scope internally too.
-            Route::get('/institution/overview', [AdminDashboardController::class, 'institutionOverview'])
-                ->middleware(['permission:dashboard.read']);
-            Route::get('/institution/event-intelligence', [AdminDashboardController::class, 'institutionEventIntelligence'])
-                ->middleware(['permission:dashboard.read']);
         });
 
         Route::prefix('reports')->group(function () {
