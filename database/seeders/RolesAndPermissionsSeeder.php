@@ -250,16 +250,23 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
         ]);
 
-        // Read-only evaluator: institution-level summaries, no money, no individual records, no audit trail.
-        // Reports.create is only the export/download action.
+        // Read-only evaluator: institution-level summaries, no money, no individual records, no audit
+        // trail, no events (2026-10-02: no Event Management screen for this role either, same as
+        // Super Admin). Reports.create is only the export/download action.
         $this->grant(RoleEnum::MINISTRY_OF_EDUCATION, [
             PermissionEnum::DASHBOARD_READ,
             PermissionEnum::CONSTITUENTS_READ,
             PermissionEnum::CAMPAIGNS_READ,
-            PermissionEnum::EVENTS_READ,
             PermissionEnum::REPORTS_READ,
             PermissionEnum::REPORTS_CREATE,
         ]);
+
+        // grant() only adds, never strips - revoke what a prior seeder run already granted.
+        Role::query()
+            ->where('name', RoleEnum::MINISTRY_OF_EDUCATION->value)
+            ->where('guard_name', self::GUARD)
+            ->first()
+            ?->revokePermissionTo(PermissionEnum::EVENTS_READ->value);
     }
 
     /**
