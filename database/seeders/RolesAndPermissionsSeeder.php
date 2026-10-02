@@ -128,10 +128,16 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         // Super Admin-only, not shared with Admin: the user explicitly wants NHEF's plain "Admin"
-        // role to keep individual-record visibility, only Super Admin is denied it.
+        // role to keep individual-record visibility and the Donation module, only Super Admin is
+        // denied both (2026-10-02: Super Admin no longer needs donations.* at all, including the
+        // aggregate-only /donation/overview it was originally kept for).
         $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [
             ...$nhefExcluded,
             PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
+            PermissionEnum::DONATIONS_CREATE,
+            PermissionEnum::DONATIONS_READ,
+            PermissionEnum::DONATIONS_UPDATE,
+            PermissionEnum::DONATIONS_DELETE,
         ]));
 
         $this->grant(RoleEnum::ADMIN, $this->except($everything, [
@@ -176,12 +182,18 @@ class RolesAndPermissionsSeeder extends Seeder
                 ?->revokePermissionTo(array_map(fn (PermissionEnum $permission): string => $permission->value, $nhefExcluded));
         }
 
-        // Super Admin only (see the grant above) - Admin keeps this one.
+        // Super Admin only (see the grant above) - Admin keeps both of these.
         Role::query()
             ->where('name', RoleEnum::SUPER_ADMIN->value)
             ->where('guard_name', self::GUARD)
             ->first()
-            ?->revokePermissionTo(PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS->value);
+            ?->revokePermissionTo([
+                PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS->value,
+                PermissionEnum::DONATIONS_CREATE->value,
+                PermissionEnum::DONATIONS_READ->value,
+                PermissionEnum::DONATIONS_UPDATE->value,
+                PermissionEnum::DONATIONS_DELETE->value,
+            ]);
 
         // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields, roles.
         // dashboard.read IS granted, but the NHEF-only dashboard cards (National Snapshot,
