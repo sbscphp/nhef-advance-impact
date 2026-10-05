@@ -259,7 +259,12 @@ class CampaignService
             'goal_amount' => null,
             'raised_amount' => 0,
             'allow_one_time' => true,
-            'allow_recurring' => true,
+            // A National Giving Day campaign runs for a fixed window (a day or two, see
+            // starts_at/ends_at), not an ongoing fund - a recurring/subscription donation would
+            // keep charging a donor long after the campaign has ended, so it's never offered here.
+            // DonationService/PledgeService already gate on this flag; this is the only place it
+            // needs to be set correctly.
+            'allow_recurring' => false,
             'allow_anonymous' => true,
             'status' => CampaignStatusEnum::ACTIVE->value,
             'cover_media_type' => $this->coverMediaType($payload['cover'] ?? null, $coverUrl),
