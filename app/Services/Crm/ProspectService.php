@@ -23,6 +23,7 @@ use App\Repositories\Contracts\Crm\ProspectCallLogRepositoryInterface;
 use App\Repositories\Contracts\Crm\ProspectInviteRepositoryInterface;
 use App\Repositories\Contracts\Crm\ProspectMessageRepositoryInterface;
 use App\Repositories\Contracts\Crm\ProspectRepositoryInterface;
+use App\Repositories\Contracts\Crm\ProspectStageHistoryRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -35,6 +36,7 @@ class ProspectService
         private readonly ProspectCallLogRepositoryInterface $callLogRepository,
         private readonly ProspectInviteRepositoryInterface $inviteRepository,
         private readonly ProspectMessageRepositoryInterface $messageRepository,
+        private readonly ProspectStageHistoryRepositoryInterface $stageHistoryRepository,
         private readonly AdminRepositoryInterface $adminRepository,
     ) {}
 
@@ -44,6 +46,7 @@ class ProspectService
     public function create(array $payload, Admin $actor, Request $request): Prospect
     {
         $assignedAdmin = $this->resolveAdmin((string) $payload['assign_to']);
+        $enteredAt = now();
 
         $prospect = $this->prospectRepository->create([
             'first_name' => $payload['first_name'],
@@ -54,9 +57,15 @@ class ProspectService
             'estimated_value' => $payload['estimated_value'],
             'currency' => $payload['currency'] ?? 'NGN',
             'stage' => ProspectPipelineStageEnum::IDENTIFICATION->value,
-            'stage_entered_at' => now(),
+            'stage_entered_at' => $enteredAt,
             'assigned_admin_id' => $assignedAdmin->id,
             'created_by' => $actor->uuid,
+        ]);
+
+        $this->stageHistoryRepository->create([
+            'prospect_id' => $prospect->id,
+            'stage' => ProspectPipelineStageEnum::IDENTIFICATION->value,
+            'entered_at' => $enteredAt,
         ]);
 
         $prospect->setRelation('assignedAdmin', $assignedAdmin);
@@ -154,10 +163,18 @@ class ProspectService
         }
 
         $fromStage = $prospect->stage;
+        $enteredAt = now();
 
         $prospect = $this->prospectRepository->update($prospect, [
             'stage' => $stage,
-            'stage_entered_at' => now(),
+            'stage_entered_at' => $enteredAt,
+        ]);
+
+        $this->stageHistoryRepository->closeOpenForProspect($prospect->id, $enteredAt);
+        $this->stageHistoryRepository->create([
+            'prospect_id' => $prospect->id,
+            'stage' => $stage,
+            'entered_at' => $enteredAt,
         ]);
 
         GeneralHelper::storeAuditLog(
