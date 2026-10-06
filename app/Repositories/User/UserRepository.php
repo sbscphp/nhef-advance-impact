@@ -125,7 +125,7 @@ class UserRepository implements UserRepositoryInterface
             )
             ->when(
                 filled($filters['filters']['constituent_type'] ?? null),
-                fn ($query) => $query->where('constituent_type', $filters['filters']['constituent_type'])
+                fn ($query) => $query->whereIn('constituent_type', (array) $filters['filters']['constituent_type'])
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
