@@ -147,6 +147,8 @@ class DashboardService
         $paginator->setCollection($paginator->getCollection()->map(fn (Event $event): array => [
             'uuid' => $event->uuid,
             'event_name' => $event->title,
+            'institution_uuid' => $event->institution?->uuid,
+            'university_name' => $event->institution?->name,
             'starts_at' => $event->starts_at?->toIso8601String(),
             'ends_at' => $event->ends_at?->toIso8601String(),
             'units_sold' => (int) $event->seats_taken,

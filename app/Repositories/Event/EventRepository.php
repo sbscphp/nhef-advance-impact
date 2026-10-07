@@ -50,7 +50,7 @@ class EventRepository implements EventRepositoryInterface
     public function paginateAdmin(array $filters, int $perPage): LengthAwarePaginator
     {
         $query = Event::query()
-            ->with(['ticketTypes'])
+            ->with(['ticketTypes', 'institution'])
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')

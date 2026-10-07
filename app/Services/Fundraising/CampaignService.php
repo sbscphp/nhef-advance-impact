@@ -584,11 +584,15 @@ class CampaignService
 
         $payments = $this->paymentRepository->statsByCampaigns($ids);
         $institutions = $this->campaignInstitutionRepository->countByCampaigns($ids);
+        $institutionNames = $this->campaignInstitutionRepository->namesByCampaigns($ids);
+        $pledges = $this->pledgeRepository->totalsByCampaigns($ids);
 
         foreach ($campaigns as $campaign) {
             $campaign->setAttribute('donations_count', $payments[$campaign->id]['donations'] ?? 0);
             $campaign->setAttribute('donors_count', $payments[$campaign->id]['donors'] ?? 0);
             $campaign->setAttribute('institutions_count', $institutions[$campaign->id] ?? 0);
+            $campaign->setAttribute('institutions', $institutionNames[$campaign->id] ?? []);
+            $campaign->setAttribute('pledges_count', $pledges[$campaign->id]['count'] ?? 0);
         }
     }
 

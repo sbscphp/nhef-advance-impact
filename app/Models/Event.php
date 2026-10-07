@@ -7,13 +7,19 @@ use App\Models\Concerns\OwnedByInstitution;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Event extends Model
 {
-    use OwnedByInstitution, HasUuid;
+    use HasUuid, OwnedByInstitution;
 
     protected $guarded = ['id', 'uuid'];
+
+    public function institution(): BelongsTo
+    {
+        return $this->belongsTo(Institution::class);
+    }
 
     protected function casts(): array
     {

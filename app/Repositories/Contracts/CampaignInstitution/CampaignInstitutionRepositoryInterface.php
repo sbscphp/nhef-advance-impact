@@ -70,6 +70,15 @@ interface CampaignInstitutionRepositoryInterface
     public function countByCampaigns(array $campaignIds): array;
 
     /**
+     * Participating institution uuid/name per campaign, for the campaign list's "institutions"
+     * column - a standard campaign has exactly one, a National Giving Day campaign may have many.
+     *
+     * @param  list<int>  $campaignIds
+     * @return array<int, list<array{uuid: string, name: string}>>
+     */
+    public function namesByCampaigns(array $campaignIds): array;
+
+    /**
      * Every row for a campaign with its bank account, unpaginated, for exporting the Institutions tab.
      *
      * @param  array<string, mixed>  $filters

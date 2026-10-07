@@ -146,6 +146,25 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
             ->all();
     }
 
+    public function namesByCampaigns(array $campaignIds): array
+    {
+        if ($campaignIds === []) {
+            return [];
+        }
+
+        return CampaignInstitution::query()
+            ->whereIn('campaign_id', $campaignIds)
+            ->with('institution')
+            ->get()
+            ->filter(fn (CampaignInstitution $row) => $row->institution !== null)
+            ->groupBy('campaign_id')
+            ->map(fn (Collection $rows) => $rows->map(fn (CampaignInstitution $row) => [
+                'uuid' => $row->institution->uuid,
+                'name' => $row->institution->name,
+            ])->values()->all())
+            ->all();
+    }
+
     public function exportForCampaign(int $campaignId, array $filters): Collection
     {
         return CampaignInstitution::query()

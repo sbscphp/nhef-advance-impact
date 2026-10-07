@@ -2,10 +2,8 @@
 
 namespace App\Http\Resources\Admin;
 
-use App\Models\Campaign;
-use App\Support\Money;
 use App\Http\Resources\Concerns\PresentsCampaign;
-use App\Support\ViewerVisibility;
+use App\Models\Campaign;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -41,7 +39,10 @@ class CampaignAdminResource extends JsonResource
             ...$this->bankAccountFields(),
             'donations_count' => $this->when(array_key_exists('donations_count', $this->resource->getAttributes()), fn () => (int) $this->donations_count),
             'donors_count' => $this->when(array_key_exists('donors_count', $this->resource->getAttributes()), fn () => (int) $this->donors_count),
+            'pledges_count' => $this->when(array_key_exists('pledges_count', $this->resource->getAttributes()), fn () => (int) $this->pledges_count),
             'institutions_count' => $this->when(array_key_exists('institutions_count', $this->resource->getAttributes()), fn () => (int) $this->institutions_count),
+            // One per standard campaign, several for a National Giving Day campaign.
+            'institutions' => $this->when(array_key_exists('institutions', $this->resource->getAttributes()), fn () => $this->institutions),
             'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
