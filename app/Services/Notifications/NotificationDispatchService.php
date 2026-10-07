@@ -86,7 +86,12 @@ class NotificationDispatchService
         }
 
         try {
+            // An explicit uuid list is always the caller's final say on who gets notified - never
+            // narrow it further by whatever tenant happens to be current on the caller's own
+            // request (e.g. an Institution Admin's action notifying NHEF Super Admins, who have no
+            // institution of their own and would otherwise be silently filtered out here).
             $admins = Admin::query()
+                ->withoutGlobalScope(TenantScope::class)
                 ->whereIn('uuid', $adminUuids)
                 ->where('is_active', true)
                 ->where('can_login', true)
@@ -148,7 +153,10 @@ class NotificationDispatchService
         }
 
         try {
+            // Same reasoning as notifyAdminsByUuids(): an explicit uuid list shouldn't be
+            // narrowed further by the caller's own ambient tenant context.
             $users = User::query()
+                ->withoutGlobalScope(TenantScope::class)
                 ->whereIn('uuid', $userUuids)
                 ->where('is_active', true)
                 ->where('can_login', true)

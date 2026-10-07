@@ -19,6 +19,7 @@ use App\Models\Campaign;
 use App\Models\CampaignInstitution;
 use App\Models\CampaignProject;
 use App\Models\Institution;
+use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\BankAccount\BankAccountRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
@@ -28,6 +29,7 @@ use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
+use App\Services\Notifications\NotificationDispatchService;
 use App\Support\HtmlSanitizer;
 use App\Support\Money;
 use App\Support\ViewerVisibility;
@@ -51,6 +53,7 @@ class CampaignService
         private readonly InstitutionRepositoryInterface $institutionRepository,
         private readonly CampaignInstitutionRepositoryInterface $campaignInstitutionRepository,
         private readonly CampaignProjectRepositoryInterface $campaignProjectRepository,
+        private readonly NotificationDispatchService $notificationDispatchService,
     ) {}
 
     /**
@@ -221,6 +224,14 @@ class CampaignService
             200,
         );
 
+        $this->notificationDispatchService->notifySuperAdmins(new GenericDatabaseNotification(
+            module: ModuleEnums::fundraising->value,
+            event: 'campaign_created',
+            title: 'New campaign created',
+            message: $tenant->name.' created a new campaign: "'.$campaign->title.'".',
+            meta: ['campaign_uuid' => $campaign->uuid, 'institution_uuid' => $tenant->uuid],
+        ));
+
         return $campaign;
     }
 
@@ -300,6 +311,29 @@ class CampaignService
             ModuleEnums::fundraising,
             200,
         );
+
+        if (AdminScopeEnum::current() === AdminScopeEnum::INSTITUTION) {
+            // An institution creating its own scoped NGD campaign - NHEF should know, same as a
+            // standard campaign.
+            $this->notificationDispatchService->notifySuperAdmins(new GenericDatabaseNotification(
+                module: ModuleEnums::fundraising->value,
+                event: 'campaign_created',
+                title: 'New National Giving Day campaign created',
+                message: Institution::current()?->name.' created a new National Giving Day campaign: "'.$campaign->title.'".',
+                meta: ['campaign_uuid' => $campaign->uuid],
+            ));
+        } else {
+            // NHEF creating one on behalf of several institutions - each one should know they're
+            // now part of it.
+            $institutionAdminUuids = $this->adminRepository->uuidsForInstitutions(array_column($institutionRows, 'institution_id'));
+            $this->notificationDispatchService->notifyAdminsByUuids($institutionAdminUuids, new GenericDatabaseNotification(
+                module: ModuleEnums::fundraising->value,
+                event: 'campaign_created',
+                title: 'Your institution joined a National Giving Day campaign',
+                message: 'Your institution has been added to the National Giving Day campaign "'.$campaign->title.'".',
+                meta: ['campaign_uuid' => $campaign->uuid],
+            ));
+        }
 
         return $campaign;
     }

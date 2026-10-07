@@ -22,4 +22,13 @@ interface AdminRepositoryInterface
      * @return Collection<int, Admin>
      */
     public function listActive(): Collection;
+
+    /**
+     * Active, login-enabled admin uuids belonging to any of the given institutions - for
+     * notifying every institution added to a National Giving Day campaign.
+     *
+     * @param  list<int>  $institutionIds
+     * @return list<string>
+     */
+    public function uuidsForInstitutions(array $institutionIds): array;
 }
