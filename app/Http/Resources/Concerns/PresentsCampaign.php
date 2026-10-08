@@ -54,24 +54,31 @@ trait PresentsCampaign
         }
 
         $total = (float) $campaign->projects->sum('goal_amount');
+        // Donations are recorded against the campaign as a whole, never earmarked to one project
+        // (MakeDonationRequest has no project_uuid field), so there's no real per-project raised
+        // figure to compute from. Every project gets the campaign's own funding progress instead.
+        $campaignProgress = $campaign->progressPercentage();
 
         return [
+            // Goals are the public target, not money actually collected - shown to every viewer.
             'projects' => $campaign->projects
-                ->map(fn (CampaignProject $project): array => [
-                    'uuid' => $project->uuid,
-                    'name' => $project->name,
-                    ...ViewerVisibility::money([
+                ->map(function (CampaignProject $project) use ($total, $campaignProgress, $withDescription): array {
+                    $percentOfCampaign = $total > 0 ? round(((float) $project->goal_amount / $total) * 100, 2) : 0.0;
+
+                    return [
+                        'uuid' => $project->uuid,
+                        'name' => $project->name,
                         'goal_amount' => (string) $project->goal_amount,
                         'goal_amount_formatted' => Money::format($project->goal_amount, 'NGN'),
-                    ]),
-                    ...($withDescription ? ['description' => $project->description] : []),
-                ])
+                        'percent_of_campaign' => $percentOfCampaign,
+                        'progress_percentage' => $campaignProgress,
+                        ...($withDescription ? ['description' => $project->description] : []),
+                    ];
+                })
                 ->values()
                 ->all(),
-            ...ViewerVisibility::money([
-                'projects_total' => (string) $total,
-                'projects_total_formatted' => Money::format($total, 'NGN'),
-            ]),
+            'projects_total' => (string) $total,
+            'projects_total_formatted' => Money::format($total, 'NGN'),
         ];
     }
 
@@ -93,7 +100,9 @@ trait PresentsCampaign
     }
 
     /**
-     * Goal and raised figures, present only for viewers who may see institution-level money.
+     * The goal is the public target, not money actually collected, so it's shown to every
+     * viewer; raised_amount (and the progress it implies about real donations) stays gated
+     * behind visibility.monetary.
      *
      * @return array<string, string|int>
      */
@@ -101,13 +110,15 @@ trait PresentsCampaign
     {
         $campaign = $this->campaign();
 
-        return ViewerVisibility::money([
+        return [
             'goal_amount' => (string) $campaign->goal_amount,
             'goal_amount_formatted' => Money::format($campaign->goal_amount, $campaign->currency),
-            'raised_amount' => (string) $campaign->raised_amount,
-            'raised_amount_formatted' => Money::format($campaign->raised_amount, $campaign->currency),
+            ...ViewerVisibility::money([
+                'raised_amount' => (string) $campaign->raised_amount,
+                'raised_amount_formatted' => Money::format($campaign->raised_amount, $campaign->currency),
+            ]),
             ...($withProgress ? ['progress_percentage' => $campaign->progressPercentage()] : []),
-        ]);
+        ];
     }
 
     /**

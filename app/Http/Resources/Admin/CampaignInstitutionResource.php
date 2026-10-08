@@ -29,15 +29,16 @@ class CampaignInstitutionResource extends JsonResource
                 'name' => $this->institution->name,
             ]),
             'currency' => $this->currency,
+            // The goal is the public target, not money actually collected - shown to every viewer.
+            'goal_amount' => (string) $this->goal_amount,
+            'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
             ...ViewerVisibility::money([
-                'goal_amount' => (string) $this->goal_amount,
-                'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
                 'raised_amount' => $raisedAmount,
                 'raised_amount_formatted' => Money::format($raisedAmount, $this->currency),
-                'progress_percentage' => $this->progressPercentage($raisedAmount),
                 'pledges_total' => (string) ($this->pledges_total ?? '0'),
                 'pledges_total_formatted' => Money::format($this->pledges_total ?? '0', $this->currency),
             ]),
+            'progress_percentage' => $this->progressPercentage($raisedAmount),
             'pledges_count' => (int) ($this->pledges_count ?? 0),
             ...ViewerVisibility::money(['bank_account' => $this->whenLoaded('bankAccount', fn () => $this->bankAccount === null ? null : [
                 'bank_account_id' => $this->bankAccount->uuid,
