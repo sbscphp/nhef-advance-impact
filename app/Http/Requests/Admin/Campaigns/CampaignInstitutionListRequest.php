@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Campaigns;
 
 use App\Http\Requests\ApiFormRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
+use Illuminate\Validation\Rule;
 
 class CampaignInstitutionListRequest extends ApiFormRequest
 {
@@ -17,11 +18,15 @@ class CampaignInstitutionListRequest extends ApiFormRequest
      */
     public function rules(): array
     {
-        return ListingFilterRules::rules(['name', 'value']);
+        return array_merge(ListingFilterRules::rules(['name', 'value']), [
+            'export' => ['sometimes', 'nullable', Rule::in(['csv', 'pdf'])],
+        ]);
     }
 
     public function messages(): array
     {
-        return array_merge(parent::messages(), ListingFilterRules::listingMessages());
+        return array_merge(parent::messages(), ListingFilterRules::listingMessages(), [
+            'export.in' => "Export format must be either 'csv' or 'pdf'.",
+        ]);
     }
 }

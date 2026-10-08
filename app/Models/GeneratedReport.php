@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\OwnedByInstitution;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GeneratedReport extends Model
 {
-    use HasUuid;
+    use OwnedByInstitution, HasUuid;
 
     protected $guarded = ['id', 'uuid'];
 
@@ -23,6 +24,6 @@ class GeneratedReport extends Model
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'created_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();
     }
 }

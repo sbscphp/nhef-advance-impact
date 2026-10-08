@@ -36,11 +36,13 @@ class ReportController extends Controller
     public function metadata()
     {
         try {
+            $visible = array_filter(ReportDatasetEnum::cases(), fn (ReportDatasetEnum $dataset): bool => $dataset->availableToViewer());
+
             $datasets = array_map(fn (ReportDatasetEnum $dataset): array => [
                 'value' => $dataset->value,
                 'label' => $dataset->label(),
                 'description' => $dataset->description(),
-            ], ReportDatasetEnum::cases());
+            ], array_values($visible));
 
             return JsonResponser::send(false, 'Report metadata retrieved.', [
                 'datasets' => $datasets,
@@ -177,6 +179,7 @@ class ReportController extends Controller
      */
     private function fieldLabels(string $dataset, array $fieldKeys): array
     {
+        $fieldKeys = $this->reportService->visibleFieldKeys($dataset, $fieldKeys);
         $grouped = $this->reportService->fieldsForDataset($dataset);
         $byKey = [];
 

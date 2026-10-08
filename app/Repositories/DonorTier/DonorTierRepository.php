@@ -16,14 +16,15 @@ class DonorTierRepository implements DonorTierRepositoryInterface
 {
     private const MAX_EXPORT_ROWS = 5000;
 
-    public function allOrderedByThreshold(): Collection
+    public function activeOrderedByThreshold(): Collection
     {
-        return DonorTier::query()->orderBy('minimum_amount')->get();
+        return DonorTier::query()->where('is_active', true)->orderBy('minimum_amount')->get();
     }
 
     public function findForAmount(string $amount): ?DonorTier
     {
         return DonorTier::query()
+            ->where('is_active', true)
             ->where('minimum_amount', '<=', $amount)
             ->orderByDesc('minimum_amount')
             ->first();

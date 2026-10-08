@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\OwnedByInstitution;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Mail extends Model
 {
-    use HasFactory, HasUuid;
+    use OwnedByInstitution, HasFactory, HasUuid;
 
     protected $guarded = ['id', 'uuid'];
 
@@ -25,12 +26,12 @@ class Mail extends Model
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'created_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();
     }
 
     public function sender(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'sent_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'sent_by', 'uuid')->withTrashed();
     }
 
     public function recipients(): HasMany

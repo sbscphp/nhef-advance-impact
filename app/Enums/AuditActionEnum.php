@@ -15,6 +15,7 @@ enum AuditActionEnum: string
     case OTP_FAILED = 'OTP_FAILED';
     case PASSWORD_RESET_REQUESTED = 'PASSWORD_RESET_REQUESTED';
     case PASSWORD_RESET_COMPLETED = 'PASSWORD_RESET_COMPLETED';
+    case PASSWORD_CHANGED = 'PASSWORD_CHANGED';
     case PROFILE_UPDATED = 'PROFILE_UPDATED';
     case PAYMENT_METHOD_DELETED = 'PAYMENT_METHOD_DELETED';
     case PAYMENT_METHOD_DEFAULT_SET = 'PAYMENT_METHOD_DEFAULT_SET';
@@ -25,6 +26,8 @@ enum AuditActionEnum: string
     case CONSTITUENT_REACTIVATED = 'CONSTITUENT_REACTIVATED';
     case CONSTITUENT_INVITE_RESENT = 'CONSTITUENT_INVITE_RESENT';
     case CONSTITUENT_PLEDGE_REMINDER_SENT = 'CONSTITUENT_PLEDGE_REMINDER_SENT';
+    case CONSTITUENT_TYPE_CONFERRED = 'CONSTITUENT_TYPE_CONFERRED';
+    case CONSTITUENT_TYPE_REVOKED = 'CONSTITUENT_TYPE_REVOKED';
 
     case CAMPAIGN_CREATED = 'CAMPAIGN_CREATED';
     case CAMPAIGN_UPDATED = 'CAMPAIGN_UPDATED';
@@ -50,6 +53,11 @@ enum AuditActionEnum: string
     case DONOR_TIER_UPDATED = 'DONOR_TIER_UPDATED';
     case DONOR_TIER_STATUS_TOGGLED = 'DONOR_TIER_STATUS_TOGGLED';
     case DONOR_TIER_DELETED = 'DONOR_TIER_DELETED';
+
+    case CONSTITUENCY_TYPE_CREATED = 'CONSTITUENCY_TYPE_CREATED';
+    case CONSTITUENCY_TYPE_UPDATED = 'CONSTITUENCY_TYPE_UPDATED';
+    case CONSTITUENCY_TYPE_STATUS_TOGGLED = 'CONSTITUENCY_TYPE_STATUS_TOGGLED';
+    case CONSTITUENCY_TYPE_DELETED = 'CONSTITUENCY_TYPE_DELETED';
 
     case PLEDGE_CREATED = 'PLEDGE_CREATED';
     case PLEDGE_CANCELLED = 'PLEDGE_CANCELLED';
@@ -189,6 +197,130 @@ enum AuditActionEnum: string
     case RESEARCH_DELIVERABLE_UPDATED = 'RESEARCH_DELIVERABLE_UPDATED';
     case RESEARCH_DELIVERABLE_COMPLETED = 'RESEARCH_DELIVERABLE_COMPLETED';
     case RESEARCH_DELIVERABLE_DELETED = 'RESEARCH_DELIVERABLE_DELETED';
+
+    private const SUFFIX_PRESENTATION = [
+        '_CREATED' => ['Created', 'success'],
+        '_ADDED' => ['Added', 'success'],
+        '_INVITED' => ['Invited', 'success'],
+        '_APPROVED' => ['Approved', 'success'],
+        '_REJECTED' => ['Rejected', 'danger'],
+        '_DELETED' => ['Deleted', 'danger'],
+        '_REMOVED' => ['Removed', 'danger'],
+        '_CANCELLED' => ['Cancelled', 'danger'],
+        '_ACCESS_REVOKED' => ['Revoked', 'danger'],
+        '_SUSPENDED' => ['Suspended', 'danger'],
+        '_DEACTIVATED' => ['Deactivated', 'danger'],
+        '_DISABLED' => ['Disabled', 'danger'],
+        '_ARCHIVED' => ['Archived', 'neutral'],
+        '_UPDATED' => ['Updated', 'info'],
+        '_MODIFIED' => ['Updated', 'info'],
+        '_STATUS_TOGGLED' => ['Updated', 'info'],
+        '_STAGE_CHANGED' => ['Updated', 'info'],
+        '_CHANGED' => ['Changed', 'info'],
+        '_DEFAULT_SET' => ['Updated', 'info'],
+        '_PAUSED' => ['Paused', 'warning'],
+        '_LOCKED' => ['Locked', 'warning'],
+        '_WAITLISTED' => ['Waitlisted', 'warning'],
+        '_INITIATED' => ['Pending', 'warning'],
+        '_RESUMED' => ['Resumed', 'success'],
+        '_REACTIVATED' => ['Reactivated', 'success'],
+        '_ACTIVATED' => ['Activated', 'success'],
+        '_UNLOCKED' => ['Unlocked', 'success'],
+        '_COMPLETED' => ['Completed', 'success'],
+        '_MATCHED' => ['Matched', 'success'],
+        '_MATCHED_MANUALLY' => ['Matched', 'success'],
+        '_GENERATED' => ['Generated', 'info'],
+        '_RESENT' => ['Resent', 'info'],
+        '_SENT' => ['Sent', 'info'],
+        '_LOGGED' => ['Logged', 'info'],
+        '_MARKED_DONE' => ['Completed', 'success'],
+        '_DUPLICATED' => ['Duplicated', 'info'],
+        '_INVITE_RESENT' => ['Resent', 'info'],
+        '_INVITE_LINK_RESENT' => ['Resent', 'info'],
+        '_INVITE_SENT' => ['Sent', 'info'],
+        '_REMINDER_SENT' => ['Sent', 'info'],
+        '_SET_ACTIVE' => ['Updated', 'info'],
+        '_REFRESHED' => ['Refreshed', 'neutral'],
+        '_SUCCESS' => ['Logged in', 'success'],
+        '_FAILED' => ['Failed', 'danger'],
+        '_SUCCEEDED' => ['Succeeded', 'success'],
+        '_VERIFIED' => ['Verified', 'success'],
+        '_REQUESTED' => ['Requested', 'warning'],
+    ];
+
+    /**
+     * Past-tense verb and colour tone for the audit log list; the noun comes from objectLabel().
+     *
+     * @return array{verb: string, tone: string}
+     */
+    public function presentation(): array
+    {
+        if ($this === self::PASSWORD_RESET_COMPLETED) {
+            return ['verb' => 'Reset', 'tone' => 'info'];
+        }
+
+        if ($this === self::REGISTERED) {
+            return ['verb' => 'Registered', 'tone' => 'success'];
+        }
+
+        foreach (self::suffixesLongestFirst() as $suffix => [$verb, $tone]) {
+            if (str_ends_with($this->value, $suffix)) {
+                return ['verb' => $verb, 'tone' => $tone];
+            }
+        }
+
+        return ['verb' => $this->humanised(), 'tone' => 'neutral'];
+    }
+
+    public function objectLabel(): string
+    {
+        $stripped = preg_replace(
+            '/(?:'.implode('|', array_map(fn (string $suffix): string => preg_quote($suffix, '/'), array_keys(self::suffixesLongestFirst()))).')$/',
+            '',
+            $this->value,
+        );
+
+        return $this->humaniseKey(in_array($stripped, ['', null], true) ? $this->value : $stripped);
+    }
+
+    public function humanised(): string
+    {
+        return $this->humaniseKey($this->value);
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    private static function suffixesLongestFirst(): array
+    {
+        $suffixes = self::SUFFIX_PRESENTATION;
+        uksort($suffixes, fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        return $suffixes;
+    }
+
+    private function humaniseKey(string $key): string
+    {
+        return str_replace('Otp', 'OTP', ucwords(strtolower(str_replace('_', ' ', $key))));
+    }
+
+    /**
+     * Actions on individual donors, alumni, attendees or their records, whose descriptions name them.
+     *
+     * @return list<string>
+     */
+    public static function individualLevelValues(): array
+    {
+        $prefixes = [
+            'CONSTITUENT_', 'PLEDGE_', 'DONATION_', 'PAYMENT_', 'EVENT_REGISTRATION_', 'EVENT_WAITLISTED',
+            'MENTOR', 'MENTEE_', 'PROSPECT_', 'COMMUNICATION_', 'NETWORKING_CHANNEL_MEMBER_',
+        ];
+
+        return array_values(array_filter(
+            self::values(),
+            fn (string $action): bool => array_filter($prefixes, fn (string $prefix): bool => str_starts_with($action, $prefix)) !== [],
+        ));
+    }
 
     /**
      * @return list<string>

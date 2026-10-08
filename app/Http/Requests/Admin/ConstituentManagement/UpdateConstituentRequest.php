@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\ConstituentManagement;
 
 use App\Enums\ConstituentStatusEnum;
+use App\Enums\ConstituentTypeEnum;
 use App\Http\Requests\ApiFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,6 +22,7 @@ class UpdateConstituentRequest extends ApiFormRequest
             'email' => ['sometimes', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userUuid, 'uuid')],
             'phone_number' => ['sometimes', 'nullable', 'string', 'max:30'],
             'invite_message' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'constituent_type' => ['sometimes', Rule::in(ConstituentTypeEnum::values())],
             'status' => ['sometimes', Rule::in(ConstituentStatusEnum::values())],
         ];
     }

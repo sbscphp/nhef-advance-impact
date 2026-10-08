@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin\ConstituentManagement;
 
+use App\Enums\ConstituentTypeEnum;
 use App\Http\Requests\ApiFormRequest;
+use Illuminate\Validation\Rule;
 
 class InviteConstituentRequest extends ApiFormRequest
 {
@@ -16,6 +18,7 @@ class InviteConstituentRequest extends ApiFormRequest
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone_number' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'constituent_type' => ['sometimes', Rule::in(ConstituentTypeEnum::values())],
             'invite_message' => ['sometimes', 'nullable', 'string', 'max:2000'],
         ];
     }

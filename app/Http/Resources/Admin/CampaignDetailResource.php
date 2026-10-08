@@ -4,6 +4,8 @@ namespace App\Http\Resources\Admin;
 
 use App\Models\Campaign;
 use App\Support\Money;
+use App\Support\ViewerVisibility;
+use App\Http\Resources\Concerns\PresentsCampaign;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,6 +18,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class CampaignDetailResource extends JsonResource
 {
+    use PresentsCampaign;
+
     /**
      * @return array<string, mixed>
      */
@@ -29,32 +33,42 @@ class CampaignDetailResource extends JsonResource
             'cover_image_url' => $this->cover_image_url,
             'type' => $this->type,
             'currency' => $this->currency,
-            'goal_amount' => (string) $this->goal_amount,
-            'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
-            'raised_amount' => (string) $this->raised_amount,
-            'raised_amount_formatted' => Money::format($this->raised_amount, $this->currency),
-            'progress_percentage' => $this->progressPercentage(),
+            ...$this->amountsPayload(withProgress: true),
             'status' => $this->status,
             'donors_count' => $this->donors_count,
             'days_remaining' => $this->days_remaining,
-            'starts_at' => $this->starts_at?->toDateString(),
-            'ends_at' => $this->ends_at?->toDateString(),
+            ...$this->schedulePayload(),
+            ...$this->projectsPayload(),
+            'cover_media_type' => $this->cover_media_type,
             'creator' => $this->whenLoaded('creator', fn () => $this->creator === null ? null : [
                 'admin_id' => $this->creator->uuid,
                 'name' => $this->creator->displayName(),
             ]),
-            'allocated_admin' => $this->whenLoaded('allocatedAdmin', fn () => [
-                'admin_id' => $this->allocatedAdmin->uuid,
-                'name' => $this->allocatedAdmin->displayName(),
-            ]),
-            'bank_account' => $this->whenLoaded('bankAccount', fn () => [
-                'bank_account_id' => $this->bankAccount->uuid,
-                'account_number' => $this->bankAccount->account_number,
-                'account_name' => $this->bankAccount->account_name,
-                'bank_name' => $this->bankAccount->relationLoaded('bank') ? $this->bankAccount->bank->name : null,
-            ]),
+            'assigned_to' => $this->assigneePayload(),
+            'allocated_admin' => $this->assigneePayload(),
+            ...$this->bankAccountFields(),
+            'overview' => $this->when(array_key_exists('overview', $this->resource->getAttributes()), fn () => $this->overviewPayload()),
             'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function overviewPayload(): array
+    {
+        $overview = $this->overview;
+
+        return [
+            'donations_count' => $overview['donations_count'],
+            'pledges_count' => $overview['pledges_count'],
+            ...ViewerVisibility::money([
+                'amount_generated' => $overview['amount_generated'],
+                'amount_generated_formatted' => Money::format($overview['amount_generated'], $this->currency ?? 'NGN'),
+                'pledges_total' => $overview['pledges_total'],
+                'pledges_total_formatted' => Money::format($overview['pledges_total'], $this->currency ?? 'NGN'),
+            ]),
         ];
     }
 }

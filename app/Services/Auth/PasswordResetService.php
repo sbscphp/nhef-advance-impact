@@ -4,6 +4,7 @@ namespace App\Services\Auth;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\ConstituentStatusEnum;
+use App\Enums\InstitutionStatusEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\OtpChannelEnum;
 use App\Enums\OtpPurposeEnum;
@@ -259,6 +260,7 @@ class PasswordResetService
         ];
         if ($subject instanceof Admin) {
             $updates['must_reset_password'] = false;
+            $updates['onboarded_at'] = $subject->onboarded_at ?? now();
         }
         // A User setting their password while still `invite_sent` is completing onboarding via
         // an admin-issued invite (see AdminConstituentService::invite()), not an ordinary
@@ -269,6 +271,10 @@ class PasswordResetService
             $updates['onboarded_at'] = now();
         }
         $subject->forceFill($updates)->save();
+
+        if ($subject instanceof Admin) {
+            $this->completeInstitutionOnboarding($subject);
+        }
 
         $subject->tokens()->delete();
         event(new PasswordReset($subject));
@@ -289,6 +295,18 @@ class PasswordResetService
         );
 
         return $subject;
+    }
+
+    private function completeInstitutionOnboarding(Admin $admin): void
+    {
+        $institution = $admin->institution;
+
+        if ($institution !== null && $institution->status === InstitutionStatusEnum::INVITE_SENT->value) {
+            $institution->forceFill([
+                'status' => InstitutionStatusEnum::ACTIVE->value,
+                'onboarded_at' => now(),
+            ])->save();
+        }
     }
 
     /**

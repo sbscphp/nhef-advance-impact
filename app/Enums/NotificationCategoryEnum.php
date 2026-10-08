@@ -53,6 +53,8 @@ enum NotificationCategoryEnum: string
             ],
             self::IMPACT_GRANT => [
                 ModuleEnums::reporting->value,
+                'project_management',
+                'research_management',
             ],
             self::OTHERS => self::othersModules(),
         };

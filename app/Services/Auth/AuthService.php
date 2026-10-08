@@ -65,22 +65,37 @@ class AuthService
     {
         return DB::transaction(function () use ($validated, $request): array {
             $user = $this->userRepository->create([
-                'firstname' => $validated['firstname'],
-                'lastname' => $validated['lastname'],
+                // Empty string, not absent, for an Organisation account (no personal name field).
+                'firstname' => filled($validated['firstname'] ?? null) ? $validated['firstname'] : null,
+                'lastname' => filled($validated['lastname'] ?? null) ? $validated['lastname'] : null,
                 'email' => $validated['email'],
                 'password' => Hash::make(Str::random(40)),
                 'phone_number' => $validated['phone_number'],
                 'country_code' => $validated['country_code'] ?? Country::defaultDialCode(),
+                'constituent_type' => $validated['constituent_type'],
                 'matric_no' => $validated['matric_no'] ?? null,
-                'tertiary_institution_id' => filled($validated['tertiary_institution_uuid'] ?? null)
-                    ? $this->institutionRepository->findByUuid($validated['tertiary_institution_uuid'])?->id
-                    : null,
+                'tertiary_institution_id' => $this->institutionRepository->findByUuid($validated['tertiary_institution_uuid'])?->id,
                 'department' => $validated['department'] ?? null,
                 'year_of_graduation' => $validated['year_of_graduation'] ?? null,
                 'degree_earned' => $validated['degree_earned'] ?? null,
-                'employment_status' => $validated['employment_status'],
+                'employment_status' => $validated['employment_status'] ?? null,
                 'organisation_name' => $validated['organisation_name'] ?? null,
                 'position' => $validated['position'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'country_of_residence_id' => Country::findIdByUuid($validated['country_of_residence_uuid'] ?? null),
+                'sector_of_employment' => $validated['sector_of_employment'] ?? null,
+                'area_of_interest' => $validated['area_of_interest'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'organisation_type' => $validated['organisation_type'] ?? null,
+                'organisation_description' => $validated['organisation_description'] ?? null,
+                'rc_number' => $validated['rc_number'] ?? null,
+                'date_of_incorporation' => $validated['date_of_incorporation'] ?? null,
+                'website' => $validated['website'] ?? null,
+                'country_of_operation_id' => Country::findIdByUuid($validated['country_of_operation_uuid'] ?? null),
+                'organisation_size' => $validated['organisation_size'] ?? null,
+                'sector_of_operation' => $validated['sector_of_operation'] ?? null,
+                'engagement_preference' => $validated['engagement_preference'] ?? null,
             ]);
             $user->assignRole(eRole::CUSTOMER->value);
             $user->load('roles');
@@ -263,6 +278,11 @@ class AuthService
         );
     }
 
+    private function institutionAllowsLogin(Admin $admin): bool
+    {
+        return $admin->institution_id === null || (bool) $admin->institution?->is_active;
+    }
+
     public function loginAdmin(string $email, string $password, Request $request, string $client = eClientType::WEB->value): array
     {
         $admin = Admin::query()->where('email', $email)->first();
@@ -283,7 +303,7 @@ class AuthService
 
         $passwordMatches = is_string($admin->password) && Hash::check($password, $admin->password);
 
-        if (! $admin->is_active || ! $admin->can_login || ! $passwordMatches) {
+        if (! $admin->is_active || ! $admin->can_login || ! $this->institutionAllowsLogin($admin) || ! $passwordMatches) {
             if (! $passwordMatches) {
                 $this->recordFailedLoginAttempt($admin);
             }

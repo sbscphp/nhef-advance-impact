@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Admin\ConstituentManagement;
 
 use App\Models\Institution;
+use App\Support\ViewerVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,11 +19,14 @@ class InstitutionAdminResource extends JsonResource
             'uuid' => $this->uuid,
             'code' => $this->code(),
             'name' => $this->name,
+            'slug' => $this->slug,
             'email' => $this->email,
             'status' => $this->status,
             'is_active' => $this->is_active,
             'date_added' => $this->created_at?->toIso8601String(),
             'date_onboarded' => $this->onboarded_at?->toIso8601String(),
+            ...$this->statsPayload(),
+            ...ViewerVisibility::money($this->moneyStatsPayload()),
         ];
     }
 }

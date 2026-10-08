@@ -88,4 +88,40 @@ interface UserRepositoryInterface
      * @param  array<string, mixed>  $filters
      */
     public function paginateForInstitution(int $tertiaryInstitutionId, array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * Headcount per constituent type for each tertiary institution, for the institution list.
+     *
+     * @param  list<int>  $tertiaryInstitutionIds
+     * @return array<int, array{alumni: int, non_alumni: int, organization: int}>
+     */
+    public function countByConstituentTypeForInstitutions(array $tertiaryInstitutionIds): array;
+
+    /**
+     * Headcount per constituent type, optionally limited to accounts created in the window.
+     *
+     * @return array{alumni: int, non_alumni: int, organization: int}
+     */
+    public function countByConstituentType(?CarbonInterface $start, ?CarbonInterface $end): array;
+
+    /**
+     * Institutions ranked by total constituents, with the per-type split, for the dashboard ranking table.
+     *
+     * @return list<array{institution_uuid: string, name: string, alumni: int, non_alumni: int, organization: int, total: int}>
+     */
+    public function rankInstitutionsByConstituents(?CarbonInterface $start, ?CarbonInterface $end, int $limit): array;
+
+    /**
+     * Count of constituents whose `last_active_at` falls on/after $since; feeds the institution
+     * admin dashboard's "X% active last 30 days" figure.
+     */
+    public function countActiveSince(CarbonInterface $since): int;
+
+    /**
+     * Daily count of new accounts by constituent_type within the window; feeds the dashboard's
+     * Alumni Intelligence "New Alumni Onboarded" trend chart.
+     *
+     * @return \Illuminate\Support\Collection<int, object{date: string, constituent_type: string, total: int}>
+     */
+    public function dailyOnboardedByConstituentType(CarbonInterface $start, CarbonInterface $end): \Illuminate\Support\Collection;
 }

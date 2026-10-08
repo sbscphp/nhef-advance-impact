@@ -2,13 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use App\Traits\HasUuid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EventRegistrationPayment extends Model
 {
-    use HasUuid;
+    use BelongsToTenant, HasUuid;
+
+    public static function constrainToTenant(Builder $query, Institution $tenant): void
+    {
+        $query->whereIn('event_registration_payments.event_registration_id', EventRegistration::query()->select('event_registrations.id'));
+    }
 
     protected $guarded = ['id', 'uuid'];
 

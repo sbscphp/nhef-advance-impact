@@ -2,8 +2,10 @@
 
 namespace App\Services\Notifications;
 
+use App\Enums\ModuleEnums;
 use App\Enums\NotificationCategoryEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
+use App\Support\ViewerVisibility;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -43,7 +45,7 @@ class NotificationInboxService
     public function findForRecipient(Model $recipient, string $id): DatabaseNotification
     {
         /** @var DatabaseNotification $notification */
-        $notification = $recipient->notifications()->whereKey($id)->firstOrFail();
+        $notification = $this->inbox($recipient)->whereKey($id)->firstOrFail();
 
         return $notification;
     }
@@ -51,9 +53,34 @@ class NotificationInboxService
     /**
      * @param  Model&object{unreadNotifications: mixed}  $recipient
      */
-    public function markAllRead(Model $recipient): void
+    public function markAllRead(Model $recipient, ?NotificationCategoryEnum $category = null): void
     {
-        $recipient->unreadNotifications->markAsRead();
+        $query = $this->inbox($recipient)->whereNull('read_at');
+
+        if ($category !== null) {
+            $this->constrainToCategory($query, $category);
+        }
+
+        $query->update(['read_at' => now()]);
+    }
+
+    /**
+     * Stable inbox badge numbers, independent of any list filter or date window.
+     *
+     * @param  Model&object{notifications(): mixed}  $recipient
+     * @return array{total_count: int, unread_count: int, read_count: int, categories: list<array{key: string, label: string, count: int, unread_count: int}>}
+     */
+    public function summary(Model $recipient): array
+    {
+        $total = $this->inbox($recipient)->count();
+        $unread = $this->inbox($recipient)->whereNull('read_at')->count();
+
+        return [
+            'total_count' => $total,
+            'unread_count' => $unread,
+            'read_count' => $total - $unread,
+            'categories' => $this->categoryCounts($recipient),
+        ];
     }
 
     /**
@@ -106,7 +133,7 @@ class NotificationInboxService
      * while browsing.
      *
      * @param  Model&object{notifications(): mixed}  $recipient
-     * @return list<array{key: string, label: string, count: int}>
+     * @return list<array{key: string, label: string, count: int, unread_count: int}>
      */
     public function categoryCounts(Model $recipient): array
     {
@@ -115,6 +142,7 @@ class NotificationInboxService
                 'key' => $category->value,
                 'label' => $category->label(),
                 'count' => $this->categoryCount($recipient, $category),
+                'unread_count' => $this->categoryCount($recipient, $category, unreadOnly: true),
             ],
             NotificationCategoryEnum::cases(),
         );
@@ -126,19 +154,52 @@ class NotificationInboxService
      *
      * @param  Model&object{notifications(): mixed}  $recipient
      */
-    private function categoryCount(Model $recipient, NotificationCategoryEnum $category): int
+    private function categoryCount(Model $recipient, NotificationCategoryEnum $category, bool $unreadOnly = false): int
     {
-        $query = $recipient->notifications();
+        $query = $this->inbox($recipient);
+        $this->constrainToCategory($query, $category);
 
+        if ($unreadOnly) {
+            $query->whereNull('read_at');
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * "Others" needs an OR-NULL for notifications with no module key, nested in its own group so
+     * it can't leak past the recipient scope on notifications() itself.
+     */
+    private function constrainToCategory(Builder|Relation $query, NotificationCategoryEnum $category): void
+    {
         if ($category === NotificationCategoryEnum::OTHERS) {
             $query->where(function (Builder|Relation $q) use ($category): void {
                 $q->whereIn('data->module', $category->modules())->orWhereNull('data->module');
             });
-        } else {
-            $query->whereIn('data->module', $category->modules());
+
+            return;
         }
 
-        return $query->count();
+        $query->whereIn('data->module', $category->modules());
+    }
+
+    /**
+     * The recipient's notifications, minus those from modules that name individual people when the
+     * viewer is limited to institution-level summaries.
+     *
+     * @param  Model&object{notifications(): mixed}  $recipient
+     */
+    private function inbox(Model $recipient): Builder|Relation
+    {
+        $query = $recipient->notifications();
+
+        if (! ViewerVisibility::canSeeIndividualRecords()) {
+            $query->where(fn (Builder|Relation $q) => $q
+                ->whereNotIn('data->module', ModuleEnums::individualLevelValues())
+                ->orWhereNull('data->module'));
+        }
+
+        return $query;
     }
 
     /**
@@ -147,7 +208,7 @@ class NotificationInboxService
      */
     private function scopedQuery(Model $recipient, array $validated): Builder|Relation
     {
-        $query = $recipient->notifications();
+        $query = $this->inbox($recipient);
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         return $query;
@@ -184,14 +245,6 @@ class NotificationInboxService
             return;
         }
 
-        if ($categoryEnum === NotificationCategoryEnum::OTHERS) {
-            $query->where(function (Builder|Relation $q) use ($categoryEnum): void {
-                $q->whereIn('data->module', $categoryEnum->modules())->orWhereNull('data->module');
-            });
-
-            return;
-        }
-
-        $query->whereIn('data->module', $categoryEnum->modules());
+        $this->constrainToCategory($query, $categoryEnum);
     }
 }

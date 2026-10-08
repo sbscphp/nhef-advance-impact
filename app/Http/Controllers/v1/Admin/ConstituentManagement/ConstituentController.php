@@ -5,7 +5,9 @@ namespace App\Http\Controllers\v1\Admin\ConstituentManagement;
 use App\Helpers\GeneralHelper;
 use App\Helpers\PDFReportHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ConstituentManagement\ConferConstituencyTypeRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentDonationListRequest;
+use App\Http\Requests\Admin\ConstituentManagement\ConstituentEventListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentPaymentListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\ConstituentPaymentOverviewRequest;
@@ -17,6 +19,7 @@ use App\Http\Requests\Admin\DateRangeStatsRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Http\Resources\Admin\ConstituentManagement\ConstituentAdminResource;
 use App\Http\Resources\Admin\ConstituentManagement\ConstituentDetailResource;
+use App\Http\Resources\Events\EventRegistrationResource;
 use App\Http\Resources\Fundraising\DonationPaymentResource;
 use App\Http\Resources\Fundraising\DonationResource;
 use App\Http\Resources\Fundraising\PledgeResource;
@@ -24,6 +27,7 @@ use App\Models\Admin;
 use App\Models\DonationPayment;
 use App\Models\User;
 use App\Responser\JsonResponser;
+use App\Services\ConstituencyType\ConstituencyTypeService;
 use App\Services\ConstituentManagement\AdminConstituentService;
 use App\Support\Money;
 use Illuminate\Http\Request;
@@ -37,6 +41,7 @@ class ConstituentController extends Controller
 {
     public function __construct(
         private readonly AdminConstituentService $constituentService,
+        private readonly ConstituencyTypeService $constituencyTypeService,
         private readonly PDFReportHelper $pdfReportHelper,
     ) {}
 
@@ -220,6 +225,30 @@ class ConstituentController extends Controller
         }
     }
 
+    public function events(ConstituentEventListRequest $request, string $uuid)
+    {
+        try {
+            $user = $this->constituentService->findForAdmin($uuid);
+            $paginator = $this->constituentService->paginateEvents($user, $request->validated());
+
+            return JsonResponser::send(false, 'Constituent events retrieved.', $this->paginatedPayload($paginator, EventRegistrationResource::class));
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@events');
+        }
+    }
+
+    public function eventsOverview(string $uuid)
+    {
+        try {
+            $user = $this->constituentService->findForAdmin($uuid);
+            $overview = $this->constituentService->eventsOverview($user);
+
+            return JsonResponser::send(false, 'Constituent events overview retrieved.', $overview);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@eventsOverview');
+        }
+    }
+
     public function payments(ConstituentPaymentListRequest $request, string $uuid)
     {
         try {
@@ -385,6 +414,30 @@ class ConstituentController extends Controller
             return JsonResponser::send(false, 'Reminder sent.', null);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@sendPledgeReminder');
+        }
+    }
+
+    public function conferConstituencyTypes(ConferConstituencyTypeRequest $request, string $uuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $user = $this->constituencyTypeService->confer($uuid, $request->validated()['constituency_type_ids'], $admin, $request);
+
+            return JsonResponser::send(false, 'Constituency type(s) conferred.', ConstituentDetailResource::make($user)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@conferConstituencyTypes');
+        }
+    }
+
+    public function revokeConstituencyType(Request $request, string $uuid, string $typeUuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $user = $this->constituencyTypeService->revoke($uuid, $typeUuid, $admin, $request);
+
+            return JsonResponser::send(false, 'Constituency type revoked.', ConstituentDetailResource::make($user)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@revokeConstituencyType');
         }
     }
 

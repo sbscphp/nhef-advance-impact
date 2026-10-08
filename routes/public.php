@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\v1\Communications\MailTrackingController;
 use App\Http\Controllers\v1\Communications\MailUnsubscribeController;
+use App\Http\Controllers\v1\ConstituentManagement\InstitutionController;
 use App\Http\Controllers\v1\Events\EventController;
 use App\Http\Controllers\v1\Events\EventRegistrationPaymentController;
 use App\Http\Controllers\v1\Fundraising\CampaignController;
@@ -9,8 +10,10 @@ use App\Http\Controllers\v1\Fundraising\DonationPaymentController;
 use App\Http\Controllers\v1\Fundraising\DonationReceiptController;
 use App\Http\Controllers\v1\Fundraising\PaymentController;
 use App\Http\Controllers\v1\Recognition\LeaderboardController;
+use App\Http\Controllers\v1\Stats\PlatformStatsController;
 use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 use App\Http\Controllers\v1\Webhooks\StripeWebhookController;
+use App\Http\Controllers\v1\Workspace\WorkspaceLookupController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -21,6 +24,8 @@ Route::prefix('v1')->group(function () {
             'timestamp' => now()->toISOString(),
         ]);
     });
+
+    Route::get('workspaces/{slug}', [WorkspaceLookupController::class, 'show'])->middleware('throttle:30,1');
 
     Route::post('webhooks/paystack', [PaystackWebhookController::class, 'handle']);
     Route::post('webhooks/stripe', [StripeWebhookController::class, 'handle']);
@@ -44,6 +49,12 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::post('events/registrations/payments/{reference}/verify', [EventRegistrationPaymentController::class, 'verify']);
+
+    // Landing page's "Join Your University Community" directory; no account needed.
+    Route::get('institutions', [InstitutionController::class, 'index']);
+
+    // Landing page's top banner stat cards; no account needed.
+    Route::get('platform-stats', [PlatformStatsController::class, 'overview']);
 
     // Matches RequestResponseEncryptionMiddleware::BYPASS_REGEX: opened from an emailed link
     // with no X-ClientKey header, so the `signed` middleware's signature is the credential.

@@ -100,7 +100,7 @@ interface DonationPaymentRepositoryInterface
     /**
      * Org-wide sum of successful NGN payments, optionally date-scoped.
      */
-    public function sumSuccessfulForAdmin(?string $from, ?string $to): string;
+    public function sumSuccessfulForAdmin(?string $from, ?string $to, ?string $campaignType = null): string;
 
     /**
      * Count of successful NGN payments, optionally date-scoped; feeds the dashboard's average
@@ -114,7 +114,15 @@ interface DonationPaymentRepositoryInterface
      *
      * @return list<int>
      */
-    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to): array;
+    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to, ?string $campaignType = null): array;
+
+    /**
+     * Successful payment count and distinct donors (registered or guest) per campaign, for the campaign list.
+     *
+     * @param  list<int>  $campaignIds
+     * @return array<int, array{donations: int, donors: int}>
+     */
+    public function statsByCampaigns(array $campaignIds): array;
 
     /**
      * Sum of goal_amount across every campaign that has ever received a successful NGN payment;
@@ -128,4 +136,42 @@ interface DonationPaymentRepositoryInterface
      * tier's "Date of Upgrade" column without needing a separate tier-change history table.
      */
     public function resolveTierUpgradeDate(int $userId, string $thresholdAmount): ?CarbonInterface;
+
+    /**
+     * Successful NGN payments and distinct donors per donor's tertiary institution.
+     *
+     * @param  list<int>  $tertiaryInstitutionIds
+     * @return array<int, array{total: string, donors: int}>
+     */
+    public function totalsByInstitutions(array $tertiaryInstitutionIds): array;
+
+    /**
+     * Distinct successful donors to one campaign who belong to one tertiary institution.
+     */
+    public function countDonorsForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): int;
+
+    /**
+     * Lifetime successful NGN payment count and total per donor, for the constituent list's
+     * "No. of Donations" / "Total Donations" columns.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, array{count: int, total: string}>
+     */
+    public function totalsByUserIds(array $userIds): array;
+
+    /**
+     * Distinct successful NGN donors grouped by their constituent_type, optionally date-scoped;
+     * feeds the institution admin dashboard's Donation Intelligence donor breakdown.
+     *
+     * @return array{alumni: int, non_alumni: int, organization: int}
+     */
+    public function donorCountsByConstituentType(?string $from, ?string $to): array;
+
+    /**
+     * Daily sum of successful NGN payments per donor constituent_type; feeds the dashboard's
+     * "Capital inflow by donor segment" trend chart.
+     *
+     * @return Collection<int, object{date: string, constituent_type: string, total: string}>
+     */
+    public function dailyTotalsByConstituentType(CarbonInterface $start, CarbonInterface $end): Collection;
 }

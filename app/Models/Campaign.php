@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CampaignStatusEnum;
+use App\Models\Concerns\BelongsToTenant;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,26 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaign extends Model
 {
-    use HasUuid;
+    use BelongsToTenant, HasUuid;
+
+    /**
+     * A campaign has no institution_id of its own; "theirs" means having a campaign_institutions
+     * row for their institution. National Giving Day campaigns get one row per targeted
+     * institution; a standard campaign created by an institution admin gets exactly one row (its
+     * own institution) purely so this scope picks it up (see CampaignService::create()). A
+     * standard campaign created by NHEF (before institutions could create their own) has no row
+     * for anyone and stays NHEF-only. No-ops for NHEF and for public/customer requests, which
+     * never have a current tenant.
+     */
+    public static function constrainToTenant(Builder $query, Institution $tenant): void
+    {
+        $query->whereExists(function ($sub) use ($tenant): void {
+            $sub->selectRaw('1')
+                ->from('campaign_institutions')
+                ->whereColumn('campaign_institutions.campaign_id', 'campaigns.id')
+                ->where('campaign_institutions.institution_id', $tenant->id);
+        });
+    }
 
     protected $guarded = ['id', 'uuid'];
 
@@ -23,8 +43,9 @@ class Campaign extends Model
             'allow_one_time' => 'boolean',
             'allow_recurring' => 'boolean',
             'allow_anonymous' => 'boolean',
-            'starts_at' => 'date',
-            'ends_at' => 'date',
+            'starts_at' => 'datetime',
+            'ends_at' => 'datetime',
+            'timer_lead_hours' => 'integer',
         ];
     }
 
@@ -40,17 +61,22 @@ class Campaign extends Model
 
     public function allocatedAdmin(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'allocated_admin_id');
+        return $this->belongsTo(Admin::class, 'allocated_admin_id')->withTrashed();
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'created_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();
     }
 
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class);
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(CampaignProject::class)->orderBy('sort_order');
     }
 
     public function campaignInstitutions(): HasMany
@@ -72,9 +98,58 @@ class Campaign extends Model
         return (int) min(100, round(((float) $this->raised_amount / (float) $this->goal_amount) * 100));
     }
 
+    /**
+     * Drives the public countdown: the window before start in which the timer is shown
+     * ("countdown"), then "live" until the end, then "ended". The client ticks down from
+     * seconds_until_start / seconds_remaining using server_time to avoid clock skew.
+     *
+     * @return array<string, mixed>
+     */
+    public function timer(): array
+    {
+        $now = now();
+        $leadHours = $this->timer_lead_hours ?? (int) config('campaigns.default_timer_lead_hours');
+        $countdownStartsAt = $this->starts_at?->copy()->subHours($leadHours);
+
+        $state = match (true) {
+            $this->status === CampaignStatusEnum::PAUSED->value => 'paused',
+            $this->ends_at !== null && $now->greaterThan($this->ends_at) => 'ended',
+            $this->starts_at !== null && $now->lessThan($this->starts_at) => $now->greaterThanOrEqualTo($countdownStartsAt) ? 'countdown' : 'upcoming',
+            default => 'live',
+        };
+
+        return [
+            'state' => $state,
+            'starts_at' => $this->starts_at?->toIso8601String(),
+            'ends_at' => $this->ends_at?->toIso8601String(),
+            'lead_hours' => $leadHours,
+            'countdown_starts_at' => $countdownStartsAt?->toIso8601String(),
+            'server_time' => $now->toIso8601String(),
+            'seconds_until_start' => $this->starts_at !== null && $now->lessThan($this->starts_at) ? (int) $now->diffInSeconds($this->starts_at) : 0,
+            'seconds_remaining' => $this->ends_at !== null && $now->lessThan($this->ends_at) ? (int) $now->diffInSeconds($this->ends_at) : 0,
+        ];
+    }
+
+    /** What the admin list shows in its Status column ("ongoing" / "closed" / ...), derived from status plus the schedule. */
+    public function displayStatus(): string
+    {
+        return match (true) {
+            $this->status === CampaignStatusEnum::DRAFT->value => 'draft',
+            $this->status === CampaignStatusEnum::PAUSED->value => 'paused',
+            $this->status !== CampaignStatusEnum::ACTIVE->value => 'closed',
+            $this->ends_at !== null && $this->ends_at->isPast() => 'closed',
+            $this->starts_at !== null && $this->starts_at->isFuture() => 'upcoming',
+            default => 'ongoing',
+        };
+    }
+
     public function isOpenForDonations(): bool
     {
         if ($this->status !== CampaignStatusEnum::ACTIVE->value) {
+            return false;
+        }
+
+        if ($this->starts_at !== null && $this->starts_at->isFuture()) {
             return false;
         }
 

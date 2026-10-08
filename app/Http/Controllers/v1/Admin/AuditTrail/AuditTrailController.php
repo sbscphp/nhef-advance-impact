@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\v1\Admin\AuditTrail;
 
+use App\Enums\AuditActionEnum;
 use App\Enums\UserTypeEnum;
 use App\Helpers\GeneralHelper;
 use App\Helpers\PDFReportHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\v1\Admin\Concerns\RespondsWithAuditTimeline;
 use App\Http\Requests\Admin\AuditTrail\AuditTrailListingRequest;
 use App\Http\Resources\Admin\AuditLogResource;
 use App\Models\AuditLog;
@@ -14,10 +16,13 @@ use App\Services\Audit\AuditTrailQueryService;
 use App\Support\ListingQuery;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AuditTrailController extends Controller
 {
+    use RespondsWithAuditTimeline;
+
     public function __construct(
         private readonly AuditTrailQueryService $auditTrailQuery,
         private readonly PDFReportHelper $pdfReportHelper,
@@ -36,6 +41,17 @@ class AuditTrailController extends Controller
             };
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\AuditTrail\AuditTrailController@index');
+        }
+    }
+
+    public function timeline(AuditTrailListingRequest $request)
+    {
+        try {
+            $listing = ListingQuery::fromValidated($request->validated(), defaultPerPage: 50);
+
+            return $this->auditTimelineResponse($this->auditTrailQuery, $listing, 'Audit timeline retrieved.');
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\AuditTrail\AuditTrailController@timeline');
         }
     }
 
@@ -73,6 +89,7 @@ class AuditTrailController extends Controller
                 'User type',
                 'Actor email',
                 'Actor name',
+                'Institution',
                 'Action module',
                 'Action',
                 'Model',
@@ -105,30 +122,14 @@ class AuditTrailController extends Controller
         $periodStart = $listing->startDate?->toDateString() ?? 'All dates';
         $periodEnd = $listing->endDate?->toDateString() ?? 'All dates';
 
-        $headings = [
-            'ID',
-            'Created',
-            'User type',
-            'Actor',
-            'Module',
-            'Action',
-            'Model',
-            'Description',
-            'IP',
-            'HTTP',
-        ];
+        $headings = ['#', 'Date', 'Actor', 'Action', 'Description'];
 
         $rows = $collection->values()->map(fn (AuditLog $log, int $index): array => [
             (string) ($index + 1),
             $log->created_at?->format('Y-m-d H:i') ?? '',
-            $log->user_type->value,
             $this->actorSummary($log),
-            $log->action_module->value,
-            $log->action->value,
-            $log->model !== null ? class_basename((string) $log->model) : '',
+            $log->action instanceof AuditActionEnum ? $log->action->presentation()['verb'].' '.$log->action->objectLabel() : Str::headline((string) $log->action),
             $this->truncatePdfCell((string) ($log->description ?? '')),
-            (string) ($log->ip_address ?? ''),
-            $log->http_status !== null ? (string) $log->http_status : '',
         ]);
 
         return $this->pdfReportHelper->download(
@@ -136,7 +137,7 @@ class AuditTrailController extends Controller
             headings: $headings,
             title: 'Audit trail',
             filename: $filename,
-            orientation: 'landscape',
+            orientation: 'portrait',
             periodStart: $periodStart,
             periodEnd: $periodEnd,
             generatedAt: now((string) config('app.timezone')),
@@ -158,8 +159,9 @@ class AuditTrailController extends Controller
             $log->user_type->value,
             $email,
             $name,
-            $log->action_module->value,
-            $log->action->value,
+            $log->institution?->name ?? '',
+            $log->getRawOriginal('action_module'),
+            $log->getRawOriginal('action'),
             $log->model ?? '',
             $log->model_id ?? '',
             $log->description ?? '',

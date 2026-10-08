@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\OwnedByInstitution;
 use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CommunicationCallLog extends Model
 {
-    use HasFactory, HasUuid;
+    use OwnedByInstitution, HasFactory, HasUuid;
 
     protected $guarded = ['id', 'uuid'];
 
@@ -28,7 +29,7 @@ class CommunicationCallLog extends Model
 
     public function logger(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'logged_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'logged_by', 'uuid')->withTrashed();
     }
 
     public function followUpTasks(): HasMany

@@ -3,7 +3,10 @@
 namespace App\Jobs;
 
 use App\Mail\InstitutionInviteMail;
+use App\Models\Admin;
 use App\Models\Institution;
+use App\Models\Scopes\TenantScope;
+use App\Services\Auth\PasswordResetService;
 use App\Services\Theme\ThemeResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -31,10 +34,23 @@ class SendInstitutionInviteEmailJob implements ShouldQueue
         try {
             $theme = app(ThemeResolver::class)->resolveForMail();
 
+            $owner = Admin::query()
+                ->withoutGlobalScope(TenantScope::class)
+                ->where('institution_id', $institution->id)
+                ->where('must_reset_password', true)
+                ->oldest('id')
+                ->first();
+
+            $passwords = app(PasswordResetService::class);
+            $setPasswordUrl = $owner instanceof Admin
+                ? $passwords->adminSetPasswordUrl($passwords->issueResetTokenFor($owner), null, $owner->email)
+                : null;
+
             Mail::to($institution->email)->send(new InstitutionInviteMail(
                 $institution->name,
                 $theme,
                 $institution->invite_message,
+                $setPasswordUrl,
             ));
         } catch (\Throwable $th) {
             Log::warning('Institution invite email failed.', [

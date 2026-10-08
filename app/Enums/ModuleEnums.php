@@ -51,6 +51,9 @@ enum ModuleEnums: string
     /** Advance-Impact-only: research initiatives, objectives, milestones, and deliverables. */
     case research_management = 'research_management';
 
+    /** Constituency Type Configuration; kept separate from system_configuration (a different audience). */
+    case constituency_type = 'constituency_type';
+
     public function label(): string
     {
         return match ($this) {
@@ -74,6 +77,7 @@ enum ModuleEnums: string
             self::system_configuration => 'System configuration',
             self::project_management => 'Project management',
             self::research_management => 'Research management',
+            self::constituency_type => 'Constituency type',
         };
     }
 
@@ -117,5 +121,25 @@ enum ModuleEnums: string
             self::donation->value,
             self::events->value,
         ];
+    }
+
+    /**
+     * Modules whose events and notifications name individual donors, alumni or attendees.
+     *
+     * @return list<string>
+     */
+    public static function individualLevelValues(): array
+    {
+        return array_map(fn (self $module): string => $module->value, [
+            self::alumni,
+            self::constituent_management,
+            self::fundraising,
+            self::donation,
+            self::communications,
+            self::crm,
+            self::events,
+            self::mentorship,
+            self::networking,
+        ]);
     }
 }

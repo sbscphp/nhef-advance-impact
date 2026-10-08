@@ -11,8 +11,12 @@ use App\Models\GeneratedReport;
 use App\Repositories\Contracts\CustomField\CustomFieldDefinitionRepositoryInterface;
 use App\Repositories\Contracts\CustomField\CustomFieldValueRepositoryInterface;
 use App\Repositories\Contracts\Reporting\GeneratedReportRepositoryInterface;
+use App\Services\Reporting\Datasets\HasMonetaryFields;
+use App\Services\Reporting\Datasets\PreparesReportRecords;
 use App\Services\Reporting\Datasets\ReportDatasetInterface;
+use App\Support\ViewerVisibility;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -33,7 +37,7 @@ class ReportBuilderService
     public function fieldsForDataset(string $datasetKey): array
     {
         $dataset = $this->datasetResolver->make($datasetKey);
-        $fields = $dataset->nativeFields();
+        $fields = $this->withoutHiddenNativeFields($dataset, $dataset->nativeFields());
 
         $module = ReportDatasetEnum::from($datasetKey)->customFieldModule();
 
@@ -50,6 +54,41 @@ class ReportBuilderService
         }
 
         return $fields;
+    }
+
+    /**
+     * Drops fields the viewer may not see (monetary columns) from a requested field list.
+     *
+     * @param  list<string>  $fieldKeys
+     * @return list<string>
+     */
+    public function visibleFieldKeys(string $datasetKey, array $fieldKeys): array
+    {
+        $hidden = $this->hiddenFieldKeys($this->datasetResolver->make($datasetKey));
+
+        return array_values(array_diff($fieldKeys, $hidden));
+    }
+
+    /**
+     * @param  array<string, list<array{key: string, label: string, type: string}>>  $fields
+     * @return array<string, list<array{key: string, label: string, type: string}>>
+     */
+    private function withoutHiddenNativeFields(ReportDatasetInterface $dataset, array $fields): array
+    {
+        $hidden = $this->hiddenFieldKeys($dataset);
+
+        return array_filter(array_map(
+            fn (array $group): array => array_values(array_filter($group, fn (array $field): bool => ! in_array($field['key'], $hidden, true))),
+            $fields,
+        ));
+    }
+
+    /** @return list<string> */
+    private function hiddenFieldKeys(ReportDatasetInterface $dataset): array
+    {
+        return $dataset instanceof HasMonetaryFields && ! ViewerVisibility::canSeeMoney()
+            ? $dataset->monetaryFieldKeys()
+            : [];
     }
 
     /**
@@ -108,7 +147,7 @@ class ReportBuilderService
     {
         $dataset = $this->datasetResolver->make($datasetKey);
         [$start, $end] = $this->resolveRange($period, $startDate, $endDate);
-        [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($fieldKeys);
+        [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($this->visibleFieldKeys($datasetKey, $fieldKeys));
 
         $paginator = $dataset->query($start, $end, $search)->paginate($perPage);
         $paginator->setCollection($this->mapRows($dataset, $paginator->getCollection(), $nativeKeys, $customDefinitions));
@@ -128,7 +167,7 @@ class ReportBuilderService
         $report = $this->reportRepository->create([
             'name' => filled($payload['name'] ?? null) ? $payload['name'] : $datasetEnum->label().' Report - '.now()->format('M d, Y'),
             'dataset' => $payload['dataset'],
-            'fields' => $payload['fields'],
+            'fields' => $this->visibleFieldKeys($payload['dataset'], $payload['fields']),
             'period' => $payload['period'] ?? null,
             'start_date' => $start?->toDateString(),
             'end_date' => $end?->toDateString(),
@@ -147,7 +186,7 @@ class ReportBuilderService
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
-        return $this->reportRepository->paginateForAdmin($filters, $perPage);
+        return $this->reportRepository->paginateForAdmin([...$filters, 'exclude_datasets' => ReportDatasetEnum::hiddenFromViewer()], $perPage);
     }
 
     public function findForAdmin(string $uuid): GeneratedReport
@@ -165,7 +204,7 @@ class ReportBuilderService
     {
         $report = $this->findForAdmin($uuid);
         $dataset = $this->datasetResolver->make($report->dataset);
-        [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($report->fields);
+        [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($this->visibleFieldKeys($report->dataset, $report->fields));
 
         $paginator = $dataset->query($report->start_date, $report->end_date, null)->paginate($perPage);
         $paginator->setCollection($this->mapRows($dataset, $paginator->getCollection(), $nativeKeys, $customDefinitions));
@@ -179,7 +218,7 @@ class ReportBuilderService
     public function exportRows(GeneratedReport $report): array
     {
         $dataset = $this->datasetResolver->make($report->dataset);
-        [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($report->fields);
+        [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($this->visibleFieldKeys($report->dataset, $report->fields));
 
         $query = $dataset->query($report->start_date, $report->end_date, null);
         $truncated = (clone $query)->count() > self::MAX_EXPORT_ROWS;
@@ -206,20 +245,24 @@ class ReportBuilderService
         }
 
         $customDefinitions = $customUuids === []
-            ? new Collection()
+            ? new Collection
             : CustomFieldDefinition::query()->whereIn('uuid', $customUuids)->get();
 
         return [$native, $customDefinitions];
     }
 
     /**
-     * @param  Collection<int, \Illuminate\Database\Eloquent\Model>  $records
+     * @param  Collection<int, Model>  $records
      * @param  list<string>  $nativeKeys
      * @param  Collection<int, CustomFieldDefinition>  $customDefinitions
      * @return Collection<int, array<string, mixed>>
      */
     private function mapRows(ReportDatasetInterface $dataset, Collection $records, array $nativeKeys, Collection $customDefinitions): Collection
     {
+        if ($dataset instanceof PreparesReportRecords) {
+            $dataset->prepareRecords($records);
+        }
+
         $valuesByRecordAndDefinition = [];
 
         if ($customDefinitions->isNotEmpty()) {

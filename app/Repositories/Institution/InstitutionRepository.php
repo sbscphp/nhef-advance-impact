@@ -43,6 +43,24 @@ class InstitutionRepository implements InstitutionRepositoryInterface
         return Institution::query()->where('email', $email)->exists();
     }
 
+    public function slugExists(string $slug): bool
+    {
+        return Institution::query()->where('slug', $slug)->exists();
+    }
+
+    public function linkedTertiaryInstitutionIds(array $tertiaryInstitutionIds): array
+    {
+        if ($tertiaryInstitutionIds === []) {
+            return [];
+        }
+
+        return Institution::query()
+            ->whereIn('tertiary_institution_id', $tertiaryInstitutionIds)
+            ->pluck('tertiary_institution_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     public function existsForTertiaryInstitution(int $tertiaryInstitutionId, ?int $excludeInstitutionId = null): bool
     {
         return Institution::query()
@@ -101,5 +119,18 @@ class InstitutionRepository implements InstitutionRepositoryInterface
             'active' => (int) $scoped()->where('status', InstitutionStatusEnum::ACTIVE->value)->count(),
             'access_revoked' => (int) $scoped()->where('status', InstitutionStatusEnum::ACCESS_REVOKED->value)->count(),
         ];
+    }
+
+    public function paginatePublic(array $filters, int $perPage): LengthAwarePaginator
+    {
+        return Institution::query()
+            ->with('tertiaryInstitution')
+            ->where('status', InstitutionStatusEnum::ACTIVE->value)
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->where('name', 'like', '%'.$filters['search'].'%')
+            )
+            ->orderBy('name')
+            ->paginate($perPage);
     }
 }

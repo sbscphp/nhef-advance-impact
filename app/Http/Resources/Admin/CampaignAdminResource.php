@@ -2,14 +2,16 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Http\Resources\Concerns\PresentsCampaign;
 use App\Models\Campaign;
-use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /** @mixin Campaign */
 class CampaignAdminResource extends JsonResource
 {
+    use PresentsCampaign;
+
     /**
      * @return array<string, mixed>
      */
@@ -23,27 +25,24 @@ class CampaignAdminResource extends JsonResource
             'cover_image_url' => $this->cover_image_url,
             'type' => $this->type,
             'currency' => $this->currency,
-            'goal_amount' => (string) $this->goal_amount,
-            'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
-            'raised_amount' => (string) $this->raised_amount,
-            'raised_amount_formatted' => Money::format($this->raised_amount, $this->currency),
+            ...$this->amountsPayload(),
             'status' => $this->status,
-            'starts_at' => $this->starts_at?->toDateString(),
-            'ends_at' => $this->ends_at?->toDateString(),
+            ...$this->schedulePayload(),
+            ...$this->projectsPayload(),
+            'cover_media_type' => $this->cover_media_type,
             'creator' => $this->whenLoaded('creator', fn () => $this->creator === null ? null : [
                 'admin_id' => $this->creator->uuid,
                 'name' => $this->creator->displayName(),
             ]),
-            'allocated_admin' => $this->whenLoaded('allocatedAdmin', fn () => [
-                'admin_id' => $this->allocatedAdmin->uuid,
-                'name' => $this->allocatedAdmin->displayName(),
-            ]),
-            'bank_account' => $this->whenLoaded('bankAccount', fn () => [
-                'bank_account_id' => $this->bankAccount->uuid,
-                'account_number' => $this->bankAccount->account_number,
-                'account_name' => $this->bankAccount->account_name,
-                'bank_name' => $this->bankAccount->relationLoaded('bank') ? $this->bankAccount->bank->name : null,
-            ]),
+            'assigned_to' => $this->assigneePayload(),
+            'allocated_admin' => $this->assigneePayload(),
+            ...$this->bankAccountFields(),
+            'donations_count' => $this->when(array_key_exists('donations_count', $this->resource->getAttributes()), fn () => (int) $this->donations_count),
+            'donors_count' => $this->when(array_key_exists('donors_count', $this->resource->getAttributes()), fn () => (int) $this->donors_count),
+            'pledges_count' => $this->when(array_key_exists('pledges_count', $this->resource->getAttributes()), fn () => (int) $this->pledges_count),
+            'institutions_count' => $this->when(array_key_exists('institutions_count', $this->resource->getAttributes()), fn () => (int) $this->institutions_count),
+            // One per standard campaign, several for a National Giving Day campaign.
+            'institutions' => $this->when(array_key_exists('institutions', $this->resource->getAttributes()), fn () => $this->institutions),
             'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

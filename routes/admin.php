@@ -8,6 +8,7 @@ use App\Http\Controllers\v1\Admin\Communications\ConstituentPickerController;
 use App\Http\Controllers\v1\Admin\Communications\MailController;
 use App\Http\Controllers\v1\Admin\Communications\TaskController as CommunicationTaskController;
 use App\Http\Controllers\v1\Admin\ConstituentManagement\ConstituentController;
+use App\Http\Controllers\v1\Admin\ConstituentManagement\InstitutionController as ConstituentInstitutionController;
 use App\Http\Controllers\v1\Admin\Crm\ProposalCollaboratorController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectCallLogController;
 use App\Http\Controllers\v1\Admin\Crm\ProspectController;
@@ -17,7 +18,6 @@ use App\Http\Controllers\v1\Admin\Crm\ProspectProposalController;
 use App\Http\Controllers\v1\Admin\CustomFields\CustomFieldDefinitionController;
 use App\Http\Controllers\v1\Admin\Dashboard\AdminDashboardController;
 use App\Http\Controllers\v1\Admin\Donation\DonationController as AdminDonationController;
-use App\Http\Controllers\v1\Admin\ConstituentManagement\InstitutionController as ConstituentInstitutionController;
 use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController;
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
@@ -32,6 +32,7 @@ use App\Http\Controllers\v1\Admin\Projects\ProjectController;
 use App\Http\Controllers\v1\Admin\Research\ResearchController;
 use App\Http\Controllers\v1\Admin\Reporting\ReportController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
+use App\Http\Controllers\v1\Admin\SystemConfiguration\ConstituencyTypeController;
 use App\Http\Controllers\v1\Admin\SystemConfiguration\DonorTierController;
 use App\Http\Controllers\v1\Admin\UserManagement\UserManagementController;
 use Illuminate\Support\Facades\Route;
@@ -53,10 +54,12 @@ Route::prefix('v1/admin')->group(function () {
 
     Route::middleware(['auth:sanctum', 'permission:audit_trail.read'])->group(function () {
         Route::get('audit-trails', [AuditTrailController::class, 'index']);
+        Route::get('audit-trails/timeline', [AuditTrailController::class, 'timeline']);
     });
 
     Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/summary', [NotificationController::class, 'summary']);
         Route::post('/read-all', [NotificationController::class, 'markAllRead']);
         Route::get('/{id}', [NotificationController::class, 'show']);
         Route::patch('/{id}/read', [NotificationController::class, 'markRead']);
@@ -79,7 +82,7 @@ Route::prefix('v1/admin')->group(function () {
         Route::prefix('roles')->group(function () {
             Route::get('/dropdown/{status?}', [UserManagementController::class, 'roleDropdown'])
                 ->where('status', 'active|inactive|all')
-                ->middleware(['permission:roles.read']);
+                ->middleware(['permission:roles.read|admins.create']);
             Route::get('/with-permissions', [UserManagementController::class, 'rolesWithPermissions'])
                 ->middleware(['permission:roles.read']);
             Route::get('/stats', [UserManagementController::class, 'roleStats'])
@@ -168,11 +171,11 @@ Route::prefix('v1/admin')->group(function () {
             Route::delete('/{uuid}/institutions/{institutionUuid}', [AdminCampaignController::class, 'removeInstitution'])
                 ->middleware(['permission:campaigns.delete']);
             Route::get('/{uuid}/donations', [AdminCampaignController::class, 'donations'])
-                ->middleware(['permission:campaigns.read']);
+                ->middleware(['permission:campaigns.read', 'individual.records']);
             Route::get('/{uuid}/donations/overview', [AdminCampaignController::class, 'donationsOverview'])
                 ->middleware(['permission:campaigns.read']);
             Route::get('/{uuid}/pledges', [AdminCampaignController::class, 'pledges'])
-                ->middleware(['permission:campaigns.read']);
+                ->middleware(['permission:campaigns.read', 'individual.records']);
             Route::get('/{uuid}/donor-breakdown', [AdminCampaignController::class, 'donorBreakdown'])
                 ->middleware(['permission:campaigns.read']);
         });
@@ -203,54 +206,73 @@ Route::prefix('v1/admin')->group(function () {
             Route::get('/{uuid}/analytics', [AdminEventController::class, 'analytics'])
                 ->middleware(['permission:events.read']);
             Route::get('/{uuid}/ticket-sales', [AdminEventController::class, 'ticketSales'])
-                ->middleware(['permission:events.read']);
+                ->middleware(['permission:events.read', 'individual.records']);
             Route::get('/{uuid}/ticket-sales/{saleUuid}', [AdminEventController::class, 'ticketSale'])
-                ->middleware(['permission:events.read']);
+                ->middleware(['permission:events.read', 'individual.records']);
             Route::get('/{uuid}/waitlist', [AdminEventController::class, 'waitlist'])
-                ->middleware(['permission:events.read']);
+                ->middleware(['permission:events.read', 'individual.records']);
             Route::get('/{uuid}/waitlist/{entryUuid}', [AdminEventController::class, 'waitlistEntry'])
-                ->middleware(['permission:events.read']);
+                ->middleware(['permission:events.read', 'individual.records']);
         });
 
-        Route::prefix('constituents/individuals')->group(function () {
+        // Own permission set (alumni.*), split from constituents.* (2026-09-30): that shared
+        // permission used to gate both this whole individual-alumni module AND Institution
+        // Management (constituents/institutions below), so anyone who needed one automatically
+        // got the other. Super Admin needs Institution Management but must never see this module
+        // (22 Sep review: no individual alumni list under any circumstances) - alumni.* makes that
+        // a real, separate, revocable grant instead of scope logic layered on a shared permission.
+        Route::prefix('constituents/individuals')->middleware('individual.records')->group(function () {
             Route::post('/', [ConstituentController::class, 'store'])
-                ->middleware(['permission:constituents.create']);
+                ->middleware(['permission:alumni.create']);
             Route::get('/', [ConstituentController::class, 'index'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
             // Must be registered before /{uuid}; otherwise "overview" would be swallowed as
             // a wildcard constituent uuid by the route below (same caution as events/overview).
             Route::get('/overview', [ConstituentController::class, 'overview'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
             Route::get('/{uuid}', [ConstituentController::class, 'show'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
             Route::patch('/{uuid}', [ConstituentController::class, 'update'])
-                ->middleware(['permission:constituents.update']);
+                ->middleware(['permission:alumni.update']);
             Route::patch('/{uuid}/revoke', [ConstituentController::class, 'revoke'])
-                ->middleware(['permission:constituents.update']);
+                ->middleware(['permission:alumni.update']);
             Route::patch('/{uuid}/reactivate', [ConstituentController::class, 'reactivate'])
-                ->middleware(['permission:constituents.update']);
+                ->middleware(['permission:alumni.update']);
             Route::post('/{uuid}/resend-invite', [ConstituentController::class, 'resendInvite'])
-                ->middleware(['permission:constituents.update']);
+                ->middleware(['permission:alumni.update']);
             Route::get('/{uuid}/donations', [ConstituentController::class, 'donations'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
+            Route::get('/{uuid}/events', [ConstituentController::class, 'events'])
+                ->middleware(['permission:alumni.read']);
+            Route::get('/{uuid}/events/overview', [ConstituentController::class, 'eventsOverview'])
+                ->middleware(['permission:alumni.read']);
 
             // Payment-level donations (Alumni Management's "Donations" tab); separate from
             // /{uuid}/donations above, which stays donation/subscription-level for its own consumers.
             Route::get('/{uuid}/payments/overview', [ConstituentController::class, 'paymentsOverview'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
             Route::get('/{uuid}/payments', [ConstituentController::class, 'payments'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
             Route::get('/{uuid}/payments/{paymentUuid}', [ConstituentController::class, 'showPayment'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
 
             Route::get('/{uuid}/pledges/overview', [ConstituentController::class, 'pledgesOverview'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
             Route::get('/{uuid}/pledges', [ConstituentController::class, 'pledges'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
             Route::get('/{uuid}/pledges/{pledgeUuid}', [ConstituentController::class, 'showPledge'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read']);
             Route::post('/{uuid}/pledges/{pledgeUuid}/send-reminder', [ConstituentController::class, 'sendPledgeReminder'])
-                ->middleware(['permission:constituents.update']);
+                ->middleware(['permission:alumni.update']);
+
+            // Constituency Type is a manual tag; institution-admin-only. NHEF no longer holds
+            // alumni.update at all (blocked at this route's own gate now), and
+            // ConstituencyTypeService::confer()/revoke() also assert constituency_types.update
+            // internally as a second, independent check.
+            Route::post('/{uuid}/constituency-types', [ConstituentController::class, 'conferConstituencyTypes'])
+                ->middleware(['permission:alumni.update']);
+            Route::delete('/{uuid}/constituency-types/{typeUuid}', [ConstituentController::class, 'revokeConstituencyType'])
+                ->middleware(['permission:alumni.update']);
         });
 
         Route::prefix('donation')->group(function () {
@@ -259,11 +281,11 @@ Route::prefix('v1/admin')->group(function () {
             Route::get('/overview', [AdminDonationController::class, 'overview'])
                 ->middleware(['permission:donations.read']);
             Route::get('/leaderboard', [AdminDonationController::class, 'leaderboard'])
-                ->middleware(['permission:donations.read']);
+                ->middleware(['permission:donations.read', 'individual.records']);
             Route::get('/', [AdminDonationController::class, 'index'])
-                ->middleware(['permission:donations.read']);
+                ->middleware(['permission:donations.read', 'individual.records']);
             Route::get('/{uuid}', [AdminDonationController::class, 'show'])
-                ->middleware(['permission:donations.read']);
+                ->middleware(['permission:donations.read', 'individual.records']);
         });
 
         Route::prefix('donation-tiers')->group(function () {
@@ -280,7 +302,26 @@ Route::prefix('v1/admin')->group(function () {
             Route::delete('/{uuid}', [DonorTierController::class, 'destroy'])
                 ->middleware(['permission:system_configuration.delete']);
             Route::get('/{uuid}/alumni', [DonorTierController::class, 'alumni'])
-                ->middleware(['permission:system_configuration.read']);
+                ->middleware(['permission:system_configuration.read', 'individual.records']);
+        });
+
+        // Own permission set (constituency_types.*), deliberately separate from
+        // system_configuration.* (Donation Tier Configuration's, NHEF-only): institution-admin
+        // only, granted to Institution Admin and excluded from NHEF's blanket permission grant, so
+        // the menu this gates only shows for admins who can actually use it.
+        Route::prefix('constituency-types')->group(function () {
+            Route::post('/', [ConstituencyTypeController::class, 'store'])
+                ->middleware(['permission:constituency_types.create']);
+            Route::get('/', [ConstituencyTypeController::class, 'index'])
+                ->middleware(['permission:constituency_types.read']);
+            Route::get('/{uuid}', [ConstituencyTypeController::class, 'show'])
+                ->middleware(['permission:constituency_types.read']);
+            Route::patch('/{uuid}', [ConstituencyTypeController::class, 'update'])
+                ->middleware(['permission:constituency_types.update']);
+            Route::patch('/{uuid}/toggle-status', [ConstituencyTypeController::class, 'toggleStatus'])
+                ->middleware(['permission:constituency_types.update']);
+            Route::delete('/{uuid}', [ConstituencyTypeController::class, 'destroy'])
+                ->middleware(['permission:constituency_types.delete']);
         });
 
         Route::prefix('custom-fields')->group(function () {
@@ -299,9 +340,25 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:custom_fields.delete']);
         });
 
+        // Every route below is shared by both scopes (DashboardService branches internally on
+        // AdminScopeEnum::current()), except campaign-tracking (NHEF-only, no Institution
+        // equivalent) and donation-intelligence (Institution-only, no NHEF equivalent). 2026-09-30:
+        // collapsed from separate NHEF (/dashboard/*) and Institution (/dashboard/institution/*)
+        // route families into these, since the Figma shows the same card on both dashboards for
+        // snapshot/event-stats/alumni-breakdown, just scoped and shaped differently.
         Route::prefix('dashboard')->group(function () {
-            Route::get('/overview', [AdminDashboardController::class, 'overview'])
+            Route::get('/national-snapshot', [AdminDashboardController::class, 'nationalSnapshot'])
                 ->middleware(['permission:dashboard.read']);
+            Route::get('/campaign-tracking', [AdminDashboardController::class, 'campaignTracking'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/event-tracking', [AdminDashboardController::class, 'eventTracking'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/institution-ranking', [AdminDashboardController::class, 'institutionRanking'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/donation-intelligence', [AdminDashboardController::class, 'donationIntelligence'])
+                ->middleware(['permission:dashboard.read']);
+            Route::get('/live-activity', [AdminDashboardController::class, 'liveActivity'])
+                ->middleware(['permission:dashboard.read', 'permission:audit_trail.read']);
         });
 
         Route::prefix('reports')->group(function () {
@@ -603,7 +660,7 @@ Route::prefix('v1/admin')->group(function () {
             Route::get('/mails/dashboard', [MailController::class, 'dashboard'])
                 ->middleware(['permission:communications.read']);
             Route::get('/mails/unsubscribers', [MailController::class, 'unsubscribers'])
-                ->middleware(['permission:communications.read']);
+                ->middleware(['permission:communications.read', 'individual.records']);
 
             Route::get('/mails', [MailController::class, 'index'])
                 ->middleware(['permission:communications.read']);
@@ -620,12 +677,12 @@ Route::prefix('v1/admin')->group(function () {
             Route::post('/mails/{uuid}/resend', [MailController::class, 'resend'])
                 ->middleware(['permission:communications.update']);
             Route::get('/mails/{uuid}/recipients', [MailController::class, 'recipients'])
-                ->middleware(['permission:communications.read']);
+                ->middleware(['permission:communications.read', 'individual.records']);
             Route::get('/mails/{uuid}/analytics', [MailController::class, 'analytics'])
                 ->middleware(['permission:communications.read']);
 
             Route::get('/constituents', [ConstituentPickerController::class, 'index'])
-                ->middleware(['permission:communications.read']);
+                ->middleware(['permission:communications.read', 'individual.records']);
             Route::get('/assignable-admins', [CommunicationTaskController::class, 'assignableAdmins'])
                 ->middleware(['permission:communications.read']);
 
@@ -666,7 +723,7 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:communications.create']);
         });
 
-        Route::prefix('constituents/institutions')->group(function () {
+        Route::prefix('constituents/institutions')->middleware('landlord')->group(function () {
             Route::post('/', [ConstituentInstitutionController::class, 'store'])
                 ->middleware(['permission:constituents.create']);
             Route::get('/', [ConstituentInstitutionController::class, 'index'])
@@ -675,6 +732,8 @@ Route::prefix('v1/admin')->group(function () {
             // a wildcard institution uuid by the route below (same caution as events/overview).
             Route::get('/overview', [ConstituentInstitutionController::class, 'overview'])
                 ->middleware(['permission:constituents.read']);
+            Route::get('/tertiary-options', [ConstituentInstitutionController::class, 'tertiaryOptions'])
+                ->middleware(['permission:constituents.create']);
             Route::get('/{uuid}', [ConstituentInstitutionController::class, 'show'])
                 ->middleware(['permission:constituents.read']);
             Route::patch('/{uuid}', [ConstituentInstitutionController::class, 'update'])
@@ -685,33 +744,10 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:constituents.update']);
             Route::post('/{uuid}/resend-invite', [ConstituentInstitutionController::class, 'resendInvite'])
                 ->middleware(['permission:constituents.update']);
+            // Still an alumni list, just reached by drilling into one institution rather than the
+            // main Alumni menu - alumni.read, not constituents.read, for the same reason as above.
             Route::get('/{uuid}/alumni', [ConstituentInstitutionController::class, 'alumni'])
-                ->middleware(['permission:constituents.read']);
-            Route::get('/{uuid}/campaigns', [ConstituentInstitutionController::class, 'campaigns'])
-                ->middleware(['permission:constituents.read']);
-        });
-
-        Route::prefix('constituents/institutions')->group(function () {
-            Route::post('/', [ConstituentInstitutionController::class, 'store'])
-                ->middleware(['permission:constituents.create']);
-            Route::get('/', [ConstituentInstitutionController::class, 'index'])
-                ->middleware(['permission:constituents.read']);
-            // Must be registered before /{uuid}; otherwise "overview" would be swallowed as
-            // a wildcard institution uuid by the route below (same caution as events/overview).
-            Route::get('/overview', [ConstituentInstitutionController::class, 'overview'])
-                ->middleware(['permission:constituents.read']);
-            Route::get('/{uuid}', [ConstituentInstitutionController::class, 'show'])
-                ->middleware(['permission:constituents.read']);
-            Route::patch('/{uuid}', [ConstituentInstitutionController::class, 'update'])
-                ->middleware(['permission:constituents.update']);
-            Route::patch('/{uuid}/revoke', [ConstituentInstitutionController::class, 'revoke'])
-                ->middleware(['permission:constituents.update']);
-            Route::patch('/{uuid}/reactivate', [ConstituentInstitutionController::class, 'reactivate'])
-                ->middleware(['permission:constituents.update']);
-            Route::post('/{uuid}/resend-invite', [ConstituentInstitutionController::class, 'resendInvite'])
-                ->middleware(['permission:constituents.update']);
-            Route::get('/{uuid}/alumni', [ConstituentInstitutionController::class, 'alumni'])
-                ->middleware(['permission:constituents.read']);
+                ->middleware(['permission:alumni.read', 'individual.records']);
             Route::get('/{uuid}/campaigns', [ConstituentInstitutionController::class, 'campaigns'])
                 ->middleware(['permission:constituents.read']);
         });

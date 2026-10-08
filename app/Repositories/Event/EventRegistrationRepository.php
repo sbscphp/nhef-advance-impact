@@ -3,6 +3,7 @@
 namespace App\Repositories\Event;
 
 use App\Enums\EventRegistrationStatusEnum;
+use App\Enums\EventStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -54,6 +55,25 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
         ], 'event_registrations.created_at');
 
         return $query->paginate($perPage);
+    }
+
+    public function overviewForUser(int $userId): array
+    {
+        $now = now();
+
+        $base = fn () => EventRegistration::query()
+            ->join('events', 'events.id', '=', 'event_registrations.event_id')
+            ->where('event_registrations.user_id', $userId)
+            ->where('event_registrations.status', EventRegistrationStatusEnum::COMPLETED->value);
+
+        $attended = (int) $base()->whereNotNull('events.ends_at')->where('events.ends_at', '<', $now)->count();
+        $upcoming = (int) $base()->where(fn ($query) => $query->whereNull('events.ends_at')->orWhere('events.ends_at', '>=', $now))->count();
+
+        return [
+            'total' => $attended + $upcoming,
+            'attended' => $attended,
+            'upcoming' => $upcoming,
+        ];
     }
 
     public function update(EventRegistration $registration, array $data): EventRegistration
@@ -137,5 +157,56 @@ class EventRegistrationRepository implements EventRegistrationRepositoryInterfac
             ->with(['items.ticketType', 'payments'])
             ->where('event_id', $event->id)
             ->where('status', EventRegistrationStatusEnum::COMPLETED->value);
+    }
+
+    public function averageAttendanceForAdmin(): string
+    {
+        // Event::query() carries its own tenant scope (OwnedByInstitution), so this already
+        // narrows to one institution's own events for an institution admin, all events for NHEF.
+        $completedEventIds = Event::query()
+            ->where('status', EventStatusEnum::PUBLISHED->value)
+            ->whereNotNull('ends_at')
+            ->where('ends_at', '<', now())
+            ->pluck('id');
+
+        if ($completedEventIds->isEmpty()) {
+            return '0';
+        }
+
+        $totalRegistrations = EventRegistration::query()
+            ->whereIn('event_id', $completedEventIds)
+            ->where('status', EventRegistrationStatusEnum::COMPLETED->value)
+            ->count();
+
+        return bcdiv((string) $totalRegistrations, (string) $completedEventIds->count(), 2);
+    }
+
+    public function dailyAttendanceByCompletionStatus(array $completedEventIds, array $upcomingEventIds, CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        if ($completedEventIds === [] && $upcomingEventIds === []) {
+            return collect();
+        }
+
+        $completedIds = implode(',', array_map('intval', $completedEventIds)) ?: '-1';
+        $upcomingIds = implode(',', array_map('intval', $upcomingEventIds)) ?: '-1';
+
+        $rows = EventRegistration::query()
+            ->whereIn('event_id', array_merge($completedEventIds, $upcomingEventIds))
+            ->where('status', EventRegistrationStatusEnum::COMPLETED->value)
+            ->whereBetween('completed_at', [$start, $end])
+            ->groupBy('date')
+            ->selectRaw(
+                'DATE(completed_at) as date,'
+                ." sum(case when event_id in ({$completedIds}) then 1 else 0 end) as completed,"
+                ." sum(case when event_id in ({$upcomingIds}) then 1 else 0 end) as upcoming"
+            )
+            ->orderBy('date')
+            ->get();
+
+        return $rows->map(fn ($row) => (object) [
+            'date' => (string) $row->date,
+            'completed' => (int) $row->completed,
+            'upcoming' => (int) $row->upcoming,
+        ]);
     }
 }

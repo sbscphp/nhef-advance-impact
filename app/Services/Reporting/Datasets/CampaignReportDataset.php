@@ -8,13 +8,18 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-class CampaignReportDataset implements ReportDatasetInterface
+class CampaignReportDataset implements HasMonetaryFields, ReportDatasetInterface
 {
     use BuildsSimpleAggregateQuery;
 
     public function label(): string
     {
         return 'Campaign';
+    }
+
+    public function monetaryFieldKeys(): array
+    {
+        return ['goal_amount', 'raised_amount'];
     }
 
     public function nativeFields(): array

@@ -2,15 +2,16 @@
 
 namespace App\Repositories\Donation;
 
+use App\Enums\CampaignTypeEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
-use App\Models\Campaign;
 use App\Models\DonationPayment;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 {
@@ -127,15 +128,58 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 
     public function distinctCampaignGoalTotalForUser(int $userId): string
     {
-        $campaignIds = DonationPayment::query()
-            ->where('donation_payments.user_id', $userId)
-            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
-            ->where('donation_payments.currency', 'NGN')
-            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
-            ->distinct()
-            ->pluck('donations.campaign_id');
+        return $this->campaignGoalTotal(
+            fn () => DonationPayment::query()
+                ->where('donation_payments.user_id', $userId)
+                ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+                ->where('donation_payments.currency', 'NGN')
+        );
+    }
 
-        return (string) Campaign::query()->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
+    /**
+     * A standard campaign's own `goal_amount` is real and NGN-denominated, so it's summed
+     * directly. A National Giving Day campaign never has one (goal/currency are per-institution,
+     * on `campaign_institutions`, not the campaign itself), so its contribution is each distinct
+     * (campaign, donor's own tertiary institution) pair's own `campaign_institutions.goal_amount`
+     * instead, this is "the target that institution's own donors are giving toward", not the
+     * campaign's combined NHEF-wide target.
+     */
+    private function campaignGoalTotal(\Closure $scopedPayments): string
+    {
+        $standardTotal = (float) $scopedPayments()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+            ->where('campaigns.type', CampaignTypeEnum::STANDARD->value)
+            ->where('campaigns.currency', 'NGN')
+            ->distinct()
+            ->get(['campaigns.id', 'campaigns.goal_amount'])
+            ->unique('id')
+            ->sum(fn ($row) => (float) $row->goal_amount);
+
+        $pairs = $scopedPayments()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            ->where('campaigns.type', CampaignTypeEnum::NATIONAL_GIVING_DAY->value)
+            ->whereNotNull('users.tertiary_institution_id')
+            ->distinct()
+            ->get(['campaigns.id as campaign_id', 'users.tertiary_institution_id'])
+            ->unique(fn ($row) => $row->campaign_id.'-'.$row->tertiary_institution_id);
+
+        $ngdTotal = 0.0;
+        if ($pairs->isNotEmpty()) {
+            $rows = DB::table('campaign_institutions')
+                ->join('institutions', 'institutions.id', '=', 'campaign_institutions.institution_id')
+                ->whereIn('campaign_institutions.campaign_id', $pairs->pluck('campaign_id')->unique()->all())
+                ->get(['campaign_institutions.campaign_id', 'institutions.tertiary_institution_id', 'campaign_institutions.goal_amount']);
+
+            foreach ($pairs as $pair) {
+                $match = $rows->first(fn ($row) => $row->campaign_id == $pair->campaign_id && $row->tertiary_institution_id == $pair->tertiary_institution_id);
+                $ngdTotal += $match !== null ? (float) $match->goal_amount : 0.0;
+            }
+        }
+
+        return (string) ($standardTotal + $ngdTotal);
     }
 
     public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator
@@ -280,11 +324,12 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->first();
     }
 
-    public function sumSuccessfulForAdmin(?string $from, ?string $to): string
+    public function sumSuccessfulForAdmin(?string $from, ?string $to, ?string $campaignType = null): string
     {
         return (string) DonationPayment::query()
             ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
             ->where('currency', 'NGN')
+            ->when($campaignType !== null, fn ($query) => $this->ofCampaignType($query, $campaignType))
             ->when($from !== null, fn ($query) => $query->whereDate('paid_at', '>=', $from))
             ->when($to !== null, fn ($query) => $query->whereDate('paid_at', '<=', $to))
             ->sum('amount');
@@ -300,11 +345,12 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->count();
     }
 
-    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to): array
+    public function distinctSuccessfulDonorUserIdsForAdmin(?string $from, ?string $to, ?string $campaignType = null): array
     {
         return DonationPayment::query()
             ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
             ->whereNotNull('user_id')
+            ->when($campaignType !== null, fn ($query) => $this->ofCampaignType($query, $campaignType))
             ->when($from !== null, fn ($query) => $query->whereDate('paid_at', '>=', $from))
             ->when($to !== null, fn ($query) => $query->whereDate('paid_at', '<=', $to))
             ->distinct()
@@ -314,14 +360,11 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
 
     public function distinctCampaignGoalTotalForAdmin(): string
     {
-        $campaignIds = DonationPayment::query()
-            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
-            ->where('donation_payments.currency', 'NGN')
-            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
-            ->distinct()
-            ->pluck('donations.campaign_id');
-
-        return (string) Campaign::query()->whereIn('id', $campaignIds)->where('currency', 'NGN')->sum('goal_amount');
+        return $this->campaignGoalTotal(
+            fn () => DonationPayment::query()
+                ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+                ->where('donation_payments.currency', 'NGN')
+        );
     }
 
     public function resolveTierUpgradeDate(int $userId, string $thresholdAmount): ?CarbonInterface
@@ -343,5 +386,129 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
         }
 
         return null;
+    }
+
+    public function totalsByInstitutions(array $tertiaryInstitutionIds): array
+    {
+        if ($tertiaryInstitutionIds === []) {
+            return [];
+        }
+
+        $rows = DonationPayment::query()
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donation_payments.currency', 'NGN')
+            ->whereIn('users.tertiary_institution_id', $tertiaryInstitutionIds)
+            ->groupBy('users.tertiary_institution_id')
+            ->selectRaw('users.tertiary_institution_id as institution_id, sum(donation_payments.amount) as total, count(distinct donation_payments.user_id) as donors')
+            ->get();
+
+        $totals = [];
+        foreach ($rows as $row) {
+            $totals[(int) $row->institution_id] = ['total' => (string) $row->total, 'donors' => (int) $row->donors];
+        }
+
+        return $totals;
+    }
+
+    public function statsByCampaigns(array $campaignIds): array
+    {
+        if ($campaignIds === []) {
+            return [];
+        }
+
+        $rows = DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->whereIn('donations.campaign_id', $campaignIds)
+            ->groupBy('donations.campaign_id')
+            ->selectRaw('donations.campaign_id as campaign_id, count(*) as donations, count(distinct coalesce(donation_payments.user_id, donations.guest_email)) as donors')
+            ->get();
+
+        $stats = [];
+        foreach ($rows as $row) {
+            $stats[(int) $row->campaign_id] = ['donations' => (int) $row->donations, 'donors' => (int) $row->donors];
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param  Builder<DonationPayment>  $query
+     */
+    private function ofCampaignType(Builder $query, string $campaignType): void
+    {
+        $query->whereIn('donation_payments.donation_id', DB::table('donations')
+            ->join('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+            ->where('campaigns.type', $campaignType)
+            ->select('donations.id'));
+    }
+
+    public function countDonorsForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): int
+    {
+        return (int) DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('users', 'users.id', '=', 'donations.user_id')
+            ->where('donations.campaign_id', $campaignId)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('users.tertiary_institution_id', $tertiaryInstitutionId)
+            ->distinct()
+            ->count('donations.user_id');
+    }
+
+    public function totalsByUserIds(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        // Summing across currencies isn't meaningful (₦ + $ isn't a real number), same NGN-only
+        // scoping as sumSuccessfulForUser().
+        $rows = DonationPayment::query()
+            ->whereIn('user_id', $userIds)
+            ->where('status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('currency', 'NGN')
+            ->groupBy('user_id')
+            ->selectRaw('user_id, count(*) as payments, sum(amount) as total')
+            ->get();
+
+        $totals = [];
+        foreach ($rows as $row) {
+            $totals[(int) $row->user_id] = ['count' => (int) $row->payments, 'total' => (string) $row->total];
+        }
+
+        return $totals;
+    }
+
+    public function donorCountsByConstituentType(?string $from, ?string $to): array
+    {
+        $rows = DonationPayment::query()
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donation_payments.currency', 'NGN')
+            ->when($from !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '>=', $from))
+            ->when($to !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '<=', $to))
+            ->groupBy('users.constituent_type')
+            ->selectRaw('users.constituent_type, count(distinct donation_payments.user_id) as total')
+            ->pluck('total', 'constituent_type');
+
+        return [
+            'alumni' => (int) ($rows['alumni'] ?? 0),
+            'non_alumni' => (int) ($rows['non_alumni'] ?? 0),
+            'organization' => (int) ($rows['organization'] ?? 0),
+        ];
+    }
+
+    public function dailyTotalsByConstituentType(CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        return DonationPayment::query()
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donation_payments.currency', 'NGN')
+            ->whereBetween('donation_payments.paid_at', [$start, $end])
+            ->groupBy('date', 'users.constituent_type')
+            ->selectRaw('DATE(donation_payments.paid_at) as date, users.constituent_type, sum(donation_payments.amount) as total')
+            ->orderBy('date')
+            ->get();
     }
 }

@@ -4,6 +4,8 @@ namespace App\Services\Notifications;
 
 use App\Enums\eRole;
 use App\Models\Admin;
+use App\Models\Institution;
+use App\Models\Scopes\TenantScope;
 use App\Models\User;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
@@ -18,6 +20,7 @@ class NotificationDispatchService
     public function notifySuperAdmins(Notification $notification, bool $queue = false): int
     {
         $uuids = Admin::query()
+            ->withoutGlobalScope(TenantScope::class)
             ->role(eRole::SUPER_ADMIN->value)
             ->where('is_active', true)
             ->where('can_login', true)
@@ -41,6 +44,7 @@ class NotificationDispatchService
 
         try {
             $admins = Admin::query()
+                ->when(! Institution::checkCurrent(), fn ($query) => $query->nhefStaff())
                 ->where('is_active', true)
                 ->where('can_login', true)
                 ->get()
@@ -82,7 +86,12 @@ class NotificationDispatchService
         }
 
         try {
+            // An explicit uuid list is always the caller's final say on who gets notified - never
+            // narrow it further by whatever tenant happens to be current on the caller's own
+            // request (e.g. an Institution Admin's action notifying NHEF Super Admins, who have no
+            // institution of their own and would otherwise be silently filtered out here).
             $admins = Admin::query()
+                ->withoutGlobalScope(TenantScope::class)
                 ->whereIn('uuid', $adminUuids)
                 ->where('is_active', true)
                 ->where('can_login', true)
@@ -144,7 +153,10 @@ class NotificationDispatchService
         }
 
         try {
+            // Same reasoning as notifyAdminsByUuids(): an explicit uuid list shouldn't be
+            // narrowed further by the caller's own ambient tenant context.
             $users = User::query()
+                ->withoutGlobalScope(TenantScope::class)
                 ->whereIn('uuid', $userUuids)
                 ->where('is_active', true)
                 ->where('can_login', true)

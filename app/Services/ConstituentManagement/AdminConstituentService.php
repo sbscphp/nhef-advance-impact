@@ -4,6 +4,7 @@ namespace App\Services\ConstituentManagement;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\ConstituentStatusEnum;
+use App\Enums\ConstituentTypeEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
@@ -11,12 +12,14 @@ use App\Helpers\GeneralHelper;
 use App\Jobs\SendConstituentInviteEmailJob;
 use App\Models\Admin;
 use App\Models\DonationPayment;
+use App\Models\Institution;
 use App\Models\Pledge;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
@@ -34,6 +37,7 @@ class AdminConstituentService
         private readonly DonationPaymentRepositoryInterface $paymentRepository,
         private readonly PledgeRepositoryInterface $pledgeRepository,
         private readonly DonorTierRepositoryInterface $donorTierRepository,
+        private readonly EventRegistrationRepositoryInterface $eventRegistrationRepository,
         private readonly NotificationDispatchService $notificationDispatchService,
     ) {}
 
@@ -46,7 +50,14 @@ class AdminConstituentService
             throw new ApiException('A constituent with this email already exists.', 422);
         }
 
+        $tenant = Institution::current();
+        if ($tenant !== null && $tenant->tertiary_institution_id === null) {
+            throw new ApiException('Your institution is not linked to a tertiary institution yet.', 422);
+        }
+
         $user = $this->userRepository->create([
+            'tertiary_institution_id' => $tenant?->tertiary_institution_id,
+            'constituent_type' => $payload['constituent_type'] ?? ConstituentTypeEnum::ALUMNI->value,
             'firstname' => $payload['first_name'],
             'lastname' => $payload['last_name'],
             'email' => $payload['email'],
@@ -89,8 +100,10 @@ class AdminConstituentService
     public function paginateForAdmin(array $filters): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $paginator = $this->userRepository->paginateForAdmin($filters, $perPage);
+        $this->attachDonationStats($paginator->items());
 
-        return $this->userRepository->paginateForAdmin($filters, $perPage);
+        return $paginator;
     }
 
     /**
@@ -99,7 +112,27 @@ class AdminConstituentService
      */
     public function exportForAdmin(array $filters): array
     {
-        return $this->userRepository->exportForAdmin($filters);
+        [$rows, $truncated] = $this->userRepository->exportForAdmin($filters);
+        $this->attachDonationStats($rows);
+
+        return [$rows, $truncated];
+    }
+
+    /**
+     * Attaches `donations_count` and `total_donations` (lifetime, NGN successful payments) read
+     * back by {@see ConstituentAdminResource}, in one grouped query rather than one per row.
+     *
+     * @param  iterable<User>  $users
+     */
+    private function attachDonationStats(iterable $users): void
+    {
+        $users = collect($users);
+        $totals = $this->paymentRepository->totalsByUserIds($users->pluck('id')->all());
+
+        foreach ($users as $user) {
+            $user->setAttribute('donations_count', $totals[$user->id]['count'] ?? 0);
+            $user->setAttribute('total_donations', $totals[$user->id]['total'] ?? '0');
+        }
     }
 
     /**
@@ -129,8 +162,9 @@ class AdminConstituentService
     public function showForAdmin(string $uuid): User
     {
         $user = $this->findForAdmin($uuid);
-        $user->loadMissing('tertiaryInstitution');
+        $user->loadMissing(['tertiaryInstitution', 'constituencyTypes']);
         $user->setAttribute('tier', $this->resolveTierLabel($user));
+        $this->attachDonationStats([$user]);
 
         return $user;
     }
@@ -157,7 +191,7 @@ class AdminConstituentService
         if (array_key_exists('last_name', $payload)) {
             $updates['lastname'] = $payload['last_name'];
         }
-        foreach (['email', 'phone_number', 'invite_message', 'status'] as $field) {
+        foreach (['email', 'phone_number', 'invite_message', 'status', 'constituent_type'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $updates[$field] = $payload[$field];
             }
@@ -343,6 +377,26 @@ class AdminConstituentService
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         return $this->pledgeRepository->paginateForUser($user->id, $filters, $perPage);
+    }
+
+    /**
+     * The "Events" tab on a constituent's detail screen: every event they've registered for.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateEvents(User $user, array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->eventRegistrationRepository->paginateForUser($user->id, $filters, $perPage);
+    }
+
+    /**
+     * @return array{total: int, attended: int, upcoming: int}
+     */
+    public function eventsOverview(User $user): array
+    {
+        return $this->eventRegistrationRepository->overviewForUser($user->id);
     }
 
     public function findPledgeForAdmin(User $user, string $uuid): Pledge

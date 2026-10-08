@@ -5,6 +5,7 @@ namespace App\Http\Resources\Auth;
 use App\Enums\CustomerRegistrationStepEnum;
 use App\Enums\UserTypeEnum;
 use App\Helpers\PermissionModuleMapper;
+use App\Support\ViewerVisibility;
 use App\Http\Resources\UserResource;
 use App\Models\Admin;
 use Illuminate\Http\Request;
@@ -37,9 +38,14 @@ class AuthResource extends JsonResource
      */
     private function adminPayload(Admin $admin): array
     {
+        $admin->loadMissing(['roles', 'institution']);
+
         $payload = [
             'uuid' => $admin->uuid,
             'name' => $admin->name,
+            'user_code' => $admin->code(),
+            'job_title' => $admin->job_title,
+            'profile_picture_url' => $admin->profile_picture_url,
             'email' => $admin->email,
             'email_verified_at' => $admin->email_verified_at,
             'email_notifications_enabled' => (bool) $admin->email_notifications_enabled,
@@ -47,6 +53,10 @@ class AuthResource extends JsonResource
             'is_active' => $admin->is_active,
             'can_login' => $admin->can_login,
             'must_reset_password' => (bool) $admin->must_reset_password,
+            'scope' => $admin->scope()->value,
+            'role' => $admin->roles->first()?->name,
+            'institution' => $admin->institution === null ? null : ['uuid' => $admin->institution->uuid, 'name' => $admin->institution->name],
+            'workspace' => $admin->institution?->workspaceData(),
             'last_login_at' => $admin->last_login_at,
             'last_active_at' => $admin->last_active_at,
             'created_at' => $admin->created_at,
@@ -57,13 +67,14 @@ class AuthResource extends JsonResource
             return $payload;
         }
 
-        $admin->loadMissing(['roles', 'permissions']);
+        $admin->loadMissing('permissions');
         $permissionNames = $admin->getAllPermissions()->pluck('name')->values()->all();
 
         return array_merge($payload, [
             'roles' => $admin->roles->pluck('name')->values(),
             'permissions' => $permissionNames,
             'permissions_by_module' => PermissionModuleMapper::groupedApiPermissionsForNames($permissionNames),
+            'visibility' => ViewerVisibility::flagsFor($admin),
         ]);
     }
 }

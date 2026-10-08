@@ -2,7 +2,9 @@
 
 namespace App\Services\Admin\UserManagement;
 
+use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
+use App\Enums\eRole;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
@@ -10,7 +12,7 @@ use App\Helpers\GeneralHelper;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Jobs\SendAdminInviteSetPasswordEmailJob;
 use App\Models\Admin;
-use App\Models\AuditLog;
+use App\Models\Institution;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -34,14 +36,20 @@ class AdminUserService
             ->where('uuid', $roleUuid)
             ->firstOrFail();
 
+        $this->assertRoleAssignable($role);
+
         $frontendUrl = isset($payload['frontend_url']) && is_string($payload['frontend_url'])
             ? $payload['frontend_url']
             : null;
 
-        $admin = DB::transaction(function () use ($payload, $role): Admin {
+        $institutionId = Institution::current()?->id;
+
+        $admin = DB::transaction(function () use ($payload, $role, $institutionId): Admin {
             $admin = Admin::query()->create([
                 'name' => (string) $payload['name'],
                 'email' => (string) $payload['email'],
+                'job_title' => $payload['job_title'] ?? null,
+                'institution_id' => $institutionId,
                 // Random placeholder; admin sets real password via emailed invite link.
                 'password' => bin2hex(random_bytes(16)),
                 'is_active' => (bool) ($payload['is_active'] ?? true),
@@ -110,7 +118,7 @@ class AdminUserService
      */
     public function stats(array $validated): array
     {
-        $query = Admin::query();
+        $query = $this->visibleAdmins();
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         return array_merge(ListingFilterRules::periodMeta($validated), [
@@ -153,13 +161,14 @@ class AdminUserService
         $sortBy = (string) ($validated['sort_by'] ?? 'created_at');
         $sortDirection = strtolower((string) ($validated['sort_direction'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
 
-        $query = Admin::query()->with('roles:id,name');
+        $query = $this->visibleAdmins()->with('roles:id,name');
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         $search = trim((string) ($validated['search'] ?? ''));
         if ($search !== '') {
-            $query->where(function (Builder $builder) use ($search): void {
-                $builder->where('uuid', 'like', '%'.$search.'%')
+            $uuidSearch = str_starts_with(strtoupper($search), 'NHF-USR-') ? strtolower(substr($search, 8)) : $search;
+            $query->where(function (Builder $builder) use ($search, $uuidSearch): void {
+                $builder->where('uuid', 'like', '%'.$uuidSearch.'%')
                     ->orWhere('name', 'like', '%'.$search.'%')
                     ->orWhere('email', 'like', '%'.$search.'%')
                     ->orWhereHas('roles', fn (Builder $roleBuilder) => $roleBuilder->where('name', 'like', '%'.$search.'%'));
@@ -171,6 +180,11 @@ class AdminUserService
             $query->where('is_active', true);
         } elseif ($status === 'inactive') {
             $query->where('is_active', false);
+        }
+
+        $roleUuid = data_get($validated, 'filters.role_id');
+        if (is_string($roleUuid) && $roleUuid !== '') {
+            $query->whereHas('roles', fn (Builder $roleBuilder) => $roleBuilder->where('roles.uuid', $roleUuid));
         }
 
         if (! in_array($sortBy, ['uuid', 'name', 'email', 'last_active_at', 'is_active', 'created_at'], true)) {
@@ -190,7 +204,7 @@ class AdminUserService
      */
     public function dropdown(string $status = 'active'): Collection
     {
-        $query = Admin::query();
+        $query = $this->visibleAdmins();
 
         if ($status === 'active') {
             $query->where('is_active', true);
@@ -214,6 +228,7 @@ class AdminUserService
         $previous = [
             'name' => $admin->name,
             'email' => $admin->email,
+            'job_title' => $admin->job_title,
             'is_active' => (bool) $admin->is_active,
             'can_login' => (bool) $admin->can_login,
             'role_name' => $previousRoleName,
@@ -221,6 +236,12 @@ class AdminUserService
 
         $roleUuid = $payload['role_id'] ?? null;
         unset($payload['role_id']);
+
+        $losesAccess = (array_key_exists('is_active', $payload) && ! $payload['is_active'])
+            || (array_key_exists('can_login', $payload) && ! $payload['can_login']);
+        if ($losesAccess) {
+            $this->assertNotLastSuperAdmin($admin);
+        }
 
         if ($payload !== []) {
             $admin->fill($payload)->save();
@@ -232,6 +253,10 @@ class AdminUserService
                 ->where('guard_name', 'api')
                 ->where('uuid', (string) $roleUuid)
                 ->firstOrFail();
+            $this->assertRoleAssignable($role);
+            if ($role->name !== $previousRoleName) {
+                $this->assertNotLastSuperAdmin($admin);
+            }
             $admin->syncRoles([$role->name]);
             $newRoleName = $role->name;
         }
@@ -240,7 +265,7 @@ class AdminUserService
         $admin->loadMissing('roles:id,name');
 
         $changedFields = [];
-        foreach (['name', 'email', 'is_active', 'can_login'] as $field) {
+        foreach (['name', 'email', 'job_title', 'is_active', 'can_login'] as $field) {
             if (array_key_exists($field, $payload) && $previous[$field] !== $admin->{$field}) {
                 $changedFields[] = $field;
             }
@@ -282,6 +307,11 @@ class AdminUserService
         $admin = $this->resolveAdmin($adminId);
         $previousStatus = (bool) $admin->is_active;
         $isActive = ! $previousStatus;
+
+        if (! $isActive) {
+            $this->assertNotLastSuperAdmin($admin);
+        }
+
         $admin->forceFill([
             'is_active' => $isActive,
             'can_login' => $isActive,
@@ -311,23 +341,17 @@ class AdminUserService
     }
 
     /**
-     * @return array{audit_logs_count:int, uuid?:string, email?:string}
+     * Soft delete: the row stays so audit entries and records the admin authored keep their name.
      */
-    public function delete(string $adminId, Admin $actor, Request $request): array
+    public function delete(string $adminId, Admin $actor, Request $request): void
     {
         $admin = $this->resolveAdmin($adminId);
-        $auditLogsCount = AuditLog::query()
-            ->where('user_type', UserTypeEnum::ADMIN)
-            ->where('user_id', $admin->uuid)
-            ->count();
-
-        if ($auditLogsCount > 0) {
-            return ['audit_logs_count' => $auditLogsCount];
-        }
+        $this->assertNotLastSuperAdmin($admin);
 
         $adminUuid = $admin->uuid;
         $adminEmail = $admin->email;
         $admin->tokens()->delete();
+        $admin->forceFill(['is_active' => false, 'can_login' => false])->save();
         $admin->delete();
 
         GeneralHelper::storeAuditLog(
@@ -342,8 +366,48 @@ class AdminUserService
             ModuleEnums::user_management,
             200,
         );
+    }
 
-        return ['audit_logs_count' => 0, 'uuid' => $adminUuid, 'email' => $adminEmail];
+    private function assertNotLastSuperAdmin(Admin $admin): void
+    {
+        if (! $admin->hasRole(eRole::SUPER_ADMIN->value) || ! $admin->is_active) {
+            return;
+        }
+
+        $otherActive = Admin::query()
+            ->nhefStaff()
+            ->whereKeyNot($admin->getKey())
+            ->where('is_active', true)
+            ->whereHas('roles', fn (Builder $roles) => $roles->where('name', eRole::SUPER_ADMIN->value))
+            ->exists();
+
+        if (! $otherActive) {
+            throw new ApiException('At least one active Super Admin must remain.', 422);
+        }
+    }
+
+    private function assertRoleAssignable(Role $role): void
+    {
+        $scope = AdminScopeEnum::current();
+
+        if ($scope->allowsRole($role->name)) {
+            return;
+        }
+
+        throw $scope === AdminScopeEnum::INSTITUTION
+            ? new ApiException('This role cannot be assigned to an institution admin.', 403)
+            : new ApiException('The Institution Admin role is assigned through institution onboarding.', 422);
+    }
+
+    /**
+     * NHEF (no current tenant) manages its own staff here; an institution's admins are
+     * confined to that institution by the tenant scope.
+     *
+     * @return Builder<Admin>
+     */
+    private function visibleAdmins(): Builder
+    {
+        return Admin::query()->when(! Institution::checkCurrent(), fn (Builder $query) => $query->nhefStaff());
     }
 
     private function resolveAdmin(string $adminId): Admin

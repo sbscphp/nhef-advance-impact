@@ -47,4 +47,50 @@ interface CampaignInstitutionRepositoryInterface
     public function update(CampaignInstitution $campaignInstitution, array $data): CampaignInstitution;
 
     public function delete(CampaignInstitution $campaignInstitution): void;
+
+    /**
+     * @param  list<int>  $institutionIds
+     * @return array<int, int> institution id => number of campaigns it participates in
+     */
+    public function countByInstitutions(array $institutionIds): array;
+
+    /**
+     * Same as {@see self::countByInstitutions()} but counting only currently active campaigns;
+     * feeds the public institution directory's "Active Campaign" card figure.
+     *
+     * @param  list<int>  $institutionIds
+     * @return array<int, int>
+     */
+    public function countActiveByInstitutions(array $institutionIds): array;
+
+    /**
+     * @param  list<int>  $campaignIds
+     * @return array<int, int>
+     */
+    public function countByCampaigns(array $campaignIds): array;
+
+    /**
+     * Participating institution uuid/name per campaign, for the campaign list's "institutions"
+     * column - a standard campaign has exactly one, a National Giving Day campaign may have many.
+     *
+     * @param  list<int>  $campaignIds
+     * @return array<int, list<array{uuid: string, name: string}>>
+     */
+    public function namesByCampaigns(array $campaignIds): array;
+
+    /**
+     * Every row for a campaign with its bank account, unpaginated, for exporting the Institutions tab.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, CampaignInstitution>
+     */
+    public function exportForCampaign(int $campaignId, array $filters): Collection;
+
+    /**
+     * One row per institution on every active campaign that overlaps the window (or all active
+     * campaigns when none is given), with the campaign and institution loaded.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateActiveTracking(array $filters, int $perPage): LengthAwarePaginator;
 }

@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\ConstituentManagement\InstitutionAlumniListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionCampaignListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InviteInstitutionRequest;
+use App\Http\Requests\Admin\ConstituentManagement\TertiaryInstitutionOptionListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\UpdateInstitutionRequest;
 use App\Http\Requests\Admin\DateRangeStatsRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
@@ -15,6 +16,7 @@ use App\Http\Resources\Admin\ConstituentManagement\InstitutionAdminResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionAlumniResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionCampaignResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionDetailResource;
+use App\Http\Resources\Admin\ConstituentManagement\TertiaryInstitutionOptionResource;
 use App\Models\Admin;
 use App\Models\Institution;
 use App\Responser\JsonResponser;
@@ -53,6 +55,17 @@ class InstitutionController extends Controller
         }
     }
 
+    public function tertiaryOptions(TertiaryInstitutionOptionListRequest $request)
+    {
+        try {
+            $paginator = $this->institutionService->tertiaryOptions($request->validated());
+
+            return JsonResponser::send(false, 'Tertiary institutions retrieved.', $this->paginatedPayload($paginator, TertiaryInstitutionOptionResource::class));
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@tertiaryOptions');
+        }
+    }
+
     public function overview(DateRangeStatsRequest $request)
     {
         try {
@@ -68,7 +81,7 @@ class InstitutionController extends Controller
     public function show(string $uuid)
     {
         try {
-            $institution = $this->institutionService->findForAdmin($uuid);
+            $institution = $this->institutionService->showForAdmin($uuid);
 
             return JsonResponser::send(false, 'Institution retrieved.', InstitutionDetailResource::make($institution)->resolve());
         } catch (\Throwable $th) {

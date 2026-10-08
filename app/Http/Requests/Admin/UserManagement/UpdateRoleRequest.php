@@ -33,6 +33,9 @@ class UpdateRoleRequest extends ApiFormRequest
             ],
             'description' => ['sometimes', 'nullable', 'string', 'max:255'],
             'is_active' => ['sometimes', 'boolean'],
+            'reassign_to_role_id' => ['sometimes', 'nullable', 'string', 'uuid', Rule::exists('roles', 'uuid')->where(
+                fn ($query) => $query->where('guard_name', 'api')
+            )],
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => [
                 'string',

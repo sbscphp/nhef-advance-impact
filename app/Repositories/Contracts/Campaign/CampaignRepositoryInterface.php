@@ -43,5 +43,5 @@ interface CampaignRepositoryInterface
     public function countActive(): int;
 
     /** Count of active campaigns actually within their donation window right now. */
-    public function countOngoing(): int;
+    public function countOngoing(?string $type = null): int;
 }

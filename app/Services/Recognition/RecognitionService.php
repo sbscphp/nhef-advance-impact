@@ -33,7 +33,7 @@ class RecognitionService
             ->orderByDesc('total')
             ->paginate($perPage);
 
-        $tiers = $this->donorTierRepository->allOrderedByThreshold();
+        $tiers = $this->donorTierRepository->activeOrderedByThreshold();
         $users = User::query()
             ->whereIn('id', collect($paginator->items())->pluck('user_id'))
             ->get()
@@ -72,7 +72,7 @@ class RecognitionService
             ->where('currency', 'NGN')
             ->sum('amount');
 
-        $tiers = $this->donorTierRepository->allOrderedByThreshold();
+        $tiers = $this->donorTierRepository->activeOrderedByThreshold();
         $currentTier = $this->tierFor($tiers, $total);
         $nextTier = $tiers->first(fn ($tier) => (float) $tier->minimum_amount > (float) $total);
 

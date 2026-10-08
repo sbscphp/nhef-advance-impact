@@ -19,6 +19,12 @@ class Role extends SpatieRole
         ];
     }
 
+    /** Presentational only, derived from the UUID; no persisted code column. */
+    public function code(): string
+    {
+        return 'NHF-RL-'.strtoupper(substr(str_replace('-', '', $this->uuid), 0, 4));
+    }
+
     /**
      * @return MorphToMany<Admin, $this>
      */

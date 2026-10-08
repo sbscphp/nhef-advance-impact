@@ -2,6 +2,9 @@
 
 namespace App\Enums;
 
+use App\Models\Institution;
+use App\Support\ViewerVisibility;
+
 enum ReportDatasetEnum: string
 {
     case ALUMNI = 'alumni';
@@ -27,6 +30,7 @@ enum ReportDatasetEnum: string
     case RESEARCH_OBJECTIVE = 'research_objective';
     case RESEARCH_MILESTONE = 'research_milestone';
     case RESEARCH_DELIVERABLE = 'research_deliverable';
+    case INSTITUTION = 'institution';
 
     public function label(): string
     {
@@ -54,6 +58,7 @@ enum ReportDatasetEnum: string
             self::RESEARCH_OBJECTIVE => 'Research Objective',
             self::RESEARCH_MILESTONE => 'Research Milestone',
             self::RESEARCH_DELIVERABLE => 'Research Deliverable',
+            self::INSTITUTION => 'Institution',
         };
     }
 
@@ -83,6 +88,7 @@ enum ReportDatasetEnum: string
             self::RESEARCH_OBJECTIVE => 'Objectives raised against tracked research initiatives.',
             self::RESEARCH_MILESTONE => 'Milestones raised against tracked research initiatives.',
             self::RESEARCH_DELIVERABLE => 'Deliverables raised against tracked research initiatives.',
+            self::INSTITUTION => 'Partner universities and their aggregated metrics.',
         };
     }
 
@@ -103,8 +109,51 @@ enum ReportDatasetEnum: string
             self::CAMPAIGN, self::MENTORSHIP, self::NETWORKING, self::EVENT_WAITLIST,
             self::PROJECT, self::PROJECT_MILESTONE, self::PROJECT_DELIVERABLE, self::PROJECT_BUDGET_LINE,
             self::PROJECT_EXPENDITURE, self::PROJECT_IMPACT_REPORT, self::PROJECT_RISK, self::PROJECT_BROADCAST,
-            self::RESEARCH, self::RESEARCH_OBJECTIVE, self::RESEARCH_MILESTONE, self::RESEARCH_DELIVERABLE => null,
+            self::RESEARCH, self::RESEARCH_OBJECTIVE, self::RESEARCH_MILESTONE, self::RESEARCH_DELIVERABLE,
+            self::INSTITUTION => null,
         };
+    }
+
+    /** Institution admins only ever see their own institution, so this dataset is NHEF-only. */
+    private function landlordOnly(): bool
+    {
+        return $this === self::INSTITUTION;
+    }
+
+    /** Rows are individual people (alumni, donors, attendees, mentors), so viewers limited to summaries cannot use them. */
+    private function individualLevel(): bool
+    {
+        return in_array($this, [
+            self::ALUMNI,
+            self::DONATION,
+            self::PLEDGE,
+            self::EVENT,
+            self::EVENT_WAITLIST,
+            self::PROSPECT,
+            self::MENTORSHIP,
+        ], true);
+    }
+
+    public function availableToViewer(): bool
+    {
+        if ($this->landlordOnly() && Institution::checkCurrent()) {
+            return false;
+        }
+
+        return ! $this->individualLevel() || ViewerVisibility::canSeeIndividualRecords();
+    }
+
+    /**
+     * Dataset keys the current viewer cannot use, for filtering saved-report history.
+     *
+     * @return list<string>
+     */
+    public static function hiddenFromViewer(): array
+    {
+        return array_values(array_map(
+            fn (self $dataset): string => $dataset->value,
+            array_filter(self::cases(), fn (self $dataset): bool => ! $dataset->availableToViewer()),
+        ));
     }
 
     /** @return list<string> */

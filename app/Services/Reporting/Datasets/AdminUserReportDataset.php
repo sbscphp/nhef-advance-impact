@@ -23,6 +23,7 @@ class AdminUserReportDataset implements ReportDatasetInterface
             'Identity' => [
                 ['key' => 'name', 'label' => 'Name', 'type' => 'string'],
                 ['key' => 'email', 'label' => 'Email', 'type' => 'string'],
+                ['key' => 'job_title', 'label' => 'Job Title', 'type' => 'string'],
                 ['key' => 'roles', 'label' => 'Roles', 'type' => 'string'],
             ],
             'Access' => [
@@ -59,6 +60,7 @@ class AdminUserReportDataset implements ReportDatasetInterface
         $all = [
             'name' => $record->displayName(),
             'email' => $record->email,
+            'job_title' => $record->job_title,
             'roles' => $record->roles->pluck('name')->implode(', '),
             'is_active' => (bool) $record->is_active,
             'is_locked' => (bool) $record->is_locked,

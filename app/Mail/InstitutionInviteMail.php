@@ -10,7 +10,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-/** Notifies an institution's contact address that the institution has been added to the platform; see AdminInstitutionService::invite(). */
+/** Onboarding invite to an institution's contact address, with the link to create its admin credentials; see AdminInstitutionService::invite(). */
 class InstitutionInviteMail extends Mailable
 {
     use Queueable, SerializesModels;
@@ -19,6 +19,7 @@ class InstitutionInviteMail extends Mailable
         public readonly string $institutionName,
         public readonly Theme $mailTheme,
         public readonly ?string $inviteMessage = null,
+        public readonly ?string $setPasswordUrl = null,
     ) {}
 
     public function envelope(): Envelope
@@ -35,6 +36,7 @@ class InstitutionInviteMail extends Mailable
             with: [
                 'institutionName' => $this->institutionName,
                 'inviteMessage' => $this->inviteMessage,
+                'setPasswordUrl' => $this->setPasswordUrl,
                 'theme' => $this->mailTheme,
             ],
         );

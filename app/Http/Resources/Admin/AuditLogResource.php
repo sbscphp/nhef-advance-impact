@@ -2,10 +2,13 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Enums\AdminScopeEnum;
+use App\Enums\AuditActionEnum;
 use App\Enums\UserTypeEnum;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Str;
 
 /**
  * @mixin AuditLog
@@ -20,13 +23,24 @@ class AuditLogResource extends JsonResource
         return [
             'uuid' => $this->uuid,
             'user_type' => $this->user_type->value,
-            'action_module' => $this->action_module->value,
-            'action' => $this->action->value,
+            'action_module' => $this->getRawOriginal('action_module'),
+            'action' => $this->getRawOriginal('action'),
+            'actor' => $this->actorName(),
+            'action_verb' => $this->action instanceof AuditActionEnum ? $this->action->presentation()['verb'] : Str::headline((string) $this->action),
+            'action_tone' => $this->action instanceof AuditActionEnum ? $this->action->presentation()['tone'] : 'neutral',
+            'action_object' => $this->action instanceof AuditActionEnum ? $this->action->objectLabel() : '',
+            'action_label' => $this->action instanceof AuditActionEnum ? $this->action->humanised() : Str::headline((string) $this->action),
             'description' => $this->description,
             'ip_address' => $this->ip_address,
             'user_agent' => $this->user_agent,
             'http_outcome' => $this->httpOutcome(),
             'created_at' => $this->created_at,
+            'scope' => $this->user_type === UserTypeEnum::ADMIN ? ($this->institution_id === null ? AdminScopeEnum::NHEF : AdminScopeEnum::INSTITUTION)->value : null,
+            'created_at_label' => $this->created_at?->format('F j | h:i a'),
+            'institution' => $this->whenLoaded('institution', fn (): ?array => $this->institution === null ? null : [
+                'uuid' => $this->institution->uuid,
+                'name' => $this->institution->name,
+            ]),
             $this->mergeWhen(
                 $this->user_type === UserTypeEnum::CUSTOMER
                     && $this->relationLoaded('customerUser')
@@ -44,6 +58,19 @@ class AuditLogResource extends JsonResource
                 ]]
             ),
         ];
+    }
+
+    private function actorName(): ?string
+    {
+        if ($this->user_type === UserTypeEnum::ADMIN && $this->relationLoaded('adminUser')) {
+            return $this->adminUser?->name;
+        }
+
+        if ($this->user_type === UserTypeEnum::CUSTOMER && $this->relationLoaded('customerUser') && $this->customerUser !== null) {
+            return $this->customerSummary()['name'];
+        }
+
+        return null;
     }
 
     private function httpOutcome(): ?string

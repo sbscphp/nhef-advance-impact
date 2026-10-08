@@ -24,6 +24,11 @@ enum ePermission: string
     case CAMPAIGNS_UPDATE = 'campaigns.update';
     case CAMPAIGNS_DELETE = 'campaigns.delete';
 
+    // Finer-grained than campaigns.create: which campaign KIND an admin may create. Institution
+    // Admin holds both; NHEF (Super Admin, Admin) holds only the National Giving Day one.
+    case CAMPAIGNS_CREATE_STANDARD = 'campaigns.create_standard';
+    case CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY = 'campaigns.create_national_giving_day';
+
     case DONATIONS_CREATE = 'donations.create';
     case DONATIONS_READ = 'donations.read';
     case DONATIONS_UPDATE = 'donations.update';
@@ -76,10 +81,18 @@ enum ePermission: string
     case CUSTOM_FIELDS_UPDATE = 'custom_fields.update';
     case CUSTOM_FIELDS_DELETE = 'custom_fields.delete';
 
+    // Donation Tier Configuration only, NHEF-only.
     case SYSTEM_CONFIGURATION_CREATE = 'system_configuration.create';
     case SYSTEM_CONFIGURATION_READ = 'system_configuration.read';
     case SYSTEM_CONFIGURATION_UPDATE = 'system_configuration.update';
     case SYSTEM_CONFIGURATION_DELETE = 'system_configuration.delete';
+
+    // Constituency Type Configuration only, institution-admin-only. Kept separate from
+    // system_configuration.* (a different audience) so a role can hold one without the other.
+    case CONSTITUENCY_TYPES_CREATE = 'constituency_types.create';
+    case CONSTITUENCY_TYPES_READ = 'constituency_types.read';
+    case CONSTITUENCY_TYPES_UPDATE = 'constituency_types.update';
+    case CONSTITUENCY_TYPES_DELETE = 'constituency_types.delete';
 
     // Read-only; there is no create/update/delete for the audit trail itself.
     case AUDIT_TRAIL_READ = 'audit_trail.read';
@@ -95,6 +108,10 @@ enum ePermission: string
     case RESEARCH_READ = 'research.read';
     case RESEARCH_UPDATE = 'research.update';
     case RESEARCH_DELETE = 'research.delete';
+
+    // Data-visibility toggles rather than CRUD: institution-level money, and individual donor/alumni records.
+    case VISIBILITY_MONETARY = 'visibility.monetary';
+    case VISIBILITY_INDIVIDUAL_RECORDS = 'visibility.individual_records';
 
     public static function values(): array
     {

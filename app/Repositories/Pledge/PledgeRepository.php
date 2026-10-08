@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Pledge;
 
+use App\Enums\PledgeStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Pledge;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
@@ -120,5 +121,57 @@ class PledgeRepository implements PledgeRepositoryInterface
             'total_pledged' => (string) (clone $query)->sum('total_amount'),
             'total_fulfilled' => (string) (clone $query)->sum('amount_paid'),
         ];
+    }
+
+    public function totalCommittedByInstitutions(array $tertiaryInstitutionIds): array
+    {
+        if ($tertiaryInstitutionIds === []) {
+            return [];
+        }
+
+        return Pledge::query()
+            ->join('users', 'users.id', '=', 'pledges.user_id')
+            ->where('pledges.currency', 'NGN')
+            ->where('pledges.status', '!=', PledgeStatusEnum::CANCELLED->value)
+            ->whereIn('users.tertiary_institution_id', $tertiaryInstitutionIds)
+            ->groupBy('users.tertiary_institution_id')
+            ->selectRaw('users.tertiary_institution_id as institution_id, sum(pledges.total_amount) as total')
+            ->pluck('total', 'institution_id')
+            ->map(fn ($total) => (string) $total)
+            ->all();
+    }
+
+    public function totalsByCampaigns(array $campaignIds): array
+    {
+        if ($campaignIds === []) {
+            return [];
+        }
+
+        $rows = Pledge::query()
+            ->whereIn('campaign_id', $campaignIds)
+            ->where('status', '!=', PledgeStatusEnum::CANCELLED->value)
+            ->groupBy('campaign_id')
+            ->selectRaw('campaign_id, count(*) as pledges, sum(total_amount) as total')
+            ->get();
+
+        $totals = [];
+        foreach ($rows as $row) {
+            $totals[(int) $row->campaign_id] = ['count' => (int) $row->pledges, 'total' => (string) $row->total];
+        }
+
+        return $totals;
+    }
+
+    public function totalsForCampaignAndInstitution(int $campaignId, int $tertiaryInstitutionId): array
+    {
+        $row = Pledge::query()
+            ->join('users', 'users.id', '=', 'pledges.user_id')
+            ->where('pledges.campaign_id', $campaignId)
+            ->where('pledges.status', '!=', PledgeStatusEnum::CANCELLED->value)
+            ->where('users.tertiary_institution_id', $tertiaryInstitutionId)
+            ->selectRaw('count(*) as pledges, coalesce(sum(pledges.total_amount), 0) as total')
+            ->first();
+
+        return ['count' => (int) ($row->pledges ?? 0), 'total' => (string) ($row->total ?? '0')];
     }
 }

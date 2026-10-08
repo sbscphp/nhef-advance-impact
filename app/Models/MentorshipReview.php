@@ -2,13 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use App\Traits\HasUuid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MentorshipReview extends Model
 {
-    use HasUuid;
+    use BelongsToTenant, HasUuid;
+
+    public static function constrainToTenant(Builder $query, Institution $tenant): void
+    {
+        $query->whereIn('mentorship_reviews.mentorship_match_id', MentorshipMatch::query()->select('mentorship_matches.id'));
+    }
 
     protected $guarded = ['id', 'uuid'];
 

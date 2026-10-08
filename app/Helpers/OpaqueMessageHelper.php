@@ -52,6 +52,12 @@ final class OpaqueMessageHelper
     public const MESSAGE_OTP_COOLDOWN_ACTIVE = 'Please wait before requesting another verification code.';
 
     /**
+     * The OTP provider (mail/SMS) itself failed to send - not an opaque message, this is a real
+     * infrastructure failure after a legitimate send attempt, not an account-enumeration risk.
+     */
+    public const MESSAGE_OTP_SEND_FAILURE = 'Unable to send the verification code right now. Please try again shortly.';
+
+    /**
      * Seconds from now until $expiresAt (0 if already expired).
      */
     public static function secondsUntilExpiry(\DateTimeInterface|string $expiresAt): int

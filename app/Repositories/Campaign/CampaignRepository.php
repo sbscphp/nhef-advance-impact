@@ -5,6 +5,7 @@ namespace App\Repositories\Campaign;
 use App\Enums\CampaignStatusEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Campaign;
+use App\Models\Scopes\TenantScope;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -15,9 +16,14 @@ class CampaignRepository implements CampaignRepositoryInterface
     {
         $query = Campaign::query()
             ->active()
+            ->with('projects')
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
+            )
+            ->when(
+                filled($filters['filters']['type'] ?? null),
+                fn ($query) => $query->where('type', $filters['filters']['type'])
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
@@ -33,7 +39,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function paginateAdmin(array $filters, int $perPage): LengthAwarePaginator
     {
         $query = Campaign::query()
-            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator'])
+            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator', 'projects'])
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
@@ -60,6 +66,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function findActiveByUuid(string $uuid): ?Campaign
     {
         return Campaign::query()
+            ->with(['projects', 'allocatedAdmin'])
             ->where('status', CampaignStatusEnum::ACTIVE->value)
             ->where('uuid', $uuid)
             ->first();
@@ -68,7 +75,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function findByUuid(string $uuid): ?Campaign
     {
         return Campaign::query()
-            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator'])
+            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator', 'projects'])
             ->where('uuid', $uuid)
             ->first();
     }
@@ -80,9 +87,10 @@ class CampaignRepository implements CampaignRepositoryInterface
         return $campaign;
     }
 
+    /** Slugs are unique platform-wide, not per institution, so this ignores the tenant scope. */
     public function slugExists(string $slug): bool
     {
-        return Campaign::query()->where('slug', $slug)->exists();
+        return Campaign::query()->withoutGlobalScope(TenantScope::class)->where('slug', $slug)->exists();
     }
 
     public function create(array $data): Campaign
@@ -111,10 +119,12 @@ class CampaignRepository implements CampaignRepositoryInterface
         return Campaign::query()->active()->count();
     }
 
-    public function countOngoing(): int
+    public function countOngoing(?string $type = null): int
     {
         return Campaign::query()
             ->active()
+            ->when($type !== null, fn ($query) => $query->where('type', $type))
+            ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
             ->where(function ($query) {
                 $query->whereNull('ends_at')->orWhere('ends_at', '>=', now());
             })

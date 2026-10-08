@@ -13,6 +13,7 @@ use App\Models\Admin;
 use App\Models\CampaignInstitution;
 use App\Models\Institution;
 use App\Models\TertiaryInstitution;
+use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
@@ -23,6 +24,8 @@ use App\Repositories\Contracts\User\UserRepositoryInterface;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AdminInstitutionService
 {
@@ -34,6 +37,8 @@ class AdminInstitutionService
         private readonly DonationPaymentRepositoryInterface $donationPaymentRepository,
         private readonly PledgeRepositoryInterface $pledgeRepository,
         private readonly TertiaryInstitutionRepositoryInterface $tertiaryInstitutionRepository,
+        private readonly AdminRepositoryInterface $adminRepository,
+        private readonly InstitutionStatsLoader $statsLoader,
     ) {}
 
     /**
@@ -51,21 +56,30 @@ class AdminInstitutionService
             throw new ApiException('This institution has already been invited.', 422);
         }
 
-        if ($this->institutionRepository->emailExists((string) $payload['email'])) {
-            throw new ApiException('An institution with this email already exists.', 422);
+        $email = (string) $payload['email'];
+
+        if ($this->institutionRepository->emailExists($email) || $this->adminRepository->emailExists($email)) {
+            throw new ApiException('An institution or admin with this email already exists.', 422);
         }
 
-        $institution = $this->institutionRepository->create([
-            'name' => $tertiaryInstitution->name,
-            'tertiary_institution_id' => $tertiaryInstitution->id,
-            'email' => $payload['email'],
-            'phone_number' => $payload['phone_number'] ?? null,
-            'invite_message' => $payload['invite_message'] ?? null,
-            'status' => InstitutionStatusEnum::INVITE_SENT->value,
-            'is_active' => true,
-            'created_by' => $actor->uuid,
-            'invited_at' => now(),
-        ]);
+        $institution = DB::transaction(function () use ($payload, $tertiaryInstitution, $actor, $email): Institution {
+            $institution = $this->institutionRepository->create([
+                'name' => $tertiaryInstitution->name,
+                'slug' => $this->uniqueSlug($tertiaryInstitution->name),
+                'tertiary_institution_id' => $tertiaryInstitution->id,
+                'email' => $email,
+                'phone_number' => $payload['phone_number'] ?? null,
+                'invite_message' => $payload['invite_message'] ?? null,
+                'status' => InstitutionStatusEnum::INVITE_SENT->value,
+                'is_active' => true,
+                'created_by' => $actor->uuid,
+                'invited_at' => now(),
+            ]);
+
+            $this->adminRepository->createInstitutionOwner($institution, $institution->name, $email);
+
+            return $institution;
+        });
 
         // TODO: switch back to ::dispatch() (queued) once a worker is confirmed running in QA;
         // dispatchSync runs it inline so invite emails go out immediately without one.
@@ -88,6 +102,19 @@ class AdminInstitutionService
         return $institution;
     }
 
+    private function uniqueSlug(string $name): string
+    {
+        $base = Str::slug($name) ?: 'institution';
+        $slug = $base;
+        $suffix = 2;
+
+        while ($this->institutionRepository->slugExists($slug)) {
+            $slug = $base.'-'.$suffix++;
+        }
+
+        return $slug;
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      */
@@ -95,7 +122,36 @@ class AdminInstitutionService
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
-        return $this->institutionRepository->paginateForAdmin($filters, $perPage);
+        $paginator = $this->institutionRepository->paginateForAdmin($filters, $perPage);
+        $this->statsLoader->attach($paginator->items());
+
+        return $paginator;
+    }
+
+    /**
+     * Tertiary institutions the Super Admin can pick from when inviting, flagged when already invited.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function tertiaryOptions(array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $paginator = $this->tertiaryInstitutionRepository->paginate($filters, $perPage);
+
+        $linked = $this->institutionRepository->linkedTertiaryInstitutionIds(array_map(fn ($row) => $row->id, $paginator->items()));
+        foreach ($paginator->items() as $row) {
+            $row->setAttribute('already_invited', in_array($row->id, $linked, true));
+        }
+
+        return $paginator;
+    }
+
+    public function showForAdmin(string $uuid): Institution
+    {
+        $institution = $this->findForAdmin($uuid);
+        $this->statsLoader->attach([$institution]);
+
+        return $institution;
     }
 
     /**

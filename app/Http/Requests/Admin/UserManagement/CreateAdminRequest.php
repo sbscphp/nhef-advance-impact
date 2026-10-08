@@ -13,6 +13,7 @@ class CreateAdminRequest extends ApiFormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:admins,email'],
+            'job_title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'role_id' => [
                 'required',
                 'string',

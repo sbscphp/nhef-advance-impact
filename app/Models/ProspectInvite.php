@@ -2,14 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use App\Traits\HasUuid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProspectInvite extends Model
 {
-    use HasFactory, HasUuid;
+    use BelongsToTenant, HasFactory, HasUuid;
+
+    public static function constrainToTenant(Builder $query, Institution $tenant): void
+    {
+        $query->whereIn('prospect_invites.prospect_id', Prospect::query()->select('prospects.id'));
+    }
 
     protected $guarded = ['id', 'uuid'];
 
@@ -28,6 +35,6 @@ class ProspectInvite extends Model
 
     public function sender(): BelongsTo
     {
-        return $this->belongsTo(Admin::class, 'sent_by', 'uuid');
+        return $this->belongsTo(Admin::class, 'sent_by', 'uuid')->withTrashed();
     }
 }

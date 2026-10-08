@@ -25,6 +25,14 @@ interface EventRegistrationRepositoryInterface
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator;
 
     /**
+     * Completed registrations for one user, split by whether the registered-for event has
+     * already ended; feeds the constituent detail screen's Events tab overview.
+     *
+     * @return array{total: int, attended: int, upcoming: int}
+     */
+    public function overviewForUser(int $userId): array;
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function update(EventRegistration $registration, array $data): EventRegistration;
@@ -62,4 +70,22 @@ interface EventRegistrationRepositoryInterface
      * @return Collection<int, EventRegistration>
      */
     public function completedForEvent(Event $event): Collection;
+
+    /**
+     * Average completed registrations per already-ended event, for whichever events
+     * {@see Event}'s own tenant scope currently resolves to (all events for an
+     * NHEF-level caller, only this institution's own events for an institution admin); the
+     * "Average Attendance" figure on the dashboard's Event Intelligence panel.
+     */
+    public function averageAttendanceForAdmin(): string;
+
+    /**
+     * Daily count of completed registrations for the given events, split by whether that event
+     * has already ended; feeds the dashboard's Event Intelligence "Attendance Trend" chart.
+     *
+     * @param  list<int>  $completedEventIds
+     * @param  list<int>  $upcomingEventIds
+     * @return Collection<int, object{date: string, completed: int, upcoming: int}>
+     */
+    public function dailyAttendanceByCompletionStatus(array $completedEventIds, array $upcomingEventIds, CarbonInterface $start, CarbonInterface $end): Collection;
 }

@@ -10,6 +10,7 @@ use App\Services\Reporting\Datasets\CampaignReportDataset;
 use App\Services\Reporting\Datasets\DonationReportDataset;
 use App\Services\Reporting\Datasets\EventReportDataset;
 use App\Services\Reporting\Datasets\EventWaitlistReportDataset;
+use App\Services\Reporting\Datasets\InstitutionReportDataset;
 use App\Services\Reporting\Datasets\MailReportDataset;
 use App\Services\Reporting\Datasets\MentorshipReportDataset;
 use App\Services\Reporting\Datasets\NetworkingReportDataset;
@@ -59,11 +60,18 @@ class ReportDatasetResolver
         private readonly ResearchObjectiveReportDataset $researchObjectiveDataset,
         private readonly ResearchMilestoneReportDataset $researchMilestoneDataset,
         private readonly ResearchDeliverableReportDataset $researchDeliverableDataset,
+        private readonly InstitutionReportDataset $institutionDataset,
     ) {}
 
     public function make(string $dataset): ReportDatasetInterface
     {
-        return match (ReportDatasetEnum::tryFrom($dataset)) {
+        $enum = ReportDatasetEnum::tryFrom($dataset);
+
+        if ($enum !== null && ! $enum->availableToViewer()) {
+            throw new ApiException('You do not have access to this report dataset.', 403);
+        }
+
+        return match ($enum) {
             ReportDatasetEnum::ALUMNI => $this->alumniDataset,
             ReportDatasetEnum::DONATION => $this->donationDataset,
             ReportDatasetEnum::CAMPAIGN => $this->campaignDataset,
@@ -87,6 +95,7 @@ class ReportDatasetResolver
             ReportDatasetEnum::RESEARCH_OBJECTIVE => $this->researchObjectiveDataset,
             ReportDatasetEnum::RESEARCH_MILESTONE => $this->researchMilestoneDataset,
             ReportDatasetEnum::RESEARCH_DELIVERABLE => $this->researchDeliverableDataset,
+            ReportDatasetEnum::INSTITUTION => $this->institutionDataset,
             null => throw new ApiException("Unsupported report dataset: {$dataset}", 422),
         };
     }

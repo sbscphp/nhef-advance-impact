@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Admin\ConstituentManagement;
 
 use App\Models\Institution;
+use App\Support\ViewerVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,6 +19,7 @@ class InstitutionDetailResource extends JsonResource
             'uuid' => $this->uuid,
             'code' => $this->code(),
             'name' => $this->name,
+            'slug' => $this->slug,
             'tertiary_institution' => $this->whenLoaded('tertiaryInstitution', fn () => $this->tertiaryInstitution === null ? null : [
                 'uuid' => $this->tertiaryInstitution->uuid,
                 'name' => $this->tertiaryInstitution->name,
@@ -33,6 +35,8 @@ class InstitutionDetailResource extends JsonResource
             'date_added' => $this->created_at?->toIso8601String(),
             'date_onboarded' => $this->onboarded_at?->toIso8601String(),
             'invited_at' => $this->invited_at?->toIso8601String(),
+            ...$this->statsPayload(),
+            ...ViewerVisibility::money($this->moneyStatsPayload()),
         ];
     }
 }
