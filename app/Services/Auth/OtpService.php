@@ -11,9 +11,9 @@ use App\Mail\OTPMail;
 use App\Models\Admin;
 use App\Models\AuthChallenge;
 use App\Models\User;
-use App\Support\OtpFlowLogger;
 use App\Services\Theme\ThemeResolver;
 use App\Services\ThirdParty\SMS\SmsService;
+use App\Support\OtpFlowLogger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -208,7 +208,28 @@ class OtpService
             return [$otp, $challenge];
         });
 
-        $this->dispatchOtp($subject, $plainOtp, $purpose, $purposeLabel, $channel);
+        try {
+            $this->dispatchOtp($subject, $plainOtp, $purpose, $purposeLabel, $channel);
+        } catch (\Throwable $th) {
+            // The challenge row was already committed above; if dispatch fails, delete it rather
+            // than just marking it used. evaluateOtpSendGate() bases both the cooldown and the
+            // "reuse" decision on this row existing, so leaving it behind (even as used) would
+            // either silently resend the same never-delivered code (reuse) or make the next
+            // genuine retry wait out a cooldown for a send that never actually happened (blocked).
+            // Deleting it makes the next attempt behave exactly as if none was ever requested.
+            $challenge->delete();
+
+            Log::error('OTP dispatch failed', [
+                'purpose' => $purpose->value,
+                'channel' => $channel->value,
+                'subject_type' => $this->subjectType($subject),
+                'subject_id' => $subject->uuid,
+                'exception' => $th::class,
+                'message' => $th->getMessage(),
+            ]);
+
+            throw new ApiException(OpaqueMessageHelper::MESSAGE_OTP_SEND_FAILURE, 503);
+        }
 
         $expiresIn = max(1, $this->challengeSecondsRemaining($challenge) ?? $ttlSeconds);
         $issuedToken = $this->challengeTokenService->issue($challenge, $expiresIn);
