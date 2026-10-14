@@ -250,23 +250,29 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
         ]);
 
-        // Read-only evaluator: institution-level summaries, no money, no individual records, no audit
-        // trail, no events (2026-10-02: no Event Management screen for this role either, same as
-        // Super Admin). Reports.create is only the export/download action.
+        // Read-only evaluator. Reports.create is only the export/download action. 2026-10-14 FME
+        // dashboard review: this role now sees institution-level money (visibility.monetary) and
+        // the Live Activity feed (audit_trail.read). 2026-10-14 FME Constituents/Alumni/Partner
+        // Institutions screens: this role now also sees named individual constituent and alumni
+        // records (alumni.read, visibility.individual_records) - reverses the 22 Sep decision that
+        // FME never sees individual records under any circumstances; the new Figma screens show
+        // named rows directly, so per the client's own screens that rule no longer holds.
+        // 2026-10-14 FME Events/Mentorship screens: this role now also sees events.read and
+        // mentorship.read - reverses the 2026-10-02 "no Event Management screen for this role,
+        // same as Super Admin" decision, same reasoning (new screens win).
         $this->grant(RoleEnum::MINISTRY_OF_EDUCATION, [
             PermissionEnum::DASHBOARD_READ,
             PermissionEnum::CONSTITUENTS_READ,
+            PermissionEnum::ALUMNI_READ,
             PermissionEnum::CAMPAIGNS_READ,
+            PermissionEnum::EVENTS_READ,
+            PermissionEnum::MENTORSHIP_READ,
             PermissionEnum::REPORTS_READ,
             PermissionEnum::REPORTS_CREATE,
+            PermissionEnum::AUDIT_TRAIL_READ,
+            PermissionEnum::VISIBILITY_MONETARY,
+            PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
         ]);
-
-        // grant() only adds, never strips - revoke what a prior seeder run already granted.
-        Role::query()
-            ->where('name', RoleEnum::MINISTRY_OF_EDUCATION->value)
-            ->where('guard_name', self::GUARD)
-            ->first()
-            ?->revokePermissionTo(PermissionEnum::EVENTS_READ->value);
     }
 
     /**

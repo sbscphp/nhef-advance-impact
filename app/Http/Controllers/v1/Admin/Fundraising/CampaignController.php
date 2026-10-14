@@ -18,7 +18,6 @@ use App\Http\Requests\Admin\Campaigns\SyncCampaignInstitutionsRequest;
 use App\Http\Requests\Admin\Campaigns\UpdateCampaignInstitutionRequest;
 use App\Http\Requests\Admin\Campaigns\UpdateCampaignRequest;
 use App\Http\Requests\Admin\DateRangeStatsRequest;
-use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Http\Resources\Admin\CampaignAdminResource;
 use App\Http\Resources\Admin\CampaignDetailResource;
 use App\Http\Resources\Admin\CampaignDonationResource;
@@ -27,9 +26,9 @@ use App\Http\Resources\Admin\CampaignPledgeResource;
 use App\Models\Admin;
 use App\Models\Campaign;
 use App\Models\CampaignInstitution;
-use App\Support\Money;
 use App\Responser\JsonResponser;
 use App\Services\Fundraising\CampaignService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -300,6 +299,39 @@ class CampaignController extends Controller
             return JsonResponser::send(false, 'Campaign donor breakdown retrieved.', $breakdown);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@donorBreakdown');
+        }
+    }
+
+    public function givingVelocity(DateRangeStatsRequest $request, string $uuid)
+    {
+        try {
+            $velocity = $this->campaignService->givingVelocity($uuid, $request->validated());
+
+            return JsonResponser::send(false, 'Campaign giving velocity retrieved.', $velocity);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@givingVelocity');
+        }
+    }
+
+    public function geographyDistribution(DateRangeStatsRequest $request, string $uuid)
+    {
+        try {
+            $distribution = $this->campaignService->geographyDistribution($uuid, $request->validated());
+
+            return JsonResponser::send(false, 'Campaign geography distribution retrieved.', $distribution);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@geographyDistribution');
+        }
+    }
+
+    public function leaderboard(Request $request, string $uuid)
+    {
+        try {
+            $leaderboard = $this->campaignService->leaderboard($uuid, ['limit' => $request->query('limit')]);
+
+            return JsonResponser::send(false, 'Campaign leaderboard retrieved.', $leaderboard);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@leaderboard');
         }
     }
 

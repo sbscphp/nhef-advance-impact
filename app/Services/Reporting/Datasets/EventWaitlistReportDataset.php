@@ -26,8 +26,12 @@ class EventWaitlistReportDataset implements ReportDatasetInterface
             'Attendee' => [
                 ['key' => 'attendee_name', 'label' => 'Attendee Name', 'type' => 'string'],
                 ['key' => 'attendee_email', 'label' => 'Attendee Email', 'type' => 'string'],
+                ['key' => 'is_guest', 'label' => 'Guest', 'type' => 'boolean'],
+                ['key' => 'guest_phone', 'label' => 'Guest Phone', 'type' => 'string'],
             ],
             'Waitlist' => [
+                ['key' => 'waitlist_id', 'label' => 'Waitlist ID', 'type' => 'string'],
+                ['key' => 'ticket_requested', 'label' => 'Ticket Requested', 'type' => 'string'],
                 ['key' => 'quantity_requested', 'label' => 'Quantity Requested', 'type' => 'number'],
                 ['key' => 'position', 'label' => 'Position', 'type' => 'number'],
                 ['key' => 'projected_value', 'label' => 'Projected Value', 'type' => 'number'],
@@ -43,7 +47,7 @@ class EventWaitlistReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return EventWaitlistEntry::query()
-            ->with(['event', 'user'])
+            ->with(['event', 'user', 'ticketType'])
             ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
             ->when(filled($search), function ($query) use ($search): void {
@@ -64,6 +68,10 @@ class EventWaitlistReportDataset implements ReportDatasetInterface
             'event_title' => $record->event?->title,
             'attendee_name' => $record->attendeeName(),
             'attendee_email' => $record->attendeeEmail(),
+            'is_guest' => $record->isGuest(),
+            'guest_phone' => $record->guest_phone,
+            'waitlist_id' => 'WA-'.strtoupper(substr($record->uuid, 0, 6)),
+            'ticket_requested' => $record->relationLoaded('ticketType') ? $record->ticketType?->name : null,
             'quantity_requested' => $record->quantity_requested,
             'position' => $record->position,
             'projected_value' => (string) $record->projected_value,
@@ -77,7 +85,7 @@ class EventWaitlistReportDataset implements ReportDatasetInterface
 
     public function fieldableMorphClass(): string
     {
-        return (new EventWaitlistEntry())->getMorphClass();
+        return (new EventWaitlistEntry)->getMorphClass();
     }
 
     public function fieldableId(Model $record): int

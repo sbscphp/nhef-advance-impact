@@ -176,6 +176,13 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.read', 'individual.records']);
             Route::get('/{uuid}/donor-breakdown', [AdminCampaignController::class, 'donorBreakdown'])
                 ->middleware(['permission:campaigns.read']);
+            Route::get('/{uuid}/giving-velocity', [AdminCampaignController::class, 'givingVelocity'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/{uuid}/geography-distribution', [AdminCampaignController::class, 'geographyDistribution'])
+                ->middleware(['permission:campaigns.read']);
+            // Named donor rows, same visibility rule as donations/pledges above.
+            Route::get('/{uuid}/leaderboard', [AdminCampaignController::class, 'leaderboard'])
+                ->middleware(['permission:campaigns.read', 'individual.records']);
         });
 
         Route::prefix('events')->group(function () {

@@ -25,7 +25,7 @@ class CampaignAdminResource extends JsonResource
             'cover_image_url' => $this->cover_image_url,
             'type' => $this->type,
             'currency' => $this->currency,
-            ...$this->amountsPayload(),
+            ...$this->amountsPayload(withProgress: true),
             'status' => $this->status,
             ...$this->schedulePayload(),
             ...$this->projectsPayload(),

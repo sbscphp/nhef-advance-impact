@@ -19,6 +19,7 @@ use App\Models\Campaign;
 use App\Models\CampaignInstitution;
 use App\Models\CampaignProject;
 use App\Models\Institution;
+use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\BankAccount\BankAccountRepositoryInterface;
@@ -961,6 +962,79 @@ class CampaignService
     }
 
     /**
+     * Daily raised-amount series backing the "Giving Velocity" chart; defaults to the last 7
+     * days when no window is given, matching the chart's weekly view.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{period: ?string, start_date: string, end_date: string, series?: list<array{date: string, amount: string, amount_formatted: string}>}
+     */
+    public function givingVelocity(string $uuid, array $filters): array
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $window = ListingFilterRules::resolveDateWindow($filters);
+        $start = $window['start'] ?? now()->subDays(6)->startOfDay();
+        $end = $window['end'] ?? now()->endOfDay();
+
+        $rows = $this->paymentRepository->dailyTotalsForCampaign($campaign->id, $start, $end);
+
+        return [
+            'period' => $window['period'],
+            'start_date' => $start->toDateString(),
+            'end_date' => $end->toDateString(),
+            ...ViewerVisibility::money([
+                'series' => $rows->map(fn ($row): array => [
+                    'date' => (string) $row->date,
+                    'amount' => (string) $row->total,
+                    'amount_formatted' => Money::format($row->total, $campaign->currency),
+                ])->values()->all(),
+            ]),
+        ];
+    }
+
+    private const GEOGRAPHY_TOP_COUNTRIES = 5;
+
+    /**
+     * Country-percentage breakdown of one campaign's distinct donors, backing the "Geography
+     * Distribution" chart; countries beyond the top 5 collapse into "Others" so the chart stays
+     * readable. Donors with no resolvable country (neither residence nor operation) are excluded.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{period: ?string, start_date: ?string, end_date: ?string, breakdown: list<array{country: string, donors: int, percentage: float}>}
+     */
+    public function geographyDistribution(string $uuid, array $filters): array
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $window = ListingFilterRules::resolveDateWindow($filters);
+
+        $rows = $this->paymentRepository->geographyDistributionForCampaign(
+            $campaign->id,
+            $window['start']?->toDateString(),
+            $window['end']?->toDateString(),
+        );
+
+        $total = (int) $rows->sum('donors');
+        $others = (int) $rows->slice(self::GEOGRAPHY_TOP_COUNTRIES)->sum('donors');
+
+        $breakdown = $rows->take(self::GEOGRAPHY_TOP_COUNTRIES)->map(fn ($row): array => [
+            'country' => $row->country,
+            'donors' => (int) $row->donors,
+            'percentage' => $total > 0 ? round(((int) $row->donors / $total) * 100, 1) : 0.0,
+        ])->values()->all();
+
+        if ($others > 0) {
+            $breakdown[] = [
+                'country' => 'Others',
+                'donors' => $others,
+                'percentage' => $total > 0 ? round(($others / $total) * 100, 1) : 0.0,
+            ];
+        }
+
+        return array_merge(ListingFilterRules::periodMeta($filters), [
+            'breakdown' => $breakdown,
+        ]);
+    }
+
+    /**
      * Donor counts per recognition tier (BRD REC-01/REC-02). `$filters` only decides which
      * donors are counted (did they give within the window); each counted donor's tier is
      * still their lifetime, cross-campaign total, matching the Recognition Wall itself.
@@ -999,6 +1073,44 @@ class CampaignService
                 'donors' => $counts[$tier->name],
             ])->values()->all(),
         ]);
+    }
+
+    private const LEADERBOARD_DEFAULT_LIMIT = 10;
+
+    private const LEADERBOARD_MAX_LIMIT = 50;
+
+    /**
+     * Top donors to one campaign for its "Donor Recognition Wall" tab, ranked by what they gave
+     * to THIS campaign; tier badge reflects their lifetime cross-campaign giving, consistent with
+     * the tier shown everywhere else in the product (same rule as {@see self::donorBreakdown()}).
+     *
+     * @param  array<string, mixed>  $filters
+     * @return list<array{rank: int, donor_code: string, donor_name: string, avatar_url: ?string, tier: ?string}>
+     */
+    public function leaderboard(string $uuid, array $filters): array
+    {
+        $campaign = $this->findForAdmin($uuid);
+        $limit = max(1, min((int) ($filters['limit'] ?? self::LEADERBOARD_DEFAULT_LIMIT), self::LEADERBOARD_MAX_LIMIT));
+
+        $rows = $this->paymentRepository->topDonorsForCampaign($campaign->id, $limit);
+        $users = User::query()->whereIn('id', $rows->pluck('user_id'))->get()->keyBy('id');
+
+        return $rows->values()->map(function ($row, int $index) use ($users, $campaign): array {
+            $user = $users->get($row->user_id);
+            $lifetimeTotal = $this->paymentRepository->sumSuccessfulForUser((int) $row->user_id, null, null);
+
+            return [
+                'rank' => $index + 1,
+                'donor_code' => $user?->code() ?? '',
+                'donor_name' => $user?->displayName() ?? 'Donor',
+                'avatar_url' => $user?->profile_picture_url,
+                'tier' => $this->donorTierRepository->findForAmount($lifetimeTotal)?->name,
+                ...ViewerVisibility::money([
+                    'amount' => (string) $row->total,
+                    'amount_formatted' => Money::format($row->total, $campaign->currency),
+                ]),
+            ];
+        })->all();
     }
 
     private function uniqueSlug(string $title): string

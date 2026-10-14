@@ -18,6 +18,10 @@ class EventAdminResource extends JsonResource
             'uuid' => $this->uuid,
             'title' => $this->title,
             'slug' => $this->slug,
+            'institution' => $this->whenLoaded('institution', fn () => $this->institution === null ? null : [
+                'uuid' => $this->institution->uuid,
+                'name' => $this->institution->name,
+            ]),
             'cover_image_url' => $this->cover_image_url,
             'event_type' => $this->event_type,
             'venue_name' => $this->venue_name,

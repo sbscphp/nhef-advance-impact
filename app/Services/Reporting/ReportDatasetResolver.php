@@ -12,6 +12,8 @@ use App\Services\Reporting\Datasets\EventReportDataset;
 use App\Services\Reporting\Datasets\EventWaitlistReportDataset;
 use App\Services\Reporting\Datasets\InstitutionReportDataset;
 use App\Services\Reporting\Datasets\MailReportDataset;
+use App\Services\Reporting\Datasets\MenteeReportDataset;
+use App\Services\Reporting\Datasets\MentorReportDataset;
 use App\Services\Reporting\Datasets\MentorshipReportDataset;
 use App\Services\Reporting\Datasets\NetworkingReportDataset;
 use App\Services\Reporting\Datasets\PledgeReportDataset;
@@ -33,6 +35,8 @@ class ReportDatasetResolver
         private readonly ProspectReportDataset $prospectDataset,
         private readonly MailReportDataset $mailDataset,
         private readonly MentorshipReportDataset $mentorshipDataset,
+        private readonly MentorReportDataset $mentorDataset,
+        private readonly MenteeReportDataset $menteeDataset,
         private readonly NetworkingReportDataset $networkingDataset,
         private readonly AdminUserReportDataset $adminUserDataset,
         private readonly EventWaitlistReportDataset $eventWaitlistDataset,
@@ -56,6 +60,8 @@ class ReportDatasetResolver
             ReportDatasetEnum::PROSPECT => $this->prospectDataset,
             ReportDatasetEnum::MAIL => $this->mailDataset,
             ReportDatasetEnum::MENTORSHIP => $this->mentorshipDataset,
+            ReportDatasetEnum::MENTOR => $this->mentorDataset,
+            ReportDatasetEnum::MENTEE => $this->menteeDataset,
             ReportDatasetEnum::NETWORKING => $this->networkingDataset,
             ReportDatasetEnum::ADMIN_USER => $this->adminUserDataset,
             ReportDatasetEnum::EVENT_WAITLIST => $this->eventWaitlistDataset,

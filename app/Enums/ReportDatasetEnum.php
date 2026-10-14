@@ -2,6 +2,8 @@
 
 namespace App\Enums;
 
+use App\Helpers\PermissionModuleMapper;
+use App\Models\Admin;
 use App\Models\Institution;
 use App\Support\ViewerVisibility;
 
@@ -15,6 +17,8 @@ enum ReportDatasetEnum: string
     case PROSPECT = 'prospect';
     case MAIL = 'mail';
     case MENTORSHIP = 'mentorship';
+    case MENTOR = 'mentor';
+    case MENTEE = 'mentee';
     case NETWORKING = 'networking';
     case ADMIN_USER = 'admin_user';
     case EVENT_WAITLIST = 'event_waitlist';
@@ -31,6 +35,8 @@ enum ReportDatasetEnum: string
             self::PROSPECT => 'CRM Prospects',
             self::MAIL => 'Mail Campaigns',
             self::MENTORSHIP => 'Mentorship',
+            self::MENTOR => 'Mentors',
+            self::MENTEE => 'Mentees',
             self::NETWORKING => 'Networking',
             self::ADMIN_USER => 'Admin Users',
             self::EVENT_WAITLIST => 'Event Waitlist',
@@ -49,6 +55,8 @@ enum ReportDatasetEnum: string
             self::PROSPECT => 'Donor pipeline leads tracked by the CRM.',
             self::MAIL => 'Bulk email campaigns sent to constituents.',
             self::MENTORSHIP => 'Mentor/mentee matches and their review outcomes.',
+            self::MENTOR => 'Mentor directory: profiles, capacity, and their current mentees.',
+            self::MENTEE => 'Mentee directory: profiles and their matched mentor.',
             self::NETWORKING => 'Alumni networking channels and their activity.',
             self::ADMIN_USER => 'Admin/staff accounts and their access.',
             self::EVENT_WAITLIST => 'Attendees waitlisted once an event reached capacity.',
@@ -70,7 +78,31 @@ enum ReportDatasetEnum: string
             self::PROSPECT => ModuleEnums::crm->value,
             self::MAIL => ModuleEnums::communications->value,
             self::ADMIN_USER => ModuleEnums::user_management->value,
-            self::CAMPAIGN, self::MENTORSHIP, self::NETWORKING, self::EVENT_WAITLIST, self::INSTITUTION => null,
+            self::CAMPAIGN, self::MENTORSHIP, self::MENTOR, self::MENTEE, self::NETWORKING, self::EVENT_WAITLIST, self::INSTITUTION => null,
+        };
+    }
+
+    /**
+     * The ModuleEnums key this dataset's rows live under, for permission-scoping reports to
+     * whatever modules the viewer's own sidebar actually has. Covers every case (unlike
+     * {@see self::customFieldModule()}, which only answers the custom-field question).
+     */
+    public function module(): string
+    {
+        return match ($this) {
+            // Alumni report rows come from the same /constituents/individuals list gated by
+            // alumni.read (Institution Admin holds alumni.read but NOT constituents.read, so this
+            // must NOT share Institution's module key below).
+            self::ALUMNI => ModuleEnums::alumni->value,
+            self::INSTITUTION => ModuleEnums::constituent_management->value,
+            self::DONATION, self::PLEDGE => ModuleEnums::donation->value,
+            self::CAMPAIGN => ModuleEnums::fundraising->value,
+            self::EVENT, self::EVENT_WAITLIST => ModuleEnums::events->value,
+            self::PROSPECT => ModuleEnums::crm->value,
+            self::MAIL => ModuleEnums::communications->value,
+            self::MENTORSHIP, self::MENTOR, self::MENTEE => ModuleEnums::mentorship->value,
+            self::NETWORKING => ModuleEnums::networking->value,
+            self::ADMIN_USER => ModuleEnums::user_management->value,
         };
     }
 
@@ -91,6 +123,8 @@ enum ReportDatasetEnum: string
             self::EVENT_WAITLIST,
             self::PROSPECT,
             self::MENTORSHIP,
+            self::MENTOR,
+            self::MENTEE,
         ], true);
     }
 
@@ -100,7 +134,31 @@ enum ReportDatasetEnum: string
             return false;
         }
 
-        return ! $this->individualLevel() || ViewerVisibility::canSeeIndividualRecords();
+        if ($this->individualLevel() && ! ViewerVisibility::canSeeIndividualRecords()) {
+            return false;
+        }
+
+        return self::viewerHasModuleAccess($this->module());
+    }
+
+    /**
+     * Mirrors the same module-access gate used for Notifications and the Audit Trail: a dataset
+     * only shows up for an admin who holds at least one permission in that module. Anyone not an
+     * admin (customers, console jobs) is unrestricted, same as {@see ViewerVisibility}.
+     */
+    private static function viewerHasModuleAccess(string $module): bool
+    {
+        $actor = request()->user();
+
+        if (! $actor instanceof Admin) {
+            return true;
+        }
+
+        $restricted = PermissionModuleMapper::restrictedModuleKeys(
+            $actor->getAllPermissions()->pluck('name')->all()
+        );
+
+        return ! in_array($module, $restricted, true);
     }
 
     /**

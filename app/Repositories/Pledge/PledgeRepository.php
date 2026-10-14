@@ -29,6 +29,13 @@ class PledgeRepository implements PledgeRepositoryInterface
             ->first();
     }
 
+    public function countActive(): int
+    {
+        return Pledge::query()
+            ->whereNotIn('status', [PledgeStatusEnum::COMPLETED->value, PledgeStatusEnum::CANCELLED->value])
+            ->count();
+    }
+
     public function paginateForUser(int $userId, array $filters, int $perPage): LengthAwarePaginator
     {
         $query = Pledge::query()

@@ -12,6 +12,7 @@ use App\Helpers\GeneralHelper;
 use App\Jobs\SendConstituentInviteEmailJob;
 use App\Models\Admin;
 use App\Models\DonationPayment;
+use App\Models\DonorTier;
 use App\Models\Institution;
 use App\Models\Pledge;
 use App\Models\User;
@@ -128,11 +129,33 @@ class AdminConstituentService
     {
         $users = collect($users);
         $totals = $this->paymentRepository->totalsByUserIds($users->pluck('id')->all());
+        $tiers = $this->donorTierRepository->activeOrderedByThreshold();
 
         foreach ($users as $user) {
+            $total = $totals[$user->id]['total'] ?? '0';
             $user->setAttribute('donations_count', $totals[$user->id]['count'] ?? 0);
-            $user->setAttribute('total_donations', $totals[$user->id]['total'] ?? '0');
+            $user->setAttribute('total_donations', $total);
+            $user->setAttribute('tier', $this->tierNameForAmount($tiers, $total));
         }
+    }
+
+    /**
+     * The highest active tier whose minimum_amount the total meets - same rule as
+     * {@see DonorTierRepositoryInterface::findForAmount()}, but bucketed in memory against one
+     * shared tier list instead of a query per row, since this runs once per paginated page.
+     *
+     * @param  Collection<int, DonorTier>  $tiersAscending
+     */
+    private function tierNameForAmount(Collection $tiersAscending, string $amount): ?string
+    {
+        $matched = null;
+        foreach ($tiersAscending as $tier) {
+            if (bccomp($amount, (string) $tier->minimum_amount, 2) >= 0) {
+                $matched = $tier->name;
+            }
+        }
+
+        return $matched;
     }
 
     /**
@@ -163,18 +186,9 @@ class AdminConstituentService
     {
         $user = $this->findForAdmin($uuid);
         $user->loadMissing(['tertiaryInstitution', 'constituencyTypes']);
-        $user->setAttribute('tier', $this->resolveTierLabel($user));
         $this->attachDonationStats([$user]);
 
         return $user;
-    }
-
-    public function resolveTierLabel(User $user): ?string
-    {
-        $total = $this->paymentRepository->sumSuccessfulForUser($user->id, null, null);
-        $tier = $this->donorTierRepository->findForAmount($total);
-
-        return $tier?->name;
     }
 
     /**

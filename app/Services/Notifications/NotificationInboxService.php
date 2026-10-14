@@ -4,7 +4,9 @@ namespace App\Services\Notifications;
 
 use App\Enums\ModuleEnums;
 use App\Enums\NotificationCategoryEnum;
+use App\Helpers\PermissionModuleMapper;
 use App\Http\Requests\Concerns\ListingFilterRules;
+use App\Models\Admin;
 use App\Support\ViewerVisibility;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -184,8 +186,10 @@ class NotificationInboxService
     }
 
     /**
-     * The recipient's notifications, minus those from modules that name individual people when the
-     * viewer is limited to institution-level summaries.
+     * The recipient's notifications: minus those from modules that name individual people when the
+     * viewer is limited to institution-level summaries, and (for admins) minus any module the
+     * recipient holds no permission for at all, so a role with limited module access only sees
+     * notifications pertaining to it.
      *
      * @param  Model&object{notifications(): mixed}  $recipient
      */
@@ -197,6 +201,18 @@ class NotificationInboxService
             $query->where(fn (Builder|Relation $q) => $q
                 ->whereNotIn('data->module', ModuleEnums::individualLevelValues())
                 ->orWhereNull('data->module'));
+        }
+
+        if ($recipient instanceof Admin) {
+            $restricted = PermissionModuleMapper::restrictedModuleKeys(
+                $recipient->getAllPermissions()->pluck('name')->all()
+            );
+
+            if ($restricted !== []) {
+                $query->where(fn (Builder|Relation $q) => $q
+                    ->whereNotIn('data->module', $restricted)
+                    ->orWhereNull('data->module'));
+            }
         }
 
         return $query;

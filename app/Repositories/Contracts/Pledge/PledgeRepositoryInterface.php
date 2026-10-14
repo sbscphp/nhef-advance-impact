@@ -16,6 +16,9 @@ interface PledgeRepositoryInterface
 
     public function findByUuidForUser(int $userId, string $uuid): ?Pledge;
 
+    /** Pledges still in play: not completed, not cancelled. */
+    public function countActive(): int;
+
     /**
      * @param  array<string, mixed>  $filters
      */
