@@ -48,7 +48,7 @@ interface InstitutionRepositoryInterface
     public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator;
 
     /**
-     * @return array{all: int, active: int, access_revoked: int}
+     * @return array{all: int, invite_sent: int, active: int, on_hold: int, access_revoked: int, completed: int}
      */
     public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array;
 
