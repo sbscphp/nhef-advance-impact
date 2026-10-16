@@ -202,8 +202,9 @@ class RoleService
 
     /**
      * The "assign a role" picker: NHEF is offered its own system roles (never "Institution
-     * Admin" - NHEF staff are never assigned that role); an institution is offered the shared
-     * "Institution Admin" role plus whichever custom roles it has created for its own team.
+     * Admin" - NHEF staff are never assigned that role); an institution is offered only the
+     * custom roles it has created for its own team - never the shared "Institution Admin" role
+     * itself, which only a Super Admin may hand out.
      *
      * @return Collection<int, Role>
      */
@@ -214,9 +215,9 @@ class RoleService
             ->where('name', '!=', eRole::CUSTOMER->value);
 
         if (AdminScopeEnum::of($actor) === AdminScopeEnum::INSTITUTION) {
-            $query->where(fn (Builder $q) => $q
-                ->where('name', eRole::INSTITUTION_ADMIN->value)
-                ->orWhere('institution_id', $actor->institution_id));
+            // Only its own custom roles - "Institution Admin" itself is never assignable by an
+            // institution, only by a Super Admin, so it's deliberately left out of this picker.
+            $query->where('institution_id', $actor->institution_id);
         } else {
             AdminScopeEnum::NHEF->constrainRoles($query);
         }
@@ -434,7 +435,15 @@ class RoleService
             throw new ApiException('Choose a different, active role to reassign users to.', 422);
         }
 
-        if (! AdminScopeEnum::current()->allowsRole($target->name)) {
+        // Same split as AdminUserService::assertRoleAssignable(): allowsRole() alone would let an
+        // institution reassign its own admins onto the shared "Institution Admin" role (it "fits"
+        // their account type), which is exactly the self-escalation this whole feature closes -
+        // checked explicitly first, ahead of the general scope check.
+        if (AdminScopeEnum::current() === AdminScopeEnum::INSTITUTION && $target->name === eRole::INSTITUTION_ADMIN->value) {
+            throw new ApiException('The Institution Admin role can only be assigned by a Super Admin. Choose a custom role to reassign to instead.', 403);
+        }
+
+        if (! AdminScopeEnum::current()->allowsRole($target->name) && ! ($target->institution_id === $actor->institution_id)) {
             throw new ApiException('This role cannot be used as a reassignment target.', 422);
         }
 

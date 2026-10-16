@@ -390,12 +390,20 @@ class AdminUserService
     {
         $scope = AdminScopeEnum::current();
 
+        // Checked first, ahead of allowsRole(): that check answers "does this role fit an
+        // institution-scoped account" (yes - it's literally their own role), not "may this actor
+        // hand it to someone else" (no, full stop - only a Super Admin may). Separating the two
+        // keeps Admin::assertRolesFitScope() correct for institution onboarding, which still
+        // legitimately assigns this same role name to a brand-new institution's first admin.
+        if ($scope === AdminScopeEnum::INSTITUTION && $role->name === eRole::INSTITUTION_ADMIN->value) {
+            throw new ApiException('The Institution Admin role can only be assigned by a Super Admin. Create a custom role for your team instead.', 403);
+        }
+
         if ($scope->allowsRole($role->name)) {
             return;
         }
 
-        // An institution may also assign a custom role it created for its own team, not just the
-        // shared "Institution Admin" name covered by allowsRole() above.
+        // An institution may also assign a custom role it created for its own team.
         if ($scope === AdminScopeEnum::INSTITUTION && $role->institution_id === $actor->institution_id) {
             return;
         }
