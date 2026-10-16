@@ -2,6 +2,7 @@
 
 namespace App\Services\Recognition;
 
+use App\Enums\ConstituentTypeEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Models\DonationPayment;
 use App\Models\DonorTier;
@@ -48,6 +49,8 @@ class RecognitionService
                 'rank' => $startRank + $index,
                 'donor_name' => $user?->displayName() ?? 'Donor',
                 'avatar_url' => $user?->profile_picture_url,
+                'user_type' => $user?->constituent_type,
+                'user_type_label' => ConstituentTypeEnum::tryFrom((string) $user?->constituent_type)?->label(),
                 'tier' => $this->tierFor($tiers, (string) $row->total)?->name,
                 'total' => (string) $row->total,
             ];
