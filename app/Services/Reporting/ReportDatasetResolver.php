@@ -9,9 +9,7 @@ use App\Services\Reporting\Datasets\AlumniReportDataset;
 use App\Services\Reporting\Datasets\CampaignReportDataset;
 use App\Services\Reporting\Datasets\DonationReportDataset;
 use App\Services\Reporting\Datasets\EventReportDataset;
-use App\Services\Reporting\Datasets\EventWaitlistReportDataset;
 use App\Services\Reporting\Datasets\InstitutionReportDataset;
-use App\Services\Reporting\Datasets\MailReportDataset;
 use App\Services\Reporting\Datasets\MenteeReportDataset;
 use App\Services\Reporting\Datasets\MentorReportDataset;
 use App\Services\Reporting\Datasets\MentorshipReportDataset;
@@ -33,13 +31,11 @@ class ReportDatasetResolver
         private readonly EventReportDataset $eventDataset,
         private readonly PledgeReportDataset $pledgeDataset,
         private readonly ProspectReportDataset $prospectDataset,
-        private readonly MailReportDataset $mailDataset,
         private readonly MentorshipReportDataset $mentorshipDataset,
         private readonly MentorReportDataset $mentorDataset,
         private readonly MenteeReportDataset $menteeDataset,
         private readonly NetworkingReportDataset $networkingDataset,
         private readonly AdminUserReportDataset $adminUserDataset,
-        private readonly EventWaitlistReportDataset $eventWaitlistDataset,
         private readonly InstitutionReportDataset $institutionDataset,
     ) {}
 
@@ -58,13 +54,11 @@ class ReportDatasetResolver
             ReportDatasetEnum::EVENT => $this->eventDataset,
             ReportDatasetEnum::PLEDGE => $this->pledgeDataset,
             ReportDatasetEnum::PROSPECT => $this->prospectDataset,
-            ReportDatasetEnum::MAIL => $this->mailDataset,
             ReportDatasetEnum::MENTORSHIP => $this->mentorshipDataset,
             ReportDatasetEnum::MENTOR => $this->mentorDataset,
             ReportDatasetEnum::MENTEE => $this->menteeDataset,
             ReportDatasetEnum::NETWORKING => $this->networkingDataset,
             ReportDatasetEnum::ADMIN_USER => $this->adminUserDataset,
-            ReportDatasetEnum::EVENT_WAITLIST => $this->eventWaitlistDataset,
             ReportDatasetEnum::INSTITUTION => $this->institutionDataset,
             null => throw new ApiException("Unsupported report dataset: {$dataset}", 422),
         };

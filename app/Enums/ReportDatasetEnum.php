@@ -15,13 +15,11 @@ enum ReportDatasetEnum: string
     case EVENT = 'event';
     case PLEDGE = 'pledge';
     case PROSPECT = 'prospect';
-    case MAIL = 'mail';
     case MENTORSHIP = 'mentorship';
     case MENTOR = 'mentor';
     case MENTEE = 'mentee';
     case NETWORKING = 'networking';
     case ADMIN_USER = 'admin_user';
-    case EVENT_WAITLIST = 'event_waitlist';
     case INSTITUTION = 'institution';
 
     public function label(): string
@@ -33,13 +31,11 @@ enum ReportDatasetEnum: string
             self::EVENT => 'Event',
             self::PLEDGE => 'Pledges',
             self::PROSPECT => 'CRM Prospects',
-            self::MAIL => 'Mail Campaigns',
             self::MENTORSHIP => 'Mentorship',
             self::MENTOR => 'Mentors',
             self::MENTEE => 'Mentees',
             self::NETWORKING => 'Networking',
             self::ADMIN_USER => 'Admin Users',
-            self::EVENT_WAITLIST => 'Event Waitlist',
             self::INSTITUTION => 'Institution',
         };
     }
@@ -53,21 +49,18 @@ enum ReportDatasetEnum: string
             self::EVENT => 'Event registrations across the system.',
             self::PLEDGE => 'Pledged commitments and their installment progress.',
             self::PROSPECT => 'Donor pipeline leads tracked by the CRM.',
-            self::MAIL => 'Bulk email campaigns sent to constituents.',
             self::MENTORSHIP => 'Mentor/mentee matches and their review outcomes.',
             self::MENTOR => 'Mentor directory: profiles, capacity, and their current mentees.',
             self::MENTEE => 'Mentee directory: profiles and their matched mentor.',
             self::NETWORKING => 'Alumni networking channels and their activity.',
             self::ADMIN_USER => 'Admin/staff accounts and their access.',
-            self::EVENT_WAITLIST => 'Attendees waitlisted once an event reached capacity.',
             self::INSTITUTION => 'Partner universities and their aggregated metrics.',
         };
     }
 
     /**
      * The custom-field applicable-module this dataset merges "Display in reports" fields from;
-     * null for datasets with no corresponding custom-field module, or where no value could ever
-     * be attached to this specific record type (Event Waitlist).
+     * null for datasets with no corresponding custom-field module.
      */
     public function customFieldModule(): ?string
     {
@@ -76,9 +69,8 @@ enum ReportDatasetEnum: string
             self::DONATION, self::PLEDGE => ModuleEnums::donation->value,
             self::EVENT => ModuleEnums::events->value,
             self::PROSPECT => ModuleEnums::crm->value,
-            self::MAIL => ModuleEnums::communications->value,
             self::ADMIN_USER => ModuleEnums::user_management->value,
-            self::CAMPAIGN, self::MENTORSHIP, self::MENTOR, self::MENTEE, self::NETWORKING, self::EVENT_WAITLIST, self::INSTITUTION => null,
+            self::CAMPAIGN, self::MENTORSHIP, self::MENTOR, self::MENTEE, self::NETWORKING, self::INSTITUTION => null,
         };
     }
 
@@ -97,9 +89,8 @@ enum ReportDatasetEnum: string
             self::INSTITUTION => ModuleEnums::constituent_management->value,
             self::DONATION, self::PLEDGE => ModuleEnums::donation->value,
             self::CAMPAIGN => ModuleEnums::fundraising->value,
-            self::EVENT, self::EVENT_WAITLIST => ModuleEnums::events->value,
+            self::EVENT => ModuleEnums::events->value,
             self::PROSPECT => ModuleEnums::crm->value,
-            self::MAIL => ModuleEnums::communications->value,
             self::MENTORSHIP, self::MENTOR, self::MENTEE => ModuleEnums::mentorship->value,
             self::NETWORKING => ModuleEnums::networking->value,
             self::ADMIN_USER => ModuleEnums::user_management->value,
@@ -120,7 +111,6 @@ enum ReportDatasetEnum: string
             self::DONATION,
             self::PLEDGE,
             self::EVENT,
-            self::EVENT_WAITLIST,
             self::PROSPECT,
             self::MENTORSHIP,
             self::MENTOR,
