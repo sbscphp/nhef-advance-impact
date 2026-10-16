@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasUuid;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Spatie\Permission\Models\Role as SpatieRole;
 
@@ -17,6 +18,12 @@ class Role extends SpatieRole
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    /** Null for a global/system role; set for a role an institution created for its own team. */
+    public function institution(): BelongsTo
+    {
+        return $this->belongsTo(Institution::class);
     }
 
     /** Presentational only, derived from the UUID; no persisted code column. */

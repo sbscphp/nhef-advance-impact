@@ -12,7 +12,6 @@ use App\Helpers\GeneralHelper;
 use App\Helpers\PermissionModuleMapper;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Admin;
-use App\Models\Institution;
 use App\Models\Role;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -29,14 +28,21 @@ class RoleService
      */
     public function create(array $payload, Admin $actor, Request $request): Role
     {
+        $permissions = $payload['permissions'] ?? null;
+        if (is_array($permissions)) {
+            $this->assertPermissionsWithinActorGrant($permissions, $actor);
+        }
+
         $role = Role::query()->create([
             'name' => (string) $payload['name'],
             'guard_name' => 'api',
+            // An institution's own role is theirs alone; NHEF never creates institution-owned
+            // roles (they only hand out the shared system roles).
+            'institution_id' => AdminScopeEnum::of($actor) === AdminScopeEnum::INSTITUTION ? $actor->institution_id : null,
             'description' => $payload['description'] ?? null,
             'is_active' => (bool) ($payload['is_active'] ?? true),
         ]);
 
-        $permissions = $payload['permissions'] ?? null;
         if (is_array($permissions)) {
             $role->syncPermissions($permissions);
         }
@@ -67,11 +73,12 @@ class RoleService
      * @param  array<string, mixed>  $validated
      * @return array{total:int,active:int,inactive:int}
      */
-    public function stats(array $validated): array
+    public function stats(array $validated, Admin $actor): array
     {
         $query = Role::query()
             ->where('guard_name', 'api')
             ->where('name', '!=', eRole::CUSTOMER->value);
+        $this->applyViewScope($query, $actor);
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         return array_merge(ListingFilterRules::periodMeta($validated), [
@@ -84,20 +91,20 @@ class RoleService
     /**
      * @param  array<string, mixed>  $validated
      */
-    public function list(array $validated): LengthAwarePaginator
+    public function list(array $validated, Admin $actor): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($validated['per_page'] ?? 15), 100));
 
-        return $this->baseListQuery($validated)->paginate($perPage);
+        return $this->baseListQuery($validated, $actor)->paginate($perPage);
     }
 
     /**
      * @param  array<string, mixed>  $validated
      * @return array{0: Collection<int, Role>, 1: bool}
      */
-    public function exportCollection(array $validated): array
+    public function exportCollection(array $validated, Admin $actor): array
     {
-        $query = $this->baseListQuery($validated);
+        $query = $this->baseListQuery($validated, $actor);
         $total = (clone $query)->count();
         $truncated = $total > self::MAX_EXPORT_ROWS;
         /** @var Collection<int, Role> $rows */
@@ -109,7 +116,7 @@ class RoleService
     /**
      * @param  array<string, mixed>  $validated
      */
-    private function baseListQuery(array $validated): Builder
+    private function baseListQuery(array $validated, Admin $actor): Builder
     {
         $sortBy = (string) ($validated['sort_by'] ?? 'updated_at');
         $sortDirection = strtolower((string) ($validated['sort_direction'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
@@ -118,6 +125,7 @@ class RoleService
             ->where('guard_name', 'api')
             ->where('name', '!=', eRole::CUSTOMER->value)
             ->withCount('admins as users_count');
+        $this->applyViewScope($query, $actor);
         ListingFilterRules::applyResolvedDateRange($query, $validated, 'created_at');
 
         $search = trim((string) ($validated['search'] ?? ''));
@@ -143,22 +151,26 @@ class RoleService
         return $query->orderBy($sortBy, $sortDirection);
     }
 
-    public function findRole(string $roleId): Role
+    public function findRole(string $roleId, Admin $actor): Role
     {
-        return $this->resolveRole($roleId);
+        $role = $this->resolveRole($roleId);
+        $this->assertCanView($role, $actor);
+
+        return $role;
     }
 
     /**
      * @return Collection<int, Role>
      */
-    public function listWithPermissions(): Collection
+    public function listWithPermissions(Admin $actor): Collection
     {
-        return Role::query()
+        $query = Role::query()
             ->where('guard_name', 'api')
             ->where('name', '!=', eRole::CUSTOMER->value)
-            ->with('permissions:id,name')
-            ->orderBy('name')
-            ->get();
+            ->with('permissions:id,name');
+        $this->applyViewScope($query, $actor);
+
+        return $query->orderBy('name')->get();
     }
 
     /**
@@ -189,15 +201,25 @@ class RoleService
     }
 
     /**
+     * The "assign a role" picker: NHEF is offered its own system roles (never "Institution
+     * Admin" - NHEF staff are never assigned that role); an institution is offered the shared
+     * "Institution Admin" role plus whichever custom roles it has created for its own team.
+     *
      * @return Collection<int, Role>
      */
-    public function dropdown(string $status = 'active'): Collection
+    public function dropdown(string $status, Admin $actor): Collection
     {
         $query = Role::query()
             ->where('guard_name', 'api')
             ->where('name', '!=', eRole::CUSTOMER->value);
 
-        AdminScopeEnum::current()->constrainRoles($query);
+        if (AdminScopeEnum::of($actor) === AdminScopeEnum::INSTITUTION) {
+            $query->where(fn (Builder $q) => $q
+                ->where('name', eRole::INSTITUTION_ADMIN->value)
+                ->orWhere('institution_id', $actor->institution_id));
+        } else {
+            AdminScopeEnum::NHEF->constrainRoles($query);
+        }
 
         if ($status === 'active') {
             $query->where('is_active', true);
@@ -237,6 +259,7 @@ class RoleService
     public function update(string $roleId, array $payload, Admin $actor, Request $request): Role
     {
         $role = $this->resolveRole($roleId);
+        $this->assertCanManage($role, $actor);
         $role->loadMissing('permissions:id,name');
         $previous = [
             'name' => $role->name,
@@ -255,6 +278,10 @@ class RoleService
 
         if (is_array($permissions) && $role->name === eRole::SUPER_ADMIN->value) {
             throw new ApiException('The Super Admin permissions are fixed and cannot be edited.', 422);
+        }
+
+        if (is_array($permissions)) {
+            $this->assertPermissionsWithinActorGrant($permissions, $actor);
         }
 
         $deactivating = array_key_exists('is_active', $payload) && (bool) $role->is_active && ! (bool) $payload['is_active'];
@@ -320,6 +347,7 @@ class RoleService
     public function toggleActiveStatus(string $roleId, Admin $actor, Request $request, ?string $reassignRoleId = null): Role
     {
         $role = $this->resolveRole($roleId);
+        $this->assertCanManage($role, $actor);
         $previousStatus = (bool) $role->is_active;
         $isActive = ! $previousStatus;
         $reassigned = 0;
@@ -358,6 +386,7 @@ class RoleService
     public function delete(string $roleId, Admin $actor, Request $request, ?string $reassignRoleId = null): void
     {
         $role = $this->resolveRole($roleId);
+        $this->assertCanManage($role, $actor);
         $this->assertNotSystemRole($role, 'A system role cannot be deleted.');
 
         $reassigned = $this->reassignUsers($role, $reassignRoleId, 'deleted', $actor);
@@ -424,6 +453,70 @@ class RoleService
     {
         if (in_array($role->name, eRole::values(), true)) {
             throw new ApiException($message, 422);
+        }
+    }
+
+    /**
+     * NHEF sees every role, including every institution's custom ones (oversight). An
+     * institution sees only roles it created itself, plus the shared "Institution Admin"
+     * template (read-only reference - never returned to a management call, see
+     * {@see self::assertCanManage()}).
+     */
+    private function applyViewScope(Builder $query, Admin $actor): void
+    {
+        if (AdminScopeEnum::of($actor) !== AdminScopeEnum::INSTITUTION) {
+            return;
+        }
+
+        $query->where(fn (Builder $q) => $q
+            ->where('institution_id', $actor->institution_id)
+            ->orWhere('name', eRole::INSTITUTION_ADMIN->value));
+    }
+
+    private function assertCanView(Role $role, Admin $actor): void
+    {
+        if (AdminScopeEnum::of($actor) !== AdminScopeEnum::INSTITUTION) {
+            return;
+        }
+
+        if ($role->institution_id !== $actor->institution_id && $role->name !== eRole::INSTITUTION_ADMIN->value) {
+            throw new ApiException('You do not have access to this role.', 403);
+        }
+    }
+
+    /**
+     * Stricter than {@see self::assertCanView()}: an institution may only create, update,
+     * (de)activate or delete roles it created itself. The shared "Institution Admin" role (and
+     * every other system role) stays Super-Admin-only, full stop - preserved exactly as-is since
+     * it's shared across every institution, not owned by any one of them.
+     */
+    private function assertCanManage(Role $role, Admin $actor): void
+    {
+        if (AdminScopeEnum::of($actor) !== AdminScopeEnum::INSTITUTION) {
+            return;
+        }
+
+        if ($role->institution_id !== $actor->institution_id) {
+            throw new ApiException('You can only manage roles your own institution created.', 403);
+        }
+    }
+
+    /**
+     * Nobody may hand out a permission they do not themselves hold - applies to every actor, not
+     * just institution admins, since it is sound regardless of scope.
+     *
+     * @param  list<string>  $permissionNames
+     */
+    private function assertPermissionsWithinActorGrant(array $permissionNames, Admin $actor): void
+    {
+        $granted = $actor->getAllPermissions()->pluck('name')->all();
+        $disallowed = array_values(array_diff($permissionNames, $granted));
+
+        if ($disallowed !== []) {
+            throw new ApiException(
+                'You cannot grant permissions you do not hold: '.implode(', ', $disallowed),
+                403,
+            );
         }
     }
 

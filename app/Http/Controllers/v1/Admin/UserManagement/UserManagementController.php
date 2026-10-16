@@ -49,7 +49,9 @@ class UserManagementController extends Controller
     public function roleStats(DateRangeStatsRequest $request)
     {
         try {
-            return JsonResponser::send(false, 'Role stats retrieved.', $this->roleService->stats($request->validated()));
+            $admin = $this->requireAdmin($request);
+
+            return JsonResponser::send(false, 'Role stats retrieved.', $this->roleService->stats($request->validated(), $admin));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\UserManagement\UserManagementController@roleStats');
         }
@@ -70,13 +72,14 @@ class UserManagementController extends Controller
     public function roleList(RoleListRequest $request)
     {
         try {
+            $admin = $this->requireAdmin($request);
             $listing = $request->validated();
             $export = $listing['export'] ?? null;
 
             return match ($export) {
-                'csv' => $this->respondRoleCsv($listing),
-                'pdf' => $this->respondRolePdf($listing),
-                default => JsonResponser::send(false, 'Roles retrieved.', $this->paginatedPayload($this->roleService->list($listing), RoleListResource::class)),
+                'csv' => $this->respondRoleCsv($listing, $admin),
+                'pdf' => $this->respondRolePdf($listing, $admin),
+                default => JsonResponser::send(false, 'Roles retrieved.', $this->paginatedPayload($this->roleService->list($listing, $admin), RoleListResource::class)),
             };
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\UserManagement\UserManagementController@roleList');
@@ -99,10 +102,11 @@ class UserManagementController extends Controller
         }
     }
 
-    public function rolesWithPermissions()
+    public function rolesWithPermissions(Request $request)
     {
         try {
-            $roles = $this->roleService->listWithPermissions();
+            $admin = $this->requireAdmin($request);
+            $roles = $this->roleService->listWithPermissions($admin);
 
             return JsonResponser::send(
                 false,
@@ -123,10 +127,11 @@ class UserManagementController extends Controller
         }
     }
 
-    public function roleDropdown(?string $status = null)
+    public function roleDropdown(Request $request, ?string $status = null)
     {
         try {
-            $roles = $this->roleService->dropdown($status ?? 'active');
+            $admin = $this->requireAdmin($request);
+            $roles = $this->roleService->dropdown($status ?? 'active', $admin);
             $payload = $roles->map(fn ($role) => [
                 'role_id' => $role->uuid,
                 'name' => $role->name,
@@ -243,10 +248,11 @@ class UserManagementController extends Controller
         }
     }
 
-    public function viewRole(string $roleId)
+    public function viewRole(Request $request, string $roleId)
     {
         try {
-            $role = $this->roleService->findRole($roleId);
+            $admin = $this->requireAdmin($request);
+            $role = $this->roleService->findRole($roleId, $admin);
 
             return JsonResponser::send(false, 'Role retrieved.', RoleResource::make($role)->resolve());
         } catch (\Throwable $th) {
@@ -294,9 +300,9 @@ class UserManagementController extends Controller
     /**
      * @param  array<string, mixed>  $listing
      */
-    private function respondRoleCsv(array $listing): StreamedResponse
+    private function respondRoleCsv(array $listing, Admin $admin): StreamedResponse
     {
-        [$collection, $truncated] = $this->roleService->exportCollection($listing);
+        [$collection, $truncated] = $this->roleService->exportCollection($listing, $admin);
         $filename = 'roles-'.now()->format('Y-m-d-His').'.csv';
 
         return response()->streamDownload(function () use ($collection): void {
@@ -335,9 +341,9 @@ class UserManagementController extends Controller
     /**
      * @param  array<string, mixed>  $listing
      */
-    private function respondRolePdf(array $listing)
+    private function respondRolePdf(array $listing, Admin $admin)
     {
-        [$collection, $truncated] = $this->roleService->exportCollection($listing);
+        [$collection, $truncated] = $this->roleService->exportCollection($listing, $admin);
         $filename = 'roles-'.now()->format('Y-m-d-His').'.pdf';
         $periodStart = ! empty($listing['start_date']) ? (string) $listing['start_date'] : 'All dates';
         $periodEnd = ! empty($listing['end_date']) ? (string) $listing['end_date'] : 'All dates';

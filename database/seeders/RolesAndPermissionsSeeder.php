@@ -195,7 +195,14 @@ class RolesAndPermissionsSeeder extends Seeder
                 PermissionEnum::DONATIONS_DELETE->value,
             ]);
 
-        // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields, roles.
+        // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields.
+        // roles.* IS now granted (2026-10-16): an institution admin may create/manage custom
+        // roles for their own team. `RoleService` scopes this to rows where `institution_id`
+        // matches the actor's own institution - the shared "Institution Admin" template
+        // (institution_id null) stays visible for reference but is never editable/deletable by
+        // them, Super-Admin-only, same as every other global/system role. A custom role's
+        // permissions are also capped to a subset of the creating admin's own, enforced in
+        // RoleService::create()/update(), so nobody can hand out a permission they don't hold.
         // dashboard.read IS granted, but the NHEF-only dashboard cards (National Snapshot,
         // Active Campaign Tracking) branch on AdminScopeEnum internally (DashboardService), so this
         // only unlocks the institution-scoped shape of the shared endpoints, never the NHEF-wide
@@ -225,6 +232,10 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::ADMINS_CREATE,
             PermissionEnum::ADMINS_READ,
             PermissionEnum::ADMINS_UPDATE,
+            PermissionEnum::ROLES_CREATE,
+            PermissionEnum::ROLES_READ,
+            PermissionEnum::ROLES_UPDATE,
+            PermissionEnum::ROLES_DELETE,
             PermissionEnum::EVENTS_CREATE,
             PermissionEnum::EVENTS_READ,
             PermissionEnum::EVENTS_UPDATE,

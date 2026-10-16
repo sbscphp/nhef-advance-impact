@@ -36,7 +36,7 @@ class AdminUserService
             ->where('uuid', $roleUuid)
             ->firstOrFail();
 
-        $this->assertRoleAssignable($role);
+        $this->assertRoleAssignable($role, $actor);
 
         $frontendUrl = isset($payload['frontend_url']) && is_string($payload['frontend_url'])
             ? $payload['frontend_url']
@@ -253,7 +253,7 @@ class AdminUserService
                 ->where('guard_name', 'api')
                 ->where('uuid', (string) $roleUuid)
                 ->firstOrFail();
-            $this->assertRoleAssignable($role);
+            $this->assertRoleAssignable($role, $actor);
             if ($role->name !== $previousRoleName) {
                 $this->assertNotLastSuperAdmin($admin);
             }
@@ -386,11 +386,17 @@ class AdminUserService
         }
     }
 
-    private function assertRoleAssignable(Role $role): void
+    private function assertRoleAssignable(Role $role, Admin $actor): void
     {
         $scope = AdminScopeEnum::current();
 
         if ($scope->allowsRole($role->name)) {
+            return;
+        }
+
+        // An institution may also assign a custom role it created for its own team, not just the
+        // shared "Institution Admin" name covered by allowsRole() above.
+        if ($scope === AdminScopeEnum::INSTITUTION && $role->institution_id === $actor->institution_id) {
             return;
         }
 
