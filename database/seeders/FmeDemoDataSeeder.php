@@ -16,6 +16,7 @@ use App\Enums\NetworkingReactionEmojiEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Enums\PledgeFrequencyEnum;
 use App\Enums\PledgeStatusEnum;
+use App\Enums\SocialPlatformEnum;
 use App\Enums\UserTypeEnum;
 use App\Helpers\GeneralHelper;
 use App\Models\Admin;
@@ -246,9 +247,20 @@ class FmeDemoDataSeeder extends Seeder
         ];
         $tertiaryInstitution = $tertiaryInstitutionRepository->findOrCreateByName($canonicalNames[$name] ?? $name);
 
-        return Institution::firstOrCreate(
+        // updateOrCreate, not firstOrCreate: InstitutionSeeder (which runs first, in
+        // DatabaseSeeder's base list) already creates a bare row for every one of these names
+        // with only is_active/tertiary_institution_id set - firstOrCreate would silently no-op
+        // against that existing row and never apply status/slug/email/onboarded_at below.
+        return Institution::updateOrCreate(
             ['name' => $name],
-            ['is_active' => true, 'tertiary_institution_id' => $tertiaryInstitution->id, 'status' => 'active', 'onboarded_at' => now()->subMonths(rand(2, 8))]
+            [
+                'is_active' => true,
+                'tertiary_institution_id' => $tertiaryInstitution->id,
+                'status' => 'active',
+                'slug' => Str::slug($name),
+                'email' => 'admin-'.Str::slug($name).'@yopmail.com',
+                'onboarded_at' => now()->subMonths(rand(2, 8)),
+            ]
         );
     }
 
@@ -325,7 +337,9 @@ class FmeDemoDataSeeder extends Seeder
                 'email' => Str::lower(Str::slug($isOrg ? $organisationName : $firstname.' '.$lastname)).'.'.Str::random(6).'@example.test',
                 'phone_number' => $this->nigerianPhoneNumber(),
                 'constituent_type' => $type->value,
-                'tertiary_institution_id' => $type === ConstituentTypeEnum::ALUMNI ? $tertiaryInstitutionId : ($isOrg ? null : $tertiaryInstitutionId),
+                // Required for all three constituent types in the real registration flow
+                // (CustomerRegisterRequest: "Required across all three 'Sign Up as' flavours").
+                'tertiary_institution_id' => $tertiaryInstitutionId,
                 'department' => $type !== ConstituentTypeEnum::ORGANIZATION ? $this->fakerName('randomElement', [['Computer Science', 'Economics', 'Law', 'Medicine', 'Mechanical Engineering', 'Mass Communication', 'Accounting', 'Political Science']]) : null,
                 'year_of_graduation' => $type === ConstituentTypeEnum::ALUMNI ? rand(1995, 2023) : null,
                 'degree_earned' => $type === ConstituentTypeEnum::ALUMNI ? $this->fakerName('randomElement', [['B.Sc', 'B.A', 'B.Eng', 'LLB', 'MBBS', 'M.Sc']]) : null,
@@ -716,12 +730,17 @@ class FmeDemoDataSeeder extends Seeder
                 'company' => $this->fakerName('company'),
                 'years_of_experience' => rand(5, 20),
                 'professional_summary' => 'Experienced professional eager to guide the next generation of alumni.',
+                'major_achievements' => 'Led cross-functional teams to deliver major projects on schedule and under budget.',
                 'expertise_tags' => ['Career growth', 'Leadership'],
                 'guidance_areas' => ['Career growth', 'Technical interviews'],
                 'max_capacity' => 5,
                 'available_days' => ['monday', 'wednesday'],
                 'frequency_of_interaction' => 'weekly',
                 'program_commitment' => 'six_months',
+                'socials' => [
+                    ['platform' => SocialPlatformEnum::LINKEDIN->value, 'value' => 'https://linkedin.com/in/'.Str::slug($user->displayName())],
+                ],
+                'portfolio_url' => 'https://'.Str::slug($user->displayName()).'.example.com',
             ], $this->request);
 
             $this->mentorshipService->approveMentorApplication(
@@ -749,6 +768,10 @@ class FmeDemoDataSeeder extends Seeder
                 'why_mentor_needed' => 'Seeking direction on career progression.',
                 'available_days' => ['monday', 'wednesday'],
                 'frequency_of_interaction' => 'weekly',
+                'socials' => [
+                    ['platform' => SocialPlatformEnum::LINKEDIN->value, 'value' => 'https://linkedin.com/in/'.Str::slug($user->displayName())],
+                ],
+                'portfolio_url' => 'https://'.Str::slug($user->displayName()).'.example.com',
             ], $this->request);
 
             $mentees[] = MenteeProfile::query()->where('user_id', $user->id)->first();
