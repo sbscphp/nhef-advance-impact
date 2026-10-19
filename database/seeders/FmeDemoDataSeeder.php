@@ -127,6 +127,13 @@ class FmeDemoDataSeeder extends Seeder
 
     public function run(): void
     {
+        // Mentorship approval (and anything else routed through NotificationDispatchService with
+        // sendMail: true) dispatches via Notification::sendNow(), synchronously, regardless of the
+        // queue connection - a real/misconfigured SMTP host can hang the whole seeder waiting on a
+        // dead socket. Demo data should never attempt a real network mail send, so redirect
+        // outbound mail to the log channel for the duration of this seeder only.
+        config(['mail.default' => 'log']);
+
         $this->campaignRepository = app(CampaignRepositoryInterface::class);
         $this->donationRepository = app(DonationRepositoryInterface::class);
         $this->paymentRepository = app(DonationPaymentRepositoryInterface::class);
