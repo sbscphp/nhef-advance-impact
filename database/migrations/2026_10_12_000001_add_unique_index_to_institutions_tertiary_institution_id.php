@@ -22,6 +22,15 @@ return new class extends Migration
 
     public function down(): void
     {
+        // The foreign key on this column (added in the earlier migration that created it via
+        // foreignId()) ends up relying on THIS unique index as its only supporting index once
+        // up() runs - MySQL doesn't keep the original plain index alongside it. Dropping the
+        // unique index directly fails with "needed in a foreign key constraint" (error 1553), so
+        // a plain index has to be added first, in its own statement, before the unique one goes.
+        Schema::table('institutions', function (Blueprint $table) {
+            $table->index('tertiary_institution_id');
+        });
+
         Schema::table('institutions', function (Blueprint $table) {
             $table->dropUnique(['tertiary_institution_id']);
         });
