@@ -262,9 +262,9 @@ class AdminEventService
      *
      * @return array{all: int, scheduled: int, ongoing: int, completed: int, archived: int}
      */
-    public function overview(?CarbonInterface $start, ?CarbonInterface $end): array
+    public function overview(): array
     {
-        return $this->eventRepository->countByStatusBuckets($start, $end);
+        return $this->eventRepository->countByStatusBuckets();
     }
 
     /**

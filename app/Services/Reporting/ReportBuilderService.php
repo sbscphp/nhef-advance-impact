@@ -168,6 +168,7 @@ class ReportBuilderService
             'name' => filled($payload['name'] ?? null) ? $payload['name'] : $datasetEnum->label().' Report - '.now()->format('M d, Y'),
             'dataset' => $payload['dataset'],
             'fields' => $this->visibleFieldKeys($payload['dataset'], $payload['fields']),
+            'search' => $payload['search'] ?? null,
             'period' => $payload['period'] ?? null,
             'start_date' => $start?->toDateString(),
             'end_date' => $end?->toDateString(),
@@ -206,7 +207,7 @@ class ReportBuilderService
         $dataset = $this->datasetResolver->make($report->dataset);
         [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($this->visibleFieldKeys($report->dataset, $report->fields));
 
-        $paginator = $dataset->query($report->start_date, $report->end_date, null)->paginate($perPage);
+        $paginator = $dataset->query($report->start_date, $report->end_date, $report->search)->paginate($perPage);
         $paginator->setCollection($this->mapRows($dataset, $paginator->getCollection(), $nativeKeys, $customDefinitions));
 
         return $paginator;
@@ -220,7 +221,7 @@ class ReportBuilderService
         $dataset = $this->datasetResolver->make($report->dataset);
         [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($this->visibleFieldKeys($report->dataset, $report->fields));
 
-        $query = $dataset->query($report->start_date, $report->end_date, null);
+        $query = $dataset->query($report->start_date, $report->end_date, $report->search);
         $truncated = (clone $query)->count() > self::MAX_EXPORT_ROWS;
         $records = $query->limit(self::MAX_EXPORT_ROWS)->get();
 

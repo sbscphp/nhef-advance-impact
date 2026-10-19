@@ -24,14 +24,14 @@ class CustomerSeeder extends Seeder
         $accounts = [
             [
                 'suffix' => '1',
-                'firstname' => 'Customer',
-                'lastname' => 'One',
+                'firstname' => 'Chidinma',
+                'lastname' => 'Okafor',
                 '2fa' => false,
             ],
             [
                 'suffix' => '2',
-                'firstname' => 'Customer',
-                'lastname' => 'Two',
+                'firstname' => 'Tunde',
+                'lastname' => 'Bakare',
                 '2fa' => true,
             ],
         ];

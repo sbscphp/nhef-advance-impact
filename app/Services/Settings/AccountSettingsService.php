@@ -57,6 +57,8 @@ class AccountSettingsService
             'user_code' => $admin->code(),
             'name' => $admin->name,
             'job_title' => $admin->job_title,
+            'phone_number' => $admin->phone_number,
+            'country_code' => $admin->country_code,
             'profile_picture_url' => $admin->profile_picture_url,
             'email' => $admin->email,
             '2fa' => (bool) $admin->{'2fa'},
@@ -108,14 +110,36 @@ class AccountSettingsService
     /**
      * @return array<string, mixed>
      */
-    public function updateAdminProfile(Admin $admin, string $name, ?string $jobTitle = null, bool $updateJobTitle = false, mixed $profilePicture = null, bool $updatePicture = false): array
-    {
+    public function updateAdminProfile(
+        Admin $admin,
+        ?string $name = null,
+        bool $updateName = false,
+        ?string $jobTitle = null,
+        bool $updateJobTitle = false,
+        ?string $phoneNumber = null,
+        bool $updatePhoneNumber = false,
+        ?string $countryCode = null,
+        bool $updateCountryCode = false,
+        mixed $profilePicture = null,
+        bool $updatePicture = false,
+    ): array {
         $previousName = (string) $admin->name;
-        $newName = trim($name);
+        $updates = [];
 
-        $updates = ['name' => $newName];
+        if ($updateName) {
+            $updates['name'] = trim((string) $name);
+        }
+
         if ($updateJobTitle) {
             $updates['job_title'] = $jobTitle !== null && trim($jobTitle) !== '' ? trim($jobTitle) : null;
+        }
+
+        if ($updatePhoneNumber) {
+            $updates['phone_number'] = $phoneNumber !== null && trim($phoneNumber) !== '' ? trim($phoneNumber) : null;
+        }
+
+        if ($updateCountryCode) {
+            $updates['country_code'] = $countryCode !== null && trim($countryCode) !== '' ? trim($countryCode) : null;
         }
 
         if ($updatePicture) {
@@ -124,9 +148,12 @@ class AccountSettingsService
                 : FileUploadHelper::smartSingleFileUpload($profilePicture, 'avatars');
         }
 
-        $admin->forceFill($updates)->save();
+        if ($updates !== []) {
+            $admin->forceFill($updates)->save();
+        }
 
-        if ($previousName !== $newName) {
+        $newName = $updates['name'] ?? $previousName;
+        if ($updateName && $previousName !== $newName) {
             $this->sendAdminNameChangedNotification($admin, $previousName, $newName);
         }
 

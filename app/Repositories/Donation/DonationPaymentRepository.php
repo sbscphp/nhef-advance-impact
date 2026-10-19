@@ -531,15 +531,18 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
         return DonationPayment::query()
             ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
             ->join('users', 'users.id', '=', 'donation_payments.user_id')
-            ->join('countries', function (JoinClause $join): void {
+            // Left join: a donor with no resolvable country (common - see country_of_residence_id's
+            // registration-form restrictions) must still be counted, grouped under "Unknown", not
+            // silently dropped from the chart the way an inner join would drop them.
+            ->leftJoin('countries', function (JoinClause $join): void {
                 $join->on('countries.id', '=', DB::raw('coalesce(users.country_of_residence_id, users.country_of_operation_id)'));
             })
             ->where('donations.campaign_id', $campaignId)
             ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
             ->when($from !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '>=', $from))
             ->when($to !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '<=', $to))
-            ->groupBy('countries.name')
-            ->selectRaw('countries.name as country, count(distinct donation_payments.user_id) as donors')
+            ->groupByRaw("coalesce(countries.name, 'Unknown')")
+            ->selectRaw("coalesce(countries.name, 'Unknown') as country, count(distinct donation_payments.user_id) as donors")
             ->orderByDesc('donors')
             ->get();
     }

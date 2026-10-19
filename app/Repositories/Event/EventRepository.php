@@ -47,8 +47,21 @@ class EventRepository implements EventRepositoryInterface
         return $event;
     }
 
+    /**
+     * "Scheduled"/"ongoing"/"completed" are derived relative to now() (see
+     * {@see Event::scopeWhereDisplayStatus()}), so a `starts_at` date window from the caller would
+     * fight that derivation: e.g. a currently-ongoing event's starts_at is necessarily in the past,
+     * so a forward-looking window would wrongly exclude it from the "ongoing" filter, and a
+     * backward-looking one would wrongly exclude every "scheduled" (future) event. The date window
+     * still applies to literal, non-derived statuses (draft/cancelled/deactivated/archived) and to
+     * an unfiltered listing, where it legitimately narrows "events starting in this period".
+     */
+    private const NOW_RELATIVE_DISPLAY_STATUSES = ['scheduled', 'ongoing', 'completed'];
+
     public function paginateAdmin(array $filters, int $perPage): LengthAwarePaginator
     {
+        $status = $filters['filters']['status'] ?? null;
+
         $query = Event::query()
             ->with(['ticketTypes', 'institution'])
             ->when(
@@ -56,11 +69,13 @@ class EventRepository implements EventRepositoryInterface
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
             )
             ->when(
-                filled($filters['filters']['status'] ?? null),
-                fn ($query) => $query->whereDisplayStatus($filters['filters']['status'])
+                filled($status),
+                fn ($query) => $query->whereDisplayStatus($status)
             );
 
-        ListingFilterRules::applyResolvedDateRange($query, $filters, 'starts_at');
+        if (! in_array($status, self::NOW_RELATIVE_DISPLAY_STATUSES, true)) {
+            ListingFilterRules::applyResolvedDateRange($query, $filters, 'starts_at');
+        }
 
         ListingFilterRules::applySort($query, $filters, [
             'name' => fn ($query, string $direction) => $query->orderBy('title', $direction),
@@ -95,31 +110,27 @@ class EventRepository implements EventRepositoryInterface
     }
 
     /** "Ongoing"/"completed" are derived from starts_at/ends_at (see {@see Event::displayStatus()}), not stored columns. */
-    public function countByStatusBuckets(?CarbonInterface $start, ?CarbonInterface $end): array
+    public function countByStatusBuckets(): array
     {
-        $scoped = fn () => Event::query()
-            ->when($start !== null, fn ($query) => $query->where('starts_at', '>=', $start))
-            ->when($end !== null, fn ($query) => $query->where('starts_at', '<=', $end));
-
         $now = now();
 
         return [
-            'all' => (int) $scoped()->count(),
-            'scheduled' => (int) $scoped()
+            'all' => (int) Event::query()->count(),
+            'scheduled' => (int) Event::query()
                 ->where('status', EventStatusEnum::PUBLISHED->value)
                 ->where('starts_at', '>', $now)
                 ->count(),
-            'ongoing' => (int) $scoped()
+            'ongoing' => (int) Event::query()
                 ->where('status', EventStatusEnum::PUBLISHED->value)
                 ->where('starts_at', '<=', $now)
                 ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', $now))
                 ->count(),
-            'completed' => (int) $scoped()
+            'completed' => (int) Event::query()
                 ->where('status', EventStatusEnum::PUBLISHED->value)
                 ->whereNotNull('ends_at')
                 ->where('ends_at', '<', $now)
                 ->count(),
-            'archived' => (int) $scoped()->where('status', EventStatusEnum::ARCHIVED->value)->count(),
+            'archived' => (int) Event::query()->where('status', EventStatusEnum::ARCHIVED->value)->count(),
         ];
     }
 

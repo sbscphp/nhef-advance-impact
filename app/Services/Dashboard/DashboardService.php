@@ -118,7 +118,7 @@ class DashboardService
     {
         $types = $this->userRepository->countByConstituentType(null, null);
         $totalRaised = $this->paymentRepository->sumSuccessfulForAdmin(null, null);
-        $events = $this->eventRepository->countByStatusBuckets(null, null);
+        $events = $this->eventRepository->countByStatusBuckets();
 
         return [
             'alumni_count' => $types['alumni'],
@@ -209,7 +209,7 @@ class DashboardService
      */
     private function eventIntelligence(array $filters): array
     {
-        $events = $this->eventRepository->countByStatusBuckets(null, null);
+        $events = $this->eventRepository->countByStatusBuckets();
         $window = $this->resolveTrendWindow($filters);
 
         return [

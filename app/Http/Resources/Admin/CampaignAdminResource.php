@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Enums\CampaignTypeEnum;
 use App\Http\Resources\Concerns\PresentsCampaign;
 use App\Models\Campaign;
 use Illuminate\Http\Request;
@@ -43,6 +44,13 @@ class CampaignAdminResource extends JsonResource
             'institutions_count' => $this->when(array_key_exists('institutions_count', $this->resource->getAttributes()), fn () => (int) $this->institutions_count),
             // One per standard campaign, several for a National Giving Day campaign.
             'institutions' => $this->when(array_key_exists('institutions', $this->resource->getAttributes()), fn () => $this->institutions),
+            // Same data as `institutions`, exposed singular for a standard campaign (null for
+            // National Giving Day, which has none or several) so the "exactly one owner" case
+            // doesn't have to be inferred from array length.
+            'institution' => $this->when(
+                array_key_exists('institutions', $this->resource->getAttributes()),
+                fn () => $this->type === CampaignTypeEnum::STANDARD->value ? ($this->institutions[0] ?? null) : null
+            ),
             'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

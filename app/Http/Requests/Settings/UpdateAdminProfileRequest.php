@@ -13,8 +13,10 @@ class UpdateAdminProfileRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['sometimes', 'string', 'max:255'],
             'job_title' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'phone_number' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'country_code' => ['sometimes', 'nullable', 'string', 'max:10'],
             'profile_picture' => ['sometimes', 'nullable', $this->pictureRule()],
         ];
     }
@@ -41,12 +43,5 @@ class UpdateAdminProfileRequest extends ApiFormRequest
                 $fail('The profile picture must be an uploaded image, a URL, or a base64-encoded image.');
             }
         };
-    }
-
-    public function messages(): array
-    {
-        return array_merge(parent::messages(), [
-            'name.required' => 'Please enter your name.',
-        ]);
     }
 }

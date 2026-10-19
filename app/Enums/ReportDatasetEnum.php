@@ -27,8 +27,8 @@ enum ReportDatasetEnum: string
         return match ($this) {
             self::ALUMNI => 'Alumni',
             self::DONATION => 'Donations',
-            self::CAMPAIGN => 'Campaign',
-            self::EVENT => 'Event',
+            self::CAMPAIGN => 'Fundraising Campaigns',
+            self::EVENT => 'Events',
             self::PLEDGE => 'Pledges',
             self::PROSPECT => 'CRM Prospects',
             self::MENTORSHIP => 'Mentorship',
@@ -36,7 +36,7 @@ enum ReportDatasetEnum: string
             self::MENTEE => 'Mentees',
             self::NETWORKING => 'Networking',
             self::ADMIN_USER => 'Admin Users',
-            self::INSTITUTION => 'Institution',
+            self::INSTITUTION => 'Institutions',
         };
     }
 

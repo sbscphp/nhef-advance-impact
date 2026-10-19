@@ -8,7 +8,11 @@ use App\Enums\DonationFrequencyEnum;
 use App\Enums\DonationStatusEnum;
 use App\Enums\eRole;
 use App\Enums\EventRegistrationStatusEnum;
+use App\Enums\MentorshipMatchedByEnum;
+use App\Enums\MentorshipMatchStatusEnum;
 use App\Enums\ModuleEnums;
+use App\Enums\NetworkingChannelTypeEnum;
+use App\Enums\NetworkingReactionEmojiEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Enums\PledgeFrequencyEnum;
 use App\Enums\PledgeStatusEnum;
@@ -29,6 +33,10 @@ use App\Models\EventWaitlistEntry;
 use App\Models\Institution;
 use App\Models\MenteeProfile;
 use App\Models\MentorProfile;
+use App\Models\MentorshipMatch;
+use App\Models\MentorshipReview;
+use App\Models\NetworkingChannel;
+use App\Models\NetworkingMessage;
 use App\Models\Pledge;
 use App\Models\User;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
@@ -69,11 +77,23 @@ class FmeDemoDataSeeder extends Seeder
 
     private const PASSWORD = 'password';
 
-    /** @var list<string> */
+    /**
+     * Matches every institution InstitutionSeeder creates, so none are left as bare, zero-stat
+     * rows in the admin Partner Institutions table once this seeder runs.
+     *
+     * @var list<string>
+     */
     private const INSTITUTION_NAMES = [
         'University of Lagos',
         'University of Ibadan',
+        'University of Nigeria, Nsukka',
         'Ahmadu Bello University',
+        'Obafemi Awolowo University',
+        'University of Abuja',
+        'Covenant University',
+        'Lagos State University',
+        'University of Benin',
+        'Bayero University Kano',
     ];
 
     /** @var array<string, float> country_of_residence weighting; must sum to 1.0 */
@@ -151,15 +171,15 @@ class FmeDemoDataSeeder extends Seeder
             $bankAccount = $bankAccounts[$institutionId];
             $constituents = $constituentsByInstitution[$institutionId];
 
-            $this->command?->info("Seeding campaigns, events and mentorship for {$institution->name}...");
+            $this->command?->info("Seeding campaigns, events, mentorship and networking for {$institution->name}...");
 
             $institution->makeCurrent();
             $campaigns = $this->createStandardCampaigns($institution, $admin, $bankAccount);
             Institution::forgetCurrent();
             foreach ($campaigns as $campaign) {
                 $this->createDonationsForCampaign($campaign, $constituents, rand(10, 18));
+                $this->createPledgesForCampaign($campaign, $constituents, rand(3, 6));
             }
-            $this->createPledgesForCampaign($campaigns[0], $constituents, rand(3, 6));
 
             $events = $this->createEvents($institution, $admin);
             foreach ($events as $event) {
@@ -167,12 +187,14 @@ class FmeDemoDataSeeder extends Seeder
             }
 
             $this->createMentorshipActivity($constituents);
+            $this->createNetworkingActivity($institution, $constituents, $admin);
         }
 
         $this->command?->info('Seeding shared National Giving Day campaign...');
         $ngd = $this->createNationalGivingDayCampaign($institutions, $admins, $bankAccounts, $superAdmin);
         $allConstituents = collect($constituentsByInstitution)->flatten(1)->all();
         $this->createDonationsForCampaign($ngd, $allConstituents, 30, spreadDays: 21);
+        $this->createPledgesForCampaign($ngd, $allConstituents, rand(8, 14));
 
         $this->command?->info('Demo data seeding complete.');
     }
@@ -208,6 +230,12 @@ class FmeDemoDataSeeder extends Seeder
             'University of Lagos' => 'University of Lagos, Lagos',
             'University of Ibadan' => 'University of Ibadan, Ibadan',
             'Ahmadu Bello University' => 'Ahmadu Bello University, Zaria',
+            'Obafemi Awolowo University' => 'Obafemi Awolowo University, Ile-Ife',
+            'University of Abuja' => 'University of Abuja, Abuja',
+            'Covenant University' => 'Covenant University, Ota',
+            'Lagos State University' => 'Lagos State University, Ojo',
+            'University of Benin' => 'University of Benin, Benin City',
+            'Bayero University Kano' => 'Bayero University, Kano',
         ];
         $tertiaryInstitution = $tertiaryInstitutionRepository->findOrCreateByName($canonicalNames[$name] ?? $name);
 
@@ -275,11 +303,19 @@ class FmeDemoDataSeeder extends Seeder
             $createdAt = Carbon::now()->subDays(rand(14, 220));
             $isOrg = $type === ConstituentTypeEnum::ORGANIZATION;
 
+            $firstname = $isOrg ? null : $this->fakerName('firstName');
+            $lastname = $isOrg ? null : $this->fakerName('lastName');
+            $organisationName = $isOrg ? $this->fakerName('company') : null;
+
             $attributes = [
-                'firstname' => $isOrg ? null : $this->fakerName('firstName'),
-                'lastname' => $isOrg ? null : $this->fakerName('lastName'),
-                'organisation_name' => $isOrg ? $this->fakerName('company') : null,
-                'email' => $this->fakerName('unique.safeEmail'),
+                'firstname' => $firstname,
+                'lastname' => $lastname,
+                'organisation_name' => $organisationName,
+                // Not fakerName('unique.safeEmail'): Faker's uniqueness is per-process only, so it
+                // can collide with rows a previous run of this seeder already left in the
+                // database (the class docblock explicitly promises re-running it is safe). A
+                // random suffix guarantees uniqueness regardless of run count.
+                'email' => Str::lower(Str::slug($isOrg ? $organisationName : $firstname.' '.$lastname)).'.'.Str::random(6).'@example.test',
                 'phone_number' => $this->nigerianPhoneNumber(),
                 'constituent_type' => $type->value,
                 'tertiary_institution_id' => $type === ConstituentTypeEnum::ALUMNI ? $tertiaryInstitutionId : ($isOrg ? null : $tertiaryInstitutionId),
@@ -690,8 +726,12 @@ class FmeDemoDataSeeder extends Seeder
             $mentors[] = $mentor->fresh();
         }
 
+        $mentees = [];
         foreach ($menteeCandidates as $user) {
-            if (MenteeProfile::query()->where('user_id', $user->id)->exists()) {
+            $existing = MenteeProfile::query()->where('user_id', $user->id)->first();
+            if ($existing instanceof MenteeProfile) {
+                $mentees[] = $existing;
+
                 continue;
             }
 
@@ -703,6 +743,125 @@ class FmeDemoDataSeeder extends Seeder
                 'available_days' => ['monday', 'wednesday'],
                 'frequency_of_interaction' => 'weekly',
             ], $this->request);
+
+            $mentees[] = MenteeProfile::query()->where('user_id', $user->id)->first();
         }
+
+        if ($mentors === [] || $mentees === []) {
+            return;
+        }
+
+        $this->createMentorshipMatch($mentors[0], $mentees[0]);
+    }
+
+    private function createMentorshipMatch(MentorProfile $mentor, MenteeProfile $mentee): void
+    {
+        $match = MentorshipMatch::firstOrCreate(
+            ['mentor_profile_id' => $mentor->id, 'mentee_profile_id' => $mentee->id],
+            [
+                'status' => MentorshipMatchStatusEnum::COMPLETED->value,
+                'matched_by' => MentorshipMatchedByEnum::SYSTEM->value,
+                'matched_at' => Carbon::now()->subMonths(4),
+                'completed_at' => Carbon::now()->subDays(rand(1, 20)),
+            ]
+        );
+
+        MentorshipReview::firstOrCreate(
+            ['mentorship_match_id' => $match->id],
+            [
+                'quality_rating' => rand(4, 5),
+                'communication_rating' => rand(4, 5),
+                'responsiveness_rating' => rand(3, 5),
+                'professionalism_rating' => rand(4, 5),
+                'description' => 'Excellent mentor, very responsive and gave practical, actionable career advice.',
+            ]
+        );
+    }
+
+    /**
+     * A Forum and a Community channel per institution, with a handful of members and a short
+     * realistic exchange - so Networking isn't an entirely empty module once this seeder runs.
+     *
+     * @param  list<User>  $constituents
+     */
+    private function createNetworkingActivity(Institution $institution, array $constituents, Admin $admin): void
+    {
+        $members = array_slice($this->fakerShuffle($constituents), 0, min(6, count($constituents)));
+        if (count($members) < 2) {
+            return;
+        }
+
+        $forum = NetworkingChannel::firstOrCreate(
+            ['type' => NetworkingChannelTypeEnum::FORUM->value, 'name' => $institution->name.' Alumni Forum'],
+            [
+                'institution_id' => $institution->id,
+                'description' => 'Open discussion space for '.$institution->name.' alumni.',
+                'created_by_admin_id' => $admin->id,
+            ]
+        );
+
+        $community = NetworkingChannel::firstOrCreate(
+            ['type' => NetworkingChannelTypeEnum::COMMUNITY->value, 'name' => $institution->name.' Giving Circle'],
+            [
+                'institution_id' => $institution->id,
+                'description' => 'A space for '.$institution->name.' alumni to coordinate giving and mentorship.',
+                'created_by_admin_id' => $admin->id,
+            ]
+        );
+
+        foreach ([$forum, $community] as $channel) {
+            $joinRows = [];
+            foreach ($members as $member) {
+                $joinRows[$member->id] = ['joined_at' => Carbon::now()->subDays(rand(5, 60))];
+            }
+            $channel->members()->syncWithoutDetaching($joinRows);
+        }
+
+        [$first, $second] = [$members[0], $members[1]];
+        $direct = NetworkingChannel::query()
+            ->where('type', NetworkingChannelTypeEnum::DIRECT->value)
+            ->whereHas('members', fn ($q) => $q->where('users.id', $first->id))
+            ->whereHas('members', fn ($q) => $q->where('users.id', $second->id))
+            ->first();
+
+        if ($direct instanceof NetworkingChannel) {
+            return;
+        }
+
+        $direct = NetworkingChannel::create(['type' => NetworkingChannelTypeEnum::DIRECT->value, 'institution_id' => $institution->id]);
+        $direct->members()->attach([
+            $first->id => ['joined_at' => Carbon::now()->subDays(10)],
+            $second->id => ['joined_at' => Carbon::now()->subDays(10)],
+        ]);
+
+        $openers = [
+            "Hey, great seeing everyone at the last {$institution->name} event! Are you joining the next giving circle call?",
+            'Quick one, did you get a chance to look at the mentorship sign-up? I think a few more of us should apply.',
+        ];
+        $replies = [
+            'Yes, count me in! It was great reconnecting with everyone.',
+            "I did, I'll sign up this week. Thanks for the nudge!",
+        ];
+
+        $firstMessage = NetworkingMessage::create([
+            'channel_id' => $direct->id,
+            'sender_id' => $first->id,
+            'body' => $openers[array_rand($openers)],
+            'created_at' => Carbon::now()->subDays(2),
+        ]);
+
+        $secondMessage = NetworkingMessage::create([
+            'channel_id' => $direct->id,
+            'sender_id' => $second->id,
+            'body' => $replies[array_rand($replies)],
+            'created_at' => Carbon::now()->subHours(20),
+        ]);
+
+        $secondMessage->reactions()->create([
+            'user_id' => $first->id,
+            'emoji' => NetworkingReactionEmojiEnum::LOVE->value,
+        ]);
+
+        unset($firstMessage);
     }
 }

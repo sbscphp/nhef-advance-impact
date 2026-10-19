@@ -996,7 +996,8 @@ class CampaignService
     /**
      * Country-percentage breakdown of one campaign's distinct donors, backing the "Geography
      * Distribution" chart; countries beyond the top 5 collapse into "Others" so the chart stays
-     * readable. Donors with no resolvable country (neither residence nor operation) are excluded.
+     * readable. Donors with no resolvable country (neither residence nor operation) are grouped
+     * under "Unknown" rather than dropped, since most real donors currently have neither set.
      *
      * @param  array<string, mixed>  $filters
      * @return array{period: ?string, start_date: ?string, end_date: ?string, breakdown: list<array{country: string, donors: int, percentage: float}>}
