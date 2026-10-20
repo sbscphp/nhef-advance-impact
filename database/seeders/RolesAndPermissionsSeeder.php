@@ -89,8 +89,11 @@ class RolesAndPermissionsSeeder extends Seeder
         // menus only show what NHEF can actually use, and none of these can be silently toggled
         // back on for NHEF via Roles & Permissions. campaigns.create_standard and
         // constituency_types.* are excluded for the same reason (see their own grants below).
-        // events.* going away doesn't touch the Dashboard's "Event Tracking" widget, which is
-        // gated by dashboard.read alone, not events.read.
+        // dashboard.read alone (not events.read) is what gates the Dashboard's "Event Tracking"
+        // widget, so excluding events.* here never touched that widget either way.
+        // events.read is carved back out below (2026-10-20) for Super Admin only, so they can view
+        // the standalone Events module read-only; events.create/update/delete and Admin's own
+        // events.read stay excluded.
         $nhefExcluded = [
             PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
             PermissionEnum::CONSTITUENCY_TYPES_CREATE,
@@ -122,7 +125,6 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CRM_UPDATE,
             PermissionEnum::CRM_DELETE,
             PermissionEnum::EVENTS_CREATE,
-            PermissionEnum::EVENTS_READ,
             PermissionEnum::EVENTS_UPDATE,
             PermissionEnum::EVENTS_DELETE,
         ];
@@ -148,6 +150,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // shared with NHEF's plain "Admin" role - narrower than the existing
             // campaigns.create_national_giving_day, which both already hold.
             PermissionEnum::CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY,
+            // Super Admin only (2026-10-20, see the grant above) - Admin keeps the rest of
+            // events.* excluded via $nhefExcluded.
+            PermissionEnum::EVENTS_READ,
         ]));
 
         // One-time corrections (2026-09-30): `grant()`/givePermissionTo() only adds, never strips,
