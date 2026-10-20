@@ -129,13 +129,16 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::EVENTS_DELETE,
         ];
 
-        // Super Admin-only, not shared with Admin: the user explicitly wants NHEF's plain "Admin"
-        // role to keep individual-record visibility and the Donation module, only Super Admin is
-        // denied both (2026-10-02: Super Admin no longer needs donations.* at all, including the
-        // aggregate-only /donation/overview it was originally kept for).
+        // Super Admin-only, not shared with Admin: the Donation module itself stays off for both
+        // NHEF roles (2026-10-02: Super Admin no longer needs donations.* at all, including the
+        // aggregate-only /donation/overview it was originally kept for) - that decision is
+        // unrelated to individual-record visibility, which Super Admin now holds too (2026-10-20:
+        // previously revoked below along with donations.*, now carved back out so Super Admin can
+        // see individual-level records on every module whose base *.read permission they already
+        // hold - Constituents, Campaigns, Events, System Configuration; still has no effect on
+        // Donations, Alumni, Communications since Super Admin lacks *.read on those).
         $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [
             ...$nhefExcluded,
-            PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
             PermissionEnum::DONATIONS_CREATE,
             PermissionEnum::DONATIONS_READ,
             PermissionEnum::DONATIONS_UPDATE,
@@ -191,13 +194,13 @@ class RolesAndPermissionsSeeder extends Seeder
                 ?->revokePermissionTo(array_map(fn (PermissionEnum $permission): string => $permission->value, $nhefExcluded));
         }
 
-        // Super Admin only (see the grant above) - Admin keeps both of these.
+        // Donations only (see the grant above) - Admin keeps the Donation module. Individual-
+        // record visibility is no longer revoked here (2026-10-20) - see that grant's comment.
         Role::query()
             ->where('name', RoleEnum::SUPER_ADMIN->value)
             ->where('guard_name', self::GUARD)
             ->first()
             ?->revokePermissionTo([
-                PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS->value,
                 PermissionEnum::DONATIONS_CREATE->value,
                 PermissionEnum::DONATIONS_READ->value,
                 PermissionEnum::DONATIONS_UPDATE->value,
