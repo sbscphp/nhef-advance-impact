@@ -51,6 +51,12 @@ class CampaignAdminResource extends JsonResource
                 array_key_exists('institutions', $this->resource->getAttributes()),
                 fn () => $this->type === CampaignTypeEnum::STANDARD->value ? ($this->institutions[0] ?? null) : null
             ),
+            // Only ever set for a national_giving_day campaign (null for standard, and null for a
+            // pre-existing NGD campaign created before this concept existed).
+            'national_giving_day_opening' => $this->whenLoaded('nationalGivingDayOpening', fn () => $this->nationalGivingDayOpening === null ? null : [
+                'uuid' => $this->nationalGivingDayOpening->uuid,
+                'title' => $this->nationalGivingDayOpening->title,
+            ]),
             'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

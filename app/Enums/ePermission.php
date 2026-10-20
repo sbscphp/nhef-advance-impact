@@ -29,6 +29,10 @@ enum ePermission: string
     case CAMPAIGNS_CREATE_STANDARD = 'campaigns.create_standard';
     case CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY = 'campaigns.create_national_giving_day';
 
+    // Announcing the yearly National Giving Day opening (the shared date) is a distinct, narrower
+    // action from creating a campaign under it - Super Admin only, not even NHEF's plain "Admin".
+    case CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY = 'campaigns.announce_national_giving_day';
+
     case DONATIONS_CREATE = 'donations.create';
     case DONATIONS_READ = 'donations.read';
     case DONATIONS_UPDATE = 'donations.update';

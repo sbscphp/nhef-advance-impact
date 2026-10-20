@@ -51,8 +51,6 @@ class CreateCampaignRequest extends ApiFormRequest
             'type' => ['sometimes', Rule::in(CampaignTypeEnum::values())],
             'title' => ['required', 'string', 'max:255'],
             'assigned_admin_id' => ['required', 'uuid', 'exists:admins,uuid'],
-            'starts_at' => ['required', 'date'],
-            'ends_at' => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_at'],
             'description' => ['required', 'string'],
             'cover' => ['required', $this->campaignCoverRule()],
         ];
@@ -61,6 +59,8 @@ class CreateCampaignRequest extends ApiFormRequest
     private function standardRules(): array
     {
         return [
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_at'],
             'goal_amount' => ['required', 'numeric', 'min:0.01'],
             'currency' => ['required', Rule::in(CurrencyEnum::values())],
             'bank_account_id' => ['required', 'uuid', 'exists:bank_accounts,uuid'],
@@ -71,6 +71,9 @@ class CreateCampaignRequest extends ApiFormRequest
     private function nationalGivingDayRules(): array
     {
         return array_merge($this->projectAndTimerRules(), [
+            // starts_at/ends_at are NOT collected here - the campaign inherits them from the
+            // opening, see CampaignService::createNationalGivingDay()'s docblock.
+            'opening_uuid' => ['required', 'uuid', 'exists:national_giving_day_openings,uuid'],
             // Overrides projectAndTimerRules()'s optional 'projects': the campaign's target is the
             // sum of its projects' goals, so a National Giving Day campaign needs at least one.
             'projects' => ['required', 'array', 'min:1'],
@@ -87,6 +90,8 @@ class CreateCampaignRequest extends ApiFormRequest
         return array_merge(parent::messages(), $this->projectMessages(), [
             'assigned_admin_id.required' => 'Please select an officer to assign this campaign to.',
             'assigned_admin_id.exists' => 'The selected officer does not exist.',
+            'opening_uuid.required' => 'Please select which National Giving Day opening this campaign belongs to.',
+            'opening_uuid.exists' => 'The selected National Giving Day opening does not exist.',
             'bank_account_id.required' => 'Please select or add a bank account for remittance.',
             'bank_account_id.exists' => 'The selected bank account does not exist.',
             'projects.required' => 'Please add at least one project.',

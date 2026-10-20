@@ -74,6 +74,12 @@ class Campaign extends Model
         return $this->belongsTo(BankAccount::class);
     }
 
+    /** Only set for a national_giving_day campaign; null for standard and for pre-existing NGD campaigns. */
+    public function nationalGivingDayOpening(): BelongsTo
+    {
+        return $this->belongsTo(NationalGivingDayOpening::class);
+    }
+
     public function projects(): HasMany
     {
         return $this->hasMany(CampaignProject::class)->orderBy('sort_order');

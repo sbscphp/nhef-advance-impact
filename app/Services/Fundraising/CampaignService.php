@@ -19,11 +19,13 @@ use App\Models\Campaign;
 use App\Models\CampaignInstitution;
 use App\Models\CampaignProject;
 use App\Models\Institution;
+use App\Models\NationalGivingDayOpening;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\BankAccount\BankAccountRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
+use App\Repositories\Contracts\Campaign\NationalGivingDayOpeningRepositoryInterface;
 use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
 use App\Repositories\Contracts\CampaignProject\CampaignProjectRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
@@ -54,6 +56,7 @@ class CampaignService
         private readonly InstitutionRepositoryInterface $institutionRepository,
         private readonly CampaignInstitutionRepositoryInterface $campaignInstitutionRepository,
         private readonly CampaignProjectRepositoryInterface $campaignProjectRepository,
+        private readonly NationalGivingDayOpeningRepositoryInterface $openingRepository,
         private readonly NotificationDispatchService $notificationDispatchService,
     ) {}
 
@@ -237,8 +240,96 @@ class CampaignService
     }
 
     /**
+     * Announces the yearly National Giving Day opening: a shared date, no money, no institutions
+     * yet. Super Admin only - a distinct, narrower action from creating a campaign under it.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function createOpening(array $payload, Admin $actor): NationalGivingDayOpening
+    {
+        if (! $actor->checkPermissionTo(ePermission::CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY->value)) {
+            throw new ApiException('You do not have permission to announce a National Giving Day opening.', 403);
+        }
+
+        $assignedAdmin = $this->adminRepository->findByUuid((string) $payload['assigned_admin_id']);
+        if (! $assignedAdmin instanceof Admin) {
+            throw new ApiException('The selected officer does not exist.', 422);
+        }
+
+        $coverUrl = FileUploadHelper::smartSingleFileUpload($payload['cover'] ?? null, 'campaigns/covers');
+
+        $opening = $this->openingRepository->create([
+            'title' => $payload['title'],
+            'slug' => $this->uniqueOpeningSlug((string) $payload['title']),
+            'description' => $payload['description'],
+            'cover_image_url' => $coverUrl,
+            'cover_media_type' => $this->coverMediaType($payload['cover'] ?? null, $coverUrl),
+            // Explicit, not left to the DB column default: create() returns the model as built in
+            // memory, never refreshed from DB, so a DB-only default would leave this null on the
+            // response to this very request (same lesson as Campaign's own 'type' field above).
+            'status' => 'active',
+            'starts_at' => $this->scheduleValue($payload['starts_at'], false),
+            'ends_at' => $this->scheduleValue($payload['ends_at'] ?? null, true),
+            'allocated_admin_id' => $assignedAdmin->uuid,
+            'created_by' => $actor->uuid,
+        ]);
+
+        $opening->setRelation('allocatedAdmin', $assignedAdmin);
+        $opening->setRelation('creator', $actor);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::CAMPAIGN_CREATED,
+            request(),
+            $actor->uuid,
+            ['opening_uuid' => $opening->uuid, 'title' => $opening->title],
+            $actor->displayName().' announced a National Giving Day opening: '.$opening->title.'.',
+            NationalGivingDayOpening::class,
+            $opening->uuid,
+            ModuleEnums::fundraising,
+            200,
+        );
+
+        return $opening;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateOpeningsForAdmin(array $filters, int $perPage): LengthAwarePaginator
+    {
+        return $this->openingRepository->paginateAdmin($filters, $perPage);
+    }
+
+    private function findOpeningOrFail(string $uuid): NationalGivingDayOpening
+    {
+        $opening = $this->openingRepository->findByUuid($uuid);
+
+        if (! $opening instanceof NationalGivingDayOpening) {
+            throw new ApiException('The selected National Giving Day opening does not exist.', 422);
+        }
+
+        return $opening;
+    }
+
+    private function uniqueOpeningSlug(string $title): string
+    {
+        $base = Str::slug($title);
+        $slug = $base;
+        $suffix = 2;
+
+        while ($this->openingRepository->slugExists($slug)) {
+            $slug = $base.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $slug;
+    }
+
+    /**
      * Unlike a standard campaign, there's no top-level goal/currency/bank account; each
-     * institution carries its own.
+     * institution carries its own. starts_at/ends_at are inherited from the opening, not picked
+     * independently - a National Giving Day campaign always runs on the shared, announced day.
      *
      * @param  array<string, mixed>  $payload
      */
@@ -247,6 +338,8 @@ class CampaignService
         if (! $actor->checkPermissionTo(ePermission::CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY->value)) {
             throw new ApiException('You do not have permission to create a National Giving Day campaign.', 403);
         }
+
+        $opening = $this->findOpeningOrFail((string) $payload['opening_uuid']);
 
         $assignedAdmin = $this->adminRepository->findByUuid((string) $payload['assigned_admin_id']);
         if (! $assignedAdmin instanceof Admin) {
@@ -267,6 +360,7 @@ class CampaignService
             'description' => $payload['description'],
             'cover_image_url' => $coverUrl,
             'type' => CampaignTypeEnum::NATIONAL_GIVING_DAY->value,
+            'national_giving_day_opening_id' => $opening->id,
             'currency' => null,
             'goal_amount' => null,
             'raised_amount' => 0,
@@ -280,8 +374,9 @@ class CampaignService
             'allow_anonymous' => true,
             'status' => CampaignStatusEnum::ACTIVE->value,
             'cover_media_type' => $this->coverMediaType($payload['cover'] ?? null, $coverUrl),
-            'starts_at' => $this->scheduleValue($payload['starts_at'], false),
-            'ends_at' => $this->scheduleValue($payload['ends_at'] ?? null, true),
+            // Inherited from the opening, not picked independently - see this method's docblock.
+            'starts_at' => $opening->starts_at,
+            'ends_at' => $opening->ends_at,
             'timer_lead_hours' => $payload['timer_lead_hours'] ?? null,
             'created_by' => $actor->uuid,
             'allocated_admin_id' => $assignedAdmin->id,
@@ -292,6 +387,7 @@ class CampaignService
         $this->syncProjects($campaign, (array) ($payload['projects'] ?? []));
 
         $campaign->setRelation('allocatedAdmin', $assignedAdmin);
+        $campaign->setRelation('nationalGivingDayOpening', $opening);
         $campaign->load('campaignInstitutions.institution', 'campaignInstitutions.bankAccount.bank', 'projects');
 
         GeneralHelper::storeAuditLog(

@@ -144,6 +144,10 @@ class RolesAndPermissionsSeeder extends Seeder
             ...$nhefExcluded,
             PermissionEnum::ROLES_DELETE,
             PermissionEnum::ADMINS_DELETE,
+            // Announcing the National Giving Day opening is Super Admin only (2026-10-20), not
+            // shared with NHEF's plain "Admin" role - narrower than the existing
+            // campaigns.create_national_giving_day, which both already hold.
+            PermissionEnum::CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY,
         ]));
 
         // One-time corrections (2026-09-30): `grant()`/givePermissionTo() only adds, never strips,

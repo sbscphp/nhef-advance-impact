@@ -14,6 +14,8 @@ use App\Http\Requests\Admin\Campaigns\CampaignOverviewRequest;
 use App\Http\Requests\Admin\Campaigns\CampaignPledgeListRequest;
 use App\Http\Requests\Admin\Campaigns\CreateCampaignRequest;
 use App\Http\Requests\Admin\Campaigns\CreateNationalGivingDayCampaignRequest;
+use App\Http\Requests\Admin\Campaigns\CreateNationalGivingDayOpeningRequest;
+use App\Http\Requests\Admin\Campaigns\NationalGivingDayOpeningListRequest;
 use App\Http\Requests\Admin\Campaigns\SyncCampaignInstitutionsRequest;
 use App\Http\Requests\Admin\Campaigns\UpdateCampaignInstitutionRequest;
 use App\Http\Requests\Admin\Campaigns\UpdateCampaignRequest;
@@ -23,6 +25,7 @@ use App\Http\Resources\Admin\CampaignDetailResource;
 use App\Http\Resources\Admin\CampaignDonationResource;
 use App\Http\Resources\Admin\CampaignInstitutionResource;
 use App\Http\Resources\Admin\CampaignPledgeResource;
+use App\Http\Resources\Admin\NationalGivingDayOpeningResource;
 use App\Models\Admin;
 use App\Models\Campaign;
 use App\Models\CampaignInstitution;
@@ -79,6 +82,30 @@ class CampaignController extends Controller
             return JsonResponser::send(false, 'National Giving Day campaign created successfully.', CampaignAdminResource::make($campaign)->resolve());
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@storeNationalGivingDay');
+        }
+    }
+
+    public function storeOpening(CreateNationalGivingDayOpeningRequest $request)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $opening = $this->campaignService->createOpening($request->validated(), $admin);
+
+            return JsonResponser::send(false, 'National Giving Day opening announced successfully.', NationalGivingDayOpeningResource::make($opening)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@storeOpening');
+        }
+    }
+
+    public function indexOpenings(NationalGivingDayOpeningListRequest $request)
+    {
+        try {
+            $perPage = max(1, min((int) ($request->validated('per_page') ?? 15), 100));
+            $paginator = $this->campaignService->paginateOpeningsForAdmin($request->validated(), $perPage);
+
+            return JsonResponser::send(false, 'National Giving Day openings retrieved.', $this->paginatedPayload($paginator, NationalGivingDayOpeningResource::class));
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@indexOpenings');
         }
     }
 

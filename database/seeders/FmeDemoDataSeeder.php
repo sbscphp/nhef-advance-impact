@@ -413,11 +413,18 @@ class FmeDemoDataSeeder extends Seeder
             ];
         }
 
+        $opening = $this->campaignService->createOpening([
+            'title' => 'NHEF National Giving Day 2026',
+            'description' => 'NHEF\'s annual, nationwide day of giving - every partner institution runs its own campaign under this shared opening.',
+            'starts_at' => Carbon::now()->subDays(14)->toDateString(),
+            'ends_at' => Carbon::now()->subDays(12)->toDateString(),
+            'assigned_admin_id' => $superAdmin->uuid,
+        ], $superAdmin);
+
         $campaign = $this->campaignService->createNationalGivingDay([
             'title' => 'NHEF National Giving Day 2026',
             'description' => 'A coordinated day of giving across NHEF partner institutions, with funds routed to each institution\'s own recipient account.',
-            'starts_at' => Carbon::now()->subDays(14)->toDateString(),
-            'ends_at' => Carbon::now()->subDays(12)->toDateString(),
+            'opening_uuid' => $opening->uuid,
             'timer_lead_hours' => 72,
             'assigned_admin_id' => reset($admins)->uuid,
             'institutions' => $institutionRows,

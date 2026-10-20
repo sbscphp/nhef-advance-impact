@@ -144,6 +144,14 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.create']);
             Route::post('/national-giving-day', [AdminCampaignController::class, 'storeNationalGivingDay'])
                 ->middleware(['permission:campaigns.create']);
+            // Announcing the yearly opening vs creating a campaign under it: route-level check is
+            // the broad campaigns.create (same as above); the narrower
+            // campaigns.announce_national_giving_day is enforced inside
+            // CampaignService::createOpening() itself, same pattern as createNationalGivingDay().
+            Route::post('/national-giving-day/openings', [AdminCampaignController::class, 'storeOpening'])
+                ->middleware(['permission:campaigns.create']);
+            Route::get('/national-giving-day/openings', [AdminCampaignController::class, 'indexOpenings'])
+                ->middleware(['permission:campaigns.read']);
             Route::get('/', [AdminCampaignController::class, 'index'])
                 ->middleware(['permission:campaigns.read']);
             // Must be registered before /{uuid}; otherwise "overview" would be swallowed as a
