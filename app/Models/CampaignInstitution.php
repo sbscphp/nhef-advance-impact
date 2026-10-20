@@ -7,6 +7,7 @@ use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CampaignInstitution extends Model
 {
@@ -39,6 +40,15 @@ class CampaignInstitution extends Model
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class);
+    }
+
+    /**
+     * This institution's goal, broken down per project. Its own `goal_amount` column is always
+     * the sum of these - see CampaignService::resolveProjectGoals().
+     */
+    public function projectGoals(): HasMany
+    {
+        return $this->hasMany(CampaignInstitutionProjectGoal::class);
     }
 
     public function progressPercentage(string $raisedAmount): int

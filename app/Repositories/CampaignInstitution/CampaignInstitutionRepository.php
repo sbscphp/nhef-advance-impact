@@ -36,7 +36,7 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
     {
         $query = CampaignInstitution::query()
             ->select('campaign_institutions.*')
-            ->with(['institution', 'bankAccount.bank'])
+            ->with(['institution', 'bankAccount.bank', 'projectGoals.campaignProject'])
             ->where('campaign_institutions.campaign_id', $campaignId)
             ->when(
                 filled($filters['search'] ?? null),
@@ -168,7 +168,7 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
     public function exportForCampaign(int $campaignId, array $filters): Collection
     {
         return CampaignInstitution::query()
-            ->with(['institution', 'bankAccount.bank'])
+            ->with(['institution', 'bankAccount.bank', 'projectGoals.campaignProject'])
             ->where('campaign_id', $campaignId)
             ->when(
                 filled($filters['search'] ?? null),

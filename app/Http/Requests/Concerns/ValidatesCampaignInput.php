@@ -41,7 +41,10 @@ trait ValidatesCampaignInput
     }
 
     /**
-     * The "Add Project" cards plus the countdown lead time; `projects.*.uuid` lets an edit keep an existing project.
+     * The "Add Project" cards plus the countdown lead time; `projects.*.uuid` lets an edit keep
+     * an existing project. Projects no longer carry their own goal (2026-10-20) - that moved to
+     * each institution's `project_goals` (see ValidatesCampaignInstitutionInput); a project here
+     * is purely a name/description grouping.
      *
      * @return array<string, array<int, mixed>>
      */
@@ -52,7 +55,6 @@ trait ValidatesCampaignInput
             'projects' => ['sometimes', 'array'],
             'projects.*.uuid' => ['sometimes', 'nullable', 'uuid'],
             'projects.*.name' => ['required', 'string', 'max:255'],
-            'projects.*.goal_amount' => ['required', 'numeric', 'min:0.01'],
             'projects.*.description' => ['sometimes', 'nullable', 'string', 'max:10000'],
         ];
     }
@@ -62,8 +64,65 @@ trait ValidatesCampaignInput
     {
         return [
             'projects.*.name.required' => 'Please give each project a name.',
-            'projects.*.goal_amount.required' => 'Please set a goal for each project.',
             'timer_lead_hours.max' => 'The countdown lead time cannot exceed 720 hours (30 days).',
+        ];
+    }
+
+    /**
+     * An institution's goal on a National Giving Day campaign (2026-10-20): no longer a flat
+     * number the FE sends directly - it's broken down per project, by name (the project may be
+     * created in the same request, so there's no uuid yet to reference), and
+     * CampaignService::resolveProjectGoals() derives the institution's own goal_amount as the
+     * sum of these lines.
+     *
+     * @param  string  $prefix  '' for a single institution's own payload, or 'institutions.*.'
+     *                          when nested under a list of institutions.
+     * @param  bool  $required  False for a partial update where project_goals is optional
+     *                          (e.g. updating just the bank account, goals left untouched).
+     * @return array<string, array<int, mixed>>
+     */
+    protected function projectGoalRules(string $prefix = '', bool $required = true): array
+    {
+        return [
+            // Not Laravel's `distinct` rule: with two wildcards in the key (institutions.*.
+            // project_goals.*.project_name), `distinct` checks uniqueness across *every*
+            // institution's project_goals combined, not per institution - so the same project
+            // name funded by two different institutions would wrongly fail. This closure checks
+            // uniqueness within this one project_goals array only.
+            $prefix.'project_goals' => [
+                $required ? 'required' : 'sometimes',
+                'array',
+                'min:1',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! is_array($value)) {
+                        return;
+                    }
+
+                    $names = array_map(
+                        fn ($entry) => strtolower(trim((string) (is_array($entry) ? ($entry['project_name'] ?? '') : ''))),
+                        $value
+                    );
+
+                    if (count($names) !== count(array_unique($names))) {
+                        $fail('Each project can only be given one goal per institution.');
+                    }
+                },
+            ],
+            $prefix.'project_goals.*.project_name' => ['required', 'string', 'max:255'],
+            $prefix.'project_goals.*.goal_amount' => ['required', 'numeric', 'min:0.01'],
+        ];
+    }
+
+    /**
+     * @param  string  $prefix  Must match the prefix passed to {@see self::projectGoalRules()}.
+     * @return array<string, string>
+     */
+    protected function projectGoalMessages(string $prefix = ''): array
+    {
+        return [
+            $prefix.'project_goals.required' => 'Please set at least one project goal for this institution.',
+            $prefix.'project_goals.*.project_name.required' => 'Please name the project this goal is for.',
+            $prefix.'project_goals.*.goal_amount.required' => 'Please set a goal amount for this project.',
         ];
     }
 

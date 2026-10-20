@@ -403,13 +403,25 @@ class FmeDemoDataSeeder extends Seeder
      */
     private function createNationalGivingDayCampaign(array $institutions, array $admins, array $bankAccounts, Admin $superAdmin): Campaign
     {
+        // Projects carry no goal of their own (2026-10-20) - each institution sets its own goal
+        // per project via project_goals; the institution's total is derived from those.
+        $projectNames = ['Scholarships', 'Library & Research Upgrade', 'Emergency Student Relief'];
+
         $institutionRows = [];
         foreach ($institutions as $institutionId => $institution) {
+            $projectGoals = [];
+            foreach ($projectNames as $projectName) {
+                $projectGoals[] = [
+                    'project_name' => $projectName,
+                    'goal_amount' => [2_000_000, 3_000_000, 4_000_000, 5_000_000][array_rand([2_000_000, 3_000_000, 4_000_000, 5_000_000])],
+                ];
+            }
+
             $institutionRows[] = [
                 'institution_id' => $institution->uuid,
-                'goal_amount' => [8_000_000, 12_000_000, 10_000_000][array_rand([8_000_000, 12_000_000, 10_000_000])],
                 'currency' => 'NGN',
                 'bank_account_id' => $bankAccounts[$institutionId]->uuid,
+                'project_goals' => $projectGoals,
             ];
         }
 
@@ -427,6 +439,7 @@ class FmeDemoDataSeeder extends Seeder
             'opening_uuid' => $opening->uuid,
             'timer_lead_hours' => 72,
             'assigned_admin_id' => reset($admins)->uuid,
+            'projects' => array_map(fn (string $name): array => ['name' => $name], $projectNames),
             'institutions' => $institutionRows,
         ], $superAdmin, $this->request);
 

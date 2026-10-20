@@ -39,7 +39,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function paginateAdmin(array $filters, int $perPage): LengthAwarePaginator
     {
         $query = Campaign::query()
-            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator', 'projects', 'nationalGivingDayOpening'])
+            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator', 'projects', 'nationalGivingDayOpening', 'campaignInstitutions'])
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
@@ -75,7 +75,7 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function findByUuid(string $uuid): ?Campaign
     {
         return Campaign::query()
-            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator', 'projects', 'nationalGivingDayOpening'])
+            ->with(['allocatedAdmin', 'bankAccount.bank', 'creator', 'projects', 'nationalGivingDayOpening', 'campaignInstitutions'])
             ->where('uuid', $uuid)
             ->first();
     }

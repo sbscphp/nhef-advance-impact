@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Admin;
 
 use App\Models\CampaignInstitution;
+use App\Models\CampaignInstitutionProjectGoal;
 use App\Support\Money;
 use App\Support\ViewerVisibility;
 use Illuminate\Http\Request;
@@ -29,9 +30,22 @@ class CampaignInstitutionResource extends JsonResource
                 'name' => $this->institution->name,
             ]),
             'currency' => $this->currency,
-            // The goal is the public target, not money actually collected - shown to every viewer.
+            // The goal is the public target, not money actually collected - shown to every
+            // viewer. It's always the sum of project_goals below, never set directly
+            // (2026-10-20) - see CampaignService::resolveProjectGoals().
             'goal_amount' => (string) $this->goal_amount,
             'goal_amount_formatted' => Money::format($this->goal_amount, $this->currency),
+            'project_goals' => $this->whenLoaded('projectGoals', fn () => $this->projectGoals
+                ->map(fn (CampaignInstitutionProjectGoal $projectGoal): array => [
+                    'project' => $projectGoal->campaignProject === null ? null : [
+                        'uuid' => $projectGoal->campaignProject->uuid,
+                        'name' => $projectGoal->campaignProject->name,
+                    ],
+                    'goal_amount' => (string) $projectGoal->goal_amount,
+                    'goal_amount_formatted' => Money::format($projectGoal->goal_amount, $this->currency),
+                ])
+                ->values()
+                ->all()),
             ...ViewerVisibility::money([
                 'raised_amount' => $raisedAmount,
                 'raised_amount_formatted' => Money::format($raisedAmount, $this->currency),

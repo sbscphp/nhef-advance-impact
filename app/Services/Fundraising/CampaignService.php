@@ -27,6 +27,7 @@ use App\Repositories\Contracts\BankAccount\BankAccountRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use App\Repositories\Contracts\Campaign\NationalGivingDayOpeningRepositoryInterface;
 use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
+use App\Repositories\Contracts\CampaignInstitutionProjectGoal\CampaignInstitutionProjectGoalRepositoryInterface;
 use App\Repositories\Contracts\CampaignProject\CampaignProjectRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
@@ -55,6 +56,7 @@ class CampaignService
         private readonly DonorTierRepositoryInterface $donorTierRepository,
         private readonly InstitutionRepositoryInterface $institutionRepository,
         private readonly CampaignInstitutionRepositoryInterface $campaignInstitutionRepository,
+        private readonly CampaignInstitutionProjectGoalRepositoryInterface $campaignInstitutionProjectGoalRepository,
         private readonly CampaignProjectRepositoryInterface $campaignProjectRepository,
         private readonly NationalGivingDayOpeningRepositoryInterface $openingRepository,
         private readonly NotificationDispatchService $notificationDispatchService,
@@ -123,9 +125,9 @@ class CampaignService
     }
 
     /**
-     * The campaign's overall target is the sum of its projects' goals, not the institutions'
-     * goals: an institution's own goal is how much *that institution* intends to raise toward
-     * the shared target, not a second definition of the target itself. `$campaign->projects`
+     * The campaign's overall target is the sum of its institutions' goals (2026-10-20: each
+     * institution's own goal is itself derived from its per-project breakdown - see
+     * resolveProjectGoals() - projects no longer carry a goal of their own). `$campaign->campaignInstitutions`
      * must be eager-loaded by the caller. Raised amount still aggregates actual institution-level
      * payments and pledges (summing across currencies isn't meaningful, so NGN institutions
      * only); Phase 1 only tracks money at the institution level, not per project.
@@ -134,7 +136,7 @@ class CampaignService
      */
     public function nationalGivingDayTotals(Campaign $campaign): array
     {
-        $goalAmount = (string) $campaign->projects->sum('goal_amount');
+        $goalAmount = (string) $campaign->campaignInstitutions->sum('goal_amount');
 
         $rows = $this->campaignInstitutionRepository->allForCampaign($campaign->id)
             ->filter(fn (CampaignInstitution $row) => $row->currency === 'NGN');
@@ -350,8 +352,6 @@ class CampaignService
             $this->assertOwnInstitutionOnly((array) $payload['institutions'], $assignedAdmin);
         }
 
-        $institutionRows = $this->resolveInstitutionRows((array) $payload['institutions']);
-
         $coverUrl = FileUploadHelper::smartSingleFileUpload($payload['cover'] ?? null, 'campaigns/covers');
 
         $campaign = $this->campaignRepository->create([
@@ -383,12 +383,16 @@ class CampaignService
             'bank_account_id' => null,
         ]);
 
-        $this->campaignInstitutionRepository->createMany($campaign, $institutionRows);
+        // Projects must exist before institution rows are resolved below, since each
+        // institution's project_goals reference a project by name, not uuid (it may be new).
         $this->syncProjects($campaign, (array) ($payload['projects'] ?? []));
+
+        $institutionRows = $this->resolveInstitutionRows($campaign, (array) $payload['institutions']);
+        $this->createInstitutionRows($campaign, $institutionRows);
 
         $campaign->setRelation('allocatedAdmin', $assignedAdmin);
         $campaign->setRelation('nationalGivingDayOpening', $opening);
-        $campaign->load('campaignInstitutions.institution', 'campaignInstitutions.bankAccount.bank', 'projects');
+        $campaign->load('campaignInstitutions.institution', 'campaignInstitutions.bankAccount.bank', 'campaignInstitutions.projectGoals.campaignProject', 'projects');
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
@@ -400,7 +404,7 @@ class CampaignService
                 'title' => $campaign->title,
                 'type' => $campaign->type,
                 'institution_count' => count($institutionRows),
-                'project_count' => count((array) ($payload['projects'] ?? [])),
+                'project_count' => $campaign->projects->count(),
             ],
             $actor->displayName().' created a National Giving Day campaign: '.$campaign->title.'.',
             Campaign::class,
@@ -490,10 +494,16 @@ class CampaignService
     }
 
     /**
+     * `$campaign`'s projects must already exist (see createNationalGivingDay()'s ordering) -
+     * each institution's project_goals reference one by name, resolved/created here.
+     *
      * @param  list<array<string, mixed>>  $institutions
-     * @return list<array<string, mixed>>
+     * @return list<array<string, mixed>>  Each row also carries a 'project_goals' key - a
+     *                                      list<array{campaign_project_id:int, goal_amount:string}>
+     *                                      - pulled off by the caller before persisting the row
+     *                                      itself (see createInstitutionRows()).
      */
-    private function resolveInstitutionRows(array $institutions): array
+    private function resolveInstitutionRows(Campaign $campaign, array $institutions): array
     {
         $rows = [];
 
@@ -508,15 +518,72 @@ class CampaignService
                 throw new ApiException('One of the selected bank accounts does not exist.', 422);
             }
 
+            $resolved = $this->resolveProjectGoals($campaign, (array) ($entry['project_goals'] ?? []));
+
             $rows[] = [
                 'institution_id' => $institution->id,
-                'goal_amount' => $entry['goal_amount'],
+                'goal_amount' => $resolved['total'],
                 'currency' => $entry['currency'],
                 'bank_account_id' => $bankAccount->id,
+                'project_goals' => $resolved['rows'],
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * Each project_goals entry names its project (not uuid - the project may be brand new in
+     * this same request); matched case-insensitively against the campaign's existing projects,
+     * creating one on the fly if no match exists, per the FE's own spec for this. The
+     * institution's own goal_amount is the sum of these, never a separately client-sent number -
+     * see CreateNationalGivingDayCampaignRequest's project_goals rules.
+     *
+     * @param  list<array<string, mixed>>  $projectGoals
+     * @return array{rows: list<array{campaign_project_id: int, goal_amount: string}>, total: string}
+     */
+    private function resolveProjectGoals(Campaign $campaign, array $projectGoals): array
+    {
+        $existingProjects = $this->campaignProjectRepository->allForCampaign($campaign->id)
+            ->keyBy(fn (CampaignProject $project): string => strtolower(trim($project->name)));
+
+        $rows = [];
+        $total = 0.0;
+
+        foreach ($projectGoals as $entry) {
+            $name = trim((string) $entry['project_name']);
+            $key = strtolower($name);
+
+            $project = $existingProjects->get($key);
+            if (! $project instanceof CampaignProject) {
+                $project = $this->campaignProjectRepository->create($campaign, [
+                    'name' => $name,
+                    'description' => null,
+                    'sort_order' => $existingProjects->count(),
+                ]);
+                $existingProjects->put($key, $project);
+            }
+
+            $amount = (float) $entry['goal_amount'];
+            $rows[] = ['campaign_project_id' => $project->id, 'goal_amount' => (string) $amount];
+            $total += $amount;
+        }
+
+        return ['rows' => $rows, 'total' => (string) $total];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows  As returned by resolveInstitutionRows().
+     */
+    private function createInstitutionRows(Campaign $campaign, array $rows): void
+    {
+        foreach ($rows as $row) {
+            $projectGoals = $row['project_goals'];
+            unset($row['project_goals']);
+
+            $campaignInstitution = $this->campaignInstitutionRepository->create($campaign, $row);
+            $this->campaignInstitutionProjectGoalRepository->replaceForCampaignInstitution($campaignInstitution, $projectGoals);
+        }
     }
 
     /**
@@ -582,6 +649,7 @@ class CampaignService
 
             if ($projectsChanged) {
                 $this->syncProjects($campaign, (array) $payload['projects']);
+                $this->recalculateInstitutionGoals($campaign);
             }
         });
 
@@ -757,9 +825,13 @@ class CampaignService
         $campaign = $this->findForAdmin($uuid);
         $this->assertNationalGivingDay($campaign);
 
-        $rows = $this->resolveInstitutionRows([$payload]);
+        $rows = $this->resolveInstitutionRows($campaign, [$payload]);
+        $projectGoals = $rows[0]['project_goals'];
+        unset($rows[0]['project_goals']);
+
         $campaignInstitution = $this->campaignInstitutionRepository->create($campaign, $rows[0]);
-        $campaignInstitution->load('institution', 'bankAccount.bank');
+        $this->campaignInstitutionProjectGoalRepository->replaceForCampaignInstitution($campaignInstitution, $projectGoals);
+        $campaignInstitution->load('institution', 'bankAccount.bank', 'projectGoals.campaignProject');
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
@@ -789,20 +861,25 @@ class CampaignService
         $campaign = $this->findForAdmin($uuid);
         $this->assertNationalGivingDay($campaign);
 
-        $rows = $this->resolveInstitutionRows($institutions);
+        $rows = $this->resolveInstitutionRows($campaign, $institutions);
 
         $campaignInstitutions = DB::transaction(function () use ($campaign, $rows) {
             $existing = $this->campaignInstitutionRepository->allForCampaign($campaign->id)->keyBy('institution_id');
             $submittedInstitutionIds = array_column($rows, 'institution_id');
 
             foreach ($rows as $row) {
+                $projectGoals = $row['project_goals'];
+                unset($row['project_goals']);
+
                 $current = $existing->get($row['institution_id']);
 
                 if ($current instanceof CampaignInstitution) {
-                    $this->campaignInstitutionRepository->update($current, $row);
+                    $campaignInstitution = $this->campaignInstitutionRepository->update($current, $row);
                 } else {
-                    $this->campaignInstitutionRepository->create($campaign, $row);
+                    $campaignInstitution = $this->campaignInstitutionRepository->create($campaign, $row);
                 }
+
+                $this->campaignInstitutionProjectGoalRepository->replaceForCampaignInstitution($campaignInstitution, $projectGoals);
             }
 
             foreach ($existing as $institutionId => $campaignInstitution) {
@@ -814,7 +891,7 @@ class CampaignService
             return $this->campaignInstitutionRepository->allForCampaign($campaign->id);
         });
 
-        $campaignInstitutions->load('institution', 'bankAccount.bank');
+        $campaignInstitutions->load('institution', 'bankAccount.bank', 'projectGoals.campaignProject');
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
@@ -846,7 +923,7 @@ class CampaignService
         }
 
         $updates = [];
-        foreach (['goal_amount', 'currency'] as $field) {
+        foreach (['currency'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $updates[$field] = $payload[$field];
             }
@@ -860,10 +937,21 @@ class CampaignService
             $updates['bank_account_id'] = $bankAccount->id;
         }
 
+        $projectGoalsChanged = array_key_exists('project_goals', $payload);
+        if ($projectGoalsChanged) {
+            $resolved = $this->resolveProjectGoals($campaign, (array) $payload['project_goals']);
+            $updates['goal_amount'] = $resolved['total'];
+        }
+
         if ($updates !== []) {
             $campaignInstitution = $this->campaignInstitutionRepository->update($campaignInstitution, $updates);
         }
-        $campaignInstitution->load('institution', 'bankAccount.bank');
+
+        if ($projectGoalsChanged) {
+            $this->campaignInstitutionProjectGoalRepository->replaceForCampaignInstitution($campaignInstitution, $resolved['rows']);
+        }
+
+        $campaignInstitution->load('institution', 'bankAccount.bank', 'projectGoals.campaignProject');
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
@@ -957,7 +1045,6 @@ class CampaignService
         foreach (array_values($projects) as $index => $entry) {
             $data = [
                 'name' => $entry['name'],
-                'goal_amount' => $entry['goal_amount'],
                 'description' => HtmlSanitizer::clean($entry['description'] ?? null),
                 'sort_order' => $index,
             ];
@@ -974,8 +1061,24 @@ class CampaignService
 
         foreach ($existing as $uuid => $project) {
             if (! in_array($uuid, $keep, true)) {
+                // Cascades to that project's rows in campaign_institution_project_goals, so any
+                // institution that had a goal against it is now stale - see the caller.
                 $this->campaignProjectRepository->delete($project);
             }
+        }
+    }
+
+    /**
+     * Re-sums every institution's goal_amount from its remaining project_goals rows. Needed
+     * after editing a National Giving Day campaign's projects (syncProjects() above): removing or
+     * renaming a project changes what each institution owes toward, so a stored goal_amount left
+     * over from before the edit would otherwise silently drift from the real breakdown.
+     */
+    private function recalculateInstitutionGoals(Campaign $campaign): void
+    {
+        foreach ($this->campaignInstitutionRepository->allForCampaign($campaign->id) as $campaignInstitution) {
+            $total = $this->campaignInstitutionProjectGoalRepository->sumForCampaignInstitution($campaignInstitution->id);
+            $this->campaignInstitutionRepository->update($campaignInstitution, ['goal_amount' => $total]);
         }
     }
 
