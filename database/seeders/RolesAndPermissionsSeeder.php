@@ -93,7 +93,10 @@ class RolesAndPermissionsSeeder extends Seeder
         // widget, so excluding events.* here never touched that widget either way.
         // events.read is carved back out below (2026-10-20) for Super Admin only, so they can view
         // the standalone Events module read-only; events.create/update/delete and Admin's own
-        // events.read stay excluded.
+        // events.read stay excluded. alumni.read is carved back out the same way (2026-10-21):
+        // the "Partner Institutions" > institution detail page's Alumni tab
+        // (GET .../institutions/{uuid}/alumni) needs it, and 403'd for Super Admin without it -
+        // alumni.create/update/delete and Admin's own alumni.read stay excluded.
         $nhefExcluded = [
             PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
             PermissionEnum::CONSTITUENCY_TYPES_CREATE,
@@ -101,7 +104,6 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
             PermissionEnum::CONSTITUENCY_TYPES_DELETE,
             PermissionEnum::ALUMNI_CREATE,
-            PermissionEnum::ALUMNI_READ,
             PermissionEnum::ALUMNI_UPDATE,
             PermissionEnum::ALUMNI_DELETE,
             PermissionEnum::NETWORKING_CREATE,
@@ -156,6 +158,9 @@ class RolesAndPermissionsSeeder extends Seeder
             // Super Admin only (2026-10-20, see the grant above) - Admin keeps the rest of
             // events.* excluded via $nhefExcluded.
             PermissionEnum::EVENTS_READ,
+            // Super Admin only (2026-10-21, see the grant above) - Admin keeps the rest of
+            // alumni.* excluded via $nhefExcluded.
+            PermissionEnum::ALUMNI_READ,
         ]));
 
         // One-time corrections (2026-09-30): `grant()`/givePermissionTo() only adds, never strips,
