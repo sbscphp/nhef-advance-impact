@@ -4,6 +4,7 @@ namespace App\Http\Controllers\v1\Admin\ConstituentManagement;
 
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ConstituentManagement\InstitutionAdminListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionAlumniListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionCampaignListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionListRequest;
@@ -12,6 +13,7 @@ use App\Http\Requests\Admin\ConstituentManagement\TertiaryInstitutionOptionListR
 use App\Http\Requests\Admin\ConstituentManagement\UpdateInstitutionRequest;
 use App\Http\Requests\Admin\DateRangeStatsRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
+use App\Http\Resources\Admin\AdminListResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionAdminResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionAlumniResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionCampaignResource;
@@ -163,6 +165,18 @@ class InstitutionController extends Controller
             return JsonResponser::send(false, 'Institution campaigns retrieved.', $this->paginatedPayload($paginator, InstitutionCampaignResource::class));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@campaigns');
+        }
+    }
+
+    public function admins(InstitutionAdminListRequest $request, string $uuid)
+    {
+        try {
+            $institution = $this->institutionService->findForAdmin($uuid);
+            $paginator = $this->institutionService->paginateAdmins($institution, $request->validated());
+
+            return JsonResponser::send(false, 'Institution admins retrieved.', $this->paginatedPayload($paginator, AdminListResource::class));
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@admins');
         }
     }
 

@@ -44,4 +44,7 @@ interface CampaignRepositoryInterface
 
     /** Count of active campaigns actually within their donation window right now. */
     public function countOngoing(?string $type = null): int;
+
+    /** Every campaign regardless of status - matches the unfiltered campaign list's own total. */
+    public function countTotal(?string $type = null): int;
 }

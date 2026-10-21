@@ -1129,6 +1129,10 @@ class CampaignService
         $totalDonors = count($this->paymentRepository->distinctSuccessfulDonorUserIdsForAdmin($start, $end, $type));
 
         return array_merge(ListingFilterRules::periodMeta($filters), [
+            // Matches the unfiltered campaign list's own total (every status) - client feedback,
+            // 2026-10-16: "active_campaigns" alone never tallied with the list below it, since it
+            // only ever counts active-status campaigns while the list includes every status.
+            'total_campaigns' => $this->campaignRepository->countTotal($type),
             'active_campaigns' => $this->campaignRepository->countActive(),
             'ongoing_campaigns' => $this->campaignRepository->countOngoing($type),
             ...ViewerVisibility::money([

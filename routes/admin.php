@@ -587,6 +587,11 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:alumni.read', 'individual.records']);
             Route::get('/{uuid}/campaigns', [ConstituentInstitutionController::class, 'campaigns'])
                 ->middleware(['permission:constituents.read']);
+            // Same gate as the institution detail page itself, not admins.read - this is "View
+            // Institution" drilling into its admins, not the separate NHEF-wide User Management
+            // screen (client feedback, 2026-10-16: no screen anywhere showed this before).
+            Route::get('/{uuid}/admins', [ConstituentInstitutionController::class, 'admins'])
+                ->middleware(['permission:constituents.read']);
         });
 
         Route::prefix('networking')->group(function () {

@@ -6,6 +6,7 @@ use App\Enums\ReportDatasetEnum;
 use App\Exceptions\ApiException;
 use App\Services\Reporting\Datasets\AdminUserReportDataset;
 use App\Services\Reporting\Datasets\AlumniReportDataset;
+use App\Services\Reporting\Datasets\AuditTrailReportDataset;
 use App\Services\Reporting\Datasets\CampaignReportDataset;
 use App\Services\Reporting\Datasets\DonationReportDataset;
 use App\Services\Reporting\Datasets\EventReportDataset;
@@ -37,6 +38,7 @@ class ReportDatasetResolver
         private readonly NetworkingReportDataset $networkingDataset,
         private readonly AdminUserReportDataset $adminUserDataset,
         private readonly InstitutionReportDataset $institutionDataset,
+        private readonly AuditTrailReportDataset $auditTrailDataset,
     ) {}
 
     public function make(string $dataset): ReportDatasetInterface
@@ -60,6 +62,7 @@ class ReportDatasetResolver
             ReportDatasetEnum::NETWORKING => $this->networkingDataset,
             ReportDatasetEnum::ADMIN_USER => $this->adminUserDataset,
             ReportDatasetEnum::INSTITUTION => $this->institutionDataset,
+            ReportDatasetEnum::AUDIT_TRAIL => $this->auditTrailDataset,
             null => throw new ApiException("Unsupported report dataset: {$dataset}", 422),
         };
     }

@@ -3,11 +3,13 @@
 namespace App\Repositories\Admin;
 
 use App\Enums\eRole;
+use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Admin;
 use App\Models\Institution;
 use App\Models\Scopes\TenantScope;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class AdminRepository implements AdminRepositoryInterface
 {
@@ -44,6 +46,37 @@ class AdminRepository implements AdminRepositoryInterface
     public function emailExists(string $email): bool
     {
         return Admin::query()->withoutGlobalScope(TenantScope::class)->withTrashed()->where('email', $email)->exists();
+    }
+
+    public function paginateForInstitution(int $institutionId, array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = Admin::query()
+            ->withoutGlobalScope(TenantScope::class)
+            ->where('institution_id', $institutionId)
+            ->with('roles:id,name');
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search): void {
+                $builder->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('email', 'like', '%'.$search.'%');
+            });
+        }
+
+        $status = data_get($filters, 'filters.status');
+        if ($status === 'active') {
+            $query->where('is_active', true);
+        } elseif ($status === 'inactive') {
+            $query->where('is_active', false);
+        }
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query->orderBy('name', $direction),
+        ], 'created_at');
+
+        return $query->paginate($perPage);
     }
 
     public function createInstitutionOwner(Institution $institution, string $name, string $email): Admin

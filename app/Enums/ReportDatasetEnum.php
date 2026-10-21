@@ -21,6 +21,7 @@ enum ReportDatasetEnum: string
     case NETWORKING = 'networking';
     case ADMIN_USER = 'admin_user';
     case INSTITUTION = 'institution';
+    case AUDIT_TRAIL = 'audit_trail';
 
     public function label(): string
     {
@@ -37,6 +38,7 @@ enum ReportDatasetEnum: string
             self::NETWORKING => 'Networking',
             self::ADMIN_USER => 'Admin Users',
             self::INSTITUTION => 'Institutions',
+            self::AUDIT_TRAIL => 'Audit Trail',
         };
     }
 
@@ -55,6 +57,7 @@ enum ReportDatasetEnum: string
             self::NETWORKING => 'Alumni networking channels and their activity.',
             self::ADMIN_USER => 'Admin/staff accounts and their access.',
             self::INSTITUTION => 'Partner universities and their aggregated metrics.',
+            self::AUDIT_TRAIL => 'System and user activity across every module, same as the live Audit Trail list.',
         };
     }
 
@@ -70,7 +73,7 @@ enum ReportDatasetEnum: string
             self::EVENT => ModuleEnums::events->value,
             self::PROSPECT => ModuleEnums::crm->value,
             self::ADMIN_USER => ModuleEnums::user_management->value,
-            self::CAMPAIGN, self::MENTORSHIP, self::MENTOR, self::MENTEE, self::NETWORKING, self::INSTITUTION => null,
+            self::CAMPAIGN, self::MENTORSHIP, self::MENTOR, self::MENTEE, self::NETWORKING, self::INSTITUTION, self::AUDIT_TRAIL => null,
         };
     }
 
@@ -94,6 +97,7 @@ enum ReportDatasetEnum: string
             self::MENTORSHIP, self::MENTOR, self::MENTEE => ModuleEnums::mentorship->value,
             self::NETWORKING => ModuleEnums::networking->value,
             self::ADMIN_USER => ModuleEnums::user_management->value,
+            self::AUDIT_TRAIL => ModuleEnums::audit_trail->value,
         };
     }
 
@@ -103,7 +107,12 @@ enum ReportDatasetEnum: string
         return $this === self::INSTITUTION;
     }
 
-    /** Rows are individual people (alumni, donors, attendees, mentors), so viewers limited to summaries cannot use them. */
+    /**
+     * Rows are individual people (alumni, donors, attendees, mentors), so viewers limited to
+     * summaries cannot use them. AUDIT_TRAIL is deliberately excluded: unlike these, it mixes
+     * individual- and admin-level rows in one table, so AuditTrailReportDataset filters those
+     * rows out itself rather than hiding the whole dataset (same as the live Audit Trail list).
+     */
     private function individualLevel(): bool
     {
         return in_array($this, [

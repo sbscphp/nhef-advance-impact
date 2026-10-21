@@ -51,6 +51,13 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->when(
                 filled($filters['filters']['type'] ?? null),
                 fn ($query) => $query->where('type', $filters['filters']['type'])
+            )
+            ->when(
+                filled($filters['filters']['institution_uuid'] ?? null),
+                fn ($query) => $query->whereHas(
+                    'campaignInstitutions.institution',
+                    fn ($q) => $q->where('institutions.uuid', $filters['filters']['institution_uuid'])
+                )
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
@@ -117,6 +124,19 @@ class CampaignRepository implements CampaignRepositoryInterface
     public function countActive(): int
     {
         return Campaign::query()->active()->count();
+    }
+
+    /**
+     * Every campaign regardless of status - matches the unfiltered campaign list's own total, so
+     * the Fundraising overview card can show a number that actually ties out with the list below
+     * it (client feedback, 2026-10-16: "Active Campaigns" alone never tallied with the list, since
+     * that card only ever counted active-status campaigns while the list includes every status).
+     */
+    public function countTotal(?string $type = null): int
+    {
+        return Campaign::query()
+            ->when($type !== null, fn ($query) => $query->where('type', $type))
+            ->count();
     }
 
     public function countOngoing(?string $type = null): int

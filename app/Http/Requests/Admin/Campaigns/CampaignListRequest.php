@@ -25,6 +25,10 @@ class CampaignListRequest extends ApiFormRequest
             [
                 'filters.status' => ['sometimes', 'nullable', Rule::in(CampaignStatusEnum::values())],
                 'filters.type' => ['sometimes', 'nullable', Rule::in(CampaignTypeEnum::values())],
+                // Lets NHEF pull one institution's campaigns at a time, for a "Fundraising
+                // Campaigns Across Partner Institutions" block-per-institution view (client
+                // feedback, 2026-10-16).
+                'filters.institution_uuid' => ['sometimes', 'nullable', 'uuid', Rule::exists('institutions', 'uuid')],
             ]
         );
     }
@@ -34,6 +38,7 @@ class CampaignListRequest extends ApiFormRequest
         return array_merge(parent::messages(), ListingFilterRules::listingMessages(), [
             'filters.status.in' => 'Status filter is invalid.',
             'filters.type.in' => 'Type filter is invalid.',
+            'filters.institution_uuid.exists' => 'The selected institution does not exist.',
         ]);
     }
 }

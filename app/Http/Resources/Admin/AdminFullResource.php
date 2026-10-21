@@ -19,7 +19,7 @@ class AdminFullResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $this->resource->loadMissing(['roles.permissions']);
+        $this->resource->loadMissing(['roles.permissions', 'institution:id,uuid,name']);
         $role = $this->roles->first();
         $permissionNames = $role?->permissions->pluck('name')->values()->all() ?? [];
 
@@ -29,6 +29,11 @@ class AdminFullResource extends JsonResource
             'name' => $this->name,
             'job_title' => $this->job_title,
             'email' => $this->email,
+            // Null for NHEF-level admins (Super Admin, Admin); set for an Institution Admin.
+            'institution' => $this->institution === null ? null : [
+                'uuid' => $this->institution->uuid,
+                'name' => $this->institution->name,
+            ],
             'role_id' => $role?->uuid,
             'role_name' => $role?->name,
             'permissions' => $permissionNames,

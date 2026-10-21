@@ -358,4 +358,17 @@ class AdminInstitutionService
 
         return $paginator;
     }
+
+    /**
+     * This institution's own admin users, paginated - client feedback (2026-10-16): NHEF had no
+     * way at all to see which admins manage a given institution, anywhere in the product.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateAdmins(Institution $institution, array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->adminRepository->paginateForInstitution($institution->id, $filters, $perPage);
+    }
 }
