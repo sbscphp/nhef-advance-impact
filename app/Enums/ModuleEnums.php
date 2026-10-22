@@ -48,6 +48,9 @@ enum ModuleEnums: string
     /** Constituency Type Configuration; kept separate from system_configuration (a different audience). */
     case constituency_type = 'constituency_type';
 
+    /** Donation Tier Configuration; institution-scoped, moved off system_configuration (2026-10-22). */
+    case donor_tier = 'donor_tier';
+
     public function label(): string
     {
         return match ($this) {
@@ -70,6 +73,7 @@ enum ModuleEnums: string
             self::custom_field => 'Custom field',
             self::system_configuration => 'System configuration',
             self::constituency_type => 'Constituency type',
+            self::donor_tier => 'Donation tier configuration',
         };
     }
 

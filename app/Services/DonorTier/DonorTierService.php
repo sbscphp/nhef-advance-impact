@@ -11,9 +11,11 @@ use App\Helpers\FileUploadHelper;
 use App\Helpers\GeneralHelper;
 use App\Models\Admin;
 use App\Models\DonorTier;
+use App\Models\Institution;
 use App\Models\User;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Services\Recognition\RecognitionService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -24,20 +26,28 @@ class DonorTierService
     public function __construct(
         private readonly DonorTierRepositoryInterface $tierRepository,
         private readonly DonationPaymentRepositoryInterface $paymentRepository,
+        private readonly InstitutionRepositoryInterface $institutionRepository,
     ) {}
 
     /**
+     * Institution-scoped (2026-10-22): every tier belongs to exactly one institution. An
+     * institution admin's own tier is always stamped with their own institution (their
+     * `institution_uuid` input, if any, is ignored - never trust the client for this); NHEF
+     * picks which institution via `institution_uuid`, since NHEF has no institution of its own.
+     *
      * @param  array<string, mixed>  $payload
      */
     public function create(array $payload, Admin $actor, Request $request): DonorTier
     {
-        $this->assertNhefScope();
+        $institutionId = $this->resolveInstitutionIdForCreate($payload, $actor);
 
         $tier = $this->tierRepository->create([
+            'institution_id' => $institutionId,
             'name' => $payload['name'],
             'minimum_amount' => $payload['minimum_amount'],
             'maximum_amount' => $payload['maximum_amount'],
             'badge_url' => FileUploadHelper::smartSingleFileUpload($payload['badge'], 'donor-tiers/badges'),
+            'color' => $payload['color'],
             'is_active' => true,
             'created_by' => $actor->uuid,
         ]);
@@ -51,11 +61,29 @@ class DonorTierService
             $actor->displayName().' created a donation tier: '.$tier->name.'.',
             DonorTier::class,
             $tier->uuid,
-            ModuleEnums::system_configuration,
+            ModuleEnums::donor_tier,
             201,
         );
 
         return $tier;
+    }
+
+    private function resolveInstitutionIdForCreate(array $payload, Admin $actor): int
+    {
+        if (AdminScopeEnum::of($actor) === AdminScopeEnum::INSTITUTION) {
+            if ($actor->institution_id === null) {
+                throw new ApiException('Your admin account has no institution to create a tier for.', 422);
+            }
+
+            return $actor->institution_id;
+        }
+
+        $institution = $this->institutionRepository->findByUuid((string) ($payload['institution_uuid'] ?? ''));
+        if (! $institution instanceof Institution) {
+            throw new ApiException('The selected institution does not exist.', 422);
+        }
+
+        return $institution->id;
     }
 
     /**
@@ -63,8 +91,7 @@ class DonorTierService
      */
     public function paginateForAdmin(array $filters): LengthAwarePaginator
     {
-        $this->assertNhefScope();
-
+        $filters = $this->scopeFiltersToOwnInstitution($filters);
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         return $this->tierRepository->paginateForAdmin($filters, $perPage);
@@ -76,22 +103,64 @@ class DonorTierService
      */
     public function exportForAdmin(array $filters): array
     {
-        $this->assertNhefScope();
+        return $this->tierRepository->exportForAdmin($this->scopeFiltersToOwnInstitution($filters));
+    }
 
-        return $this->tierRepository->exportForAdmin($filters);
+    /**
+     * An institution admin only ever sees/lists their own institution's tiers - their own
+     * institution_uuid filter, never whatever (if anything) the client sent, same reasoning as
+     * resolveInstitutionIdForCreate().
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function scopeFiltersToOwnInstitution(array $filters): array
+    {
+        $actor = $this->currentAdmin();
+        if ($actor === null || AdminScopeEnum::of($actor) !== AdminScopeEnum::INSTITUTION) {
+            return $filters;
+        }
+
+        $actor->loadMissing('institution');
+        $filters['filters']['institution_uuid'] = $actor->institution?->uuid;
+
+        return $filters;
     }
 
     public function findForAdmin(string $uuid): DonorTier
     {
-        $this->assertNhefScope();
-
         $tier = $this->tierRepository->findByUuid($uuid);
 
         if (! $tier instanceof DonorTier) {
             throw new ApiException('Donation tier not found.', 404);
         }
 
+        $this->assertOwnsTier($tier);
+
         return $tier;
+    }
+
+    /**
+     * An institution admin can only reach their own institution's tiers - 404, not 403, so this
+     * doesn't confirm another institution's tier exists.
+     */
+    private function assertOwnsTier(DonorTier $tier): void
+    {
+        $actor = $this->currentAdmin();
+        if ($actor === null || AdminScopeEnum::of($actor) !== AdminScopeEnum::INSTITUTION) {
+            return;
+        }
+
+        if ($tier->institution_id !== $actor->institution_id) {
+            throw new ApiException('Donation tier not found.', 404);
+        }
+    }
+
+    private function currentAdmin(): ?Admin
+    {
+        $actor = request()->user();
+
+        return $actor instanceof Admin ? $actor : null;
     }
 
     /**
@@ -104,8 +173,9 @@ class DonorTierService
         $tier = $this->findForAdmin($uuid);
         $tier->loadMissing(['creator.roles:id,name']);
 
+        $bounds = $this->resolveBounds($tier);
         $stats = $tier->is_active
-            ? $this->tierRepository->statsForRange(...array_values($this->resolveBounds($tier)))
+            ? $this->tierRepository->statsForRange($bounds['min'], $bounds['max'], $tier->institution?->tertiary_institution_id)
             : ['alumni_count' => 0, 'institution_count' => 0];
 
         $tier->setAttribute('alumni_count', $stats['alumni_count']);
@@ -125,10 +195,11 @@ class DonorTierService
             'minimum_amount' => (string) $tier->minimum_amount,
             'maximum_amount' => $tier->maximum_amount !== null ? (string) $tier->maximum_amount : null,
             'badge_url' => $tier->badge_url,
+            'color' => $tier->color,
         ];
 
         $updates = [];
-        foreach (['name', 'minimum_amount', 'maximum_amount'] as $field) {
+        foreach (['name', 'minimum_amount', 'maximum_amount', 'color'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $updates[$field] = $payload[$field];
             }
@@ -161,7 +232,7 @@ class DonorTierService
                 $actor->displayName().' updated a donation tier: '.$tier->name.'.',
                 DonorTier::class,
                 $tier->uuid,
-                ModuleEnums::system_configuration,
+                ModuleEnums::donor_tier,
                 200,
             );
         }
@@ -185,7 +256,7 @@ class DonorTierService
             $actor->displayName().($isActive ? ' reactivated' : ' deactivated').' a donation tier: '.$tier->name.'.',
             DonorTier::class,
             $tier->uuid,
-            ModuleEnums::system_configuration,
+            ModuleEnums::donor_tier,
             200,
         );
 
@@ -209,7 +280,7 @@ class DonorTierService
             $actor->displayName().' deleted a donation tier: '.$tierName.'.',
             DonorTier::class,
             $tierUuid,
-            ModuleEnums::system_configuration,
+            ModuleEnums::donor_tier,
             200,
         );
     }
@@ -228,7 +299,7 @@ class DonorTierService
 
         $bounds = $this->resolveBounds($tier);
 
-        $paginator = $this->tierRepository->paginateUsersInRange($bounds['min'], $bounds['max'], $filters, $perPage);
+        $paginator = $this->tierRepository->paginateUsersInRange($bounds['min'], $bounds['max'], $filters, $perPage, $tier->institution?->tertiary_institution_id);
         $paginator->setCollection($this->attachUpgradeDates($paginator->getCollection(), $tier));
 
         return $paginator;
@@ -248,7 +319,7 @@ class DonorTierService
 
         $bounds = $this->resolveBounds($tier);
 
-        [$rows, $truncated] = $this->tierRepository->exportUsersInRange($bounds['min'], $bounds['max'], $filters);
+        [$rows, $truncated] = $this->tierRepository->exportUsersInRange($bounds['min'], $bounds['max'], $filters, $tier->institution?->tertiary_institution_id);
 
         return [$this->attachUpgradeDates($rows, $tier), $truncated];
     }
@@ -275,7 +346,7 @@ class DonorTierService
      */
     private function resolveBounds(DonorTier $tier): array
     {
-        $tiers = $this->tierRepository->activeOrderedByThreshold();
+        $tiers = $this->tierRepository->activeOrderedByThreshold($tier->institution_id);
         $next = $tiers->first(fn (DonorTier $candidate) => (float) $candidate->minimum_amount > (float) $tier->minimum_amount);
 
         return [
@@ -284,16 +355,4 @@ class DonorTierService
         ];
     }
 
-    /**
-     * Donation tiers stay NHEF-wide. Institution Admin no longer holds system_configuration.*
-     * at all (Constituency Type Configuration moved to its own permission set), so this is a
-     * defensive backstop, not the only guard, mirroring how DashboardService asserts scope
-     * internally for its own single-scope cards.
-     */
-    private function assertNhefScope(): void
-    {
-        if (AdminScopeEnum::current() !== AdminScopeEnum::NHEF) {
-            throw new ApiException('Donation tiers are managed by NHEF only.', 403);
-        }
-    }
 }

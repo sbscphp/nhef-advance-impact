@@ -16,28 +16,51 @@ class DonorTierRepository implements DonorTierRepositoryInterface
 {
     private const MAX_EXPORT_ROWS = 5000;
 
-    public function activeOrderedByThreshold(): Collection
+    public function activeOrderedByThreshold(?int $institutionId = null): Collection
     {
-        return DonorTier::query()->where('is_active', true)->orderBy('minimum_amount')->get();
+        $own = DonorTier::query()
+            ->where('is_active', true)
+            ->when($institutionId !== null, fn ($query) => $query->where('institution_id', $institutionId), fn ($query) => $query->whereNull('institution_id'))
+            ->orderBy('minimum_amount')
+            ->get();
+
+        if ($own->isNotEmpty() || $institutionId === null) {
+            return $own;
+        }
+
+        return DonorTier::query()->where('is_active', true)->whereNull('institution_id')->orderBy('minimum_amount')->get();
     }
 
-    public function findForAmount(string $amount): ?DonorTier
+    public function activeOrderedByThresholdForInstitutions(array $institutionIds): array
     {
+        if ($institutionIds === []) {
+            return [];
+        }
+
         return DonorTier::query()
             ->where('is_active', true)
-            ->where('minimum_amount', '<=', $amount)
-            ->orderByDesc('minimum_amount')
-            ->first();
+            ->whereIn('institution_id', $institutionIds)
+            ->orderBy('minimum_amount')
+            ->get()
+            ->groupBy('institution_id')
+            ->all();
+    }
+
+    public function findForAmount(string $amount, ?int $institutionId = null): ?DonorTier
+    {
+        return $this->activeOrderedByThreshold($institutionId)
+            ->filter(fn (DonorTier $tier): bool => bccomp((string) $tier->minimum_amount, $amount, 2) <= 0)
+            ->last();
     }
 
     public function create(array $data): DonorTier
     {
-        return DonorTier::create($data);
+        return DonorTier::create($data)->load('institution');
     }
 
     public function findByUuid(string $uuid): ?DonorTier
     {
-        return DonorTier::query()->where('uuid', $uuid)->first();
+        return DonorTier::query()->with('institution')->where('uuid', $uuid)->first();
     }
 
     public function update(DonorTier $tier, array $data): DonorTier
@@ -78,6 +101,7 @@ class DonorTierRepository implements DonorTierRepositoryInterface
     private function adminListQuery(array $filters): Builder
     {
         $query = DonorTier::query()
+            ->with('institution')
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('name', 'like', '%'.$filters['search'].'%')
@@ -85,6 +109,10 @@ class DonorTierRepository implements DonorTierRepositoryInterface
             ->when(
                 filled($filters['filters']['status'] ?? null),
                 fn ($query) => $query->where('is_active', $filters['filters']['status'] === 'active')
+            )
+            ->when(
+                filled($filters['filters']['institution_uuid'] ?? null),
+                fn ($query) => $query->whereHas('institution', fn ($q) => $q->where('institutions.uuid', $filters['filters']['institution_uuid']))
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
@@ -97,9 +125,9 @@ class DonorTierRepository implements DonorTierRepositoryInterface
         return $query;
     }
 
-    public function statsForRange(string $minimum, ?string $maximum): array
+    public function statsForRange(string $minimum, ?string $maximum, ?int $tertiaryInstitutionId = null): array
     {
-        $userIds = $this->bracketAggregateQuery($minimum, $maximum)->pluck('donation_payments.user_id');
+        $userIds = $this->bracketAggregateQuery($minimum, $maximum, $tertiaryInstitutionId)->pluck('donation_payments.user_id');
 
         return [
             'alumni_count' => $userIds->count(),
@@ -111,18 +139,18 @@ class DonorTierRepository implements DonorTierRepositoryInterface
         ];
     }
 
-    public function paginateUsersInRange(string $minimum, ?string $maximum, array $filters, int $perPage): LengthAwarePaginator
+    public function paginateUsersInRange(string $minimum, ?string $maximum, array $filters, int $perPage, ?int $tertiaryInstitutionId = null): LengthAwarePaginator
     {
-        return $this->usersInRangeQuery($minimum, $maximum, $filters)->paginate($perPage);
+        return $this->usersInRangeQuery($minimum, $maximum, $filters, $tertiaryInstitutionId)->paginate($perPage);
     }
 
     /**
      * @param  array<string, mixed>  $filters
      * @return array{0: Collection<int, User>, 1: bool}
      */
-    public function exportUsersInRange(string $minimum, ?string $maximum, array $filters): array
+    public function exportUsersInRange(string $minimum, ?string $maximum, array $filters, ?int $tertiaryInstitutionId = null): array
     {
-        $query = $this->usersInRangeQuery($minimum, $maximum, $filters);
+        $query = $this->usersInRangeQuery($minimum, $maximum, $filters, $tertiaryInstitutionId);
         $total = (clone $query)->count();
         $truncated = $total > self::MAX_EXPORT_ROWS;
         $rows = $query->limit(self::MAX_EXPORT_ROWS)->get();
@@ -134,9 +162,9 @@ class DonorTierRepository implements DonorTierRepositoryInterface
      * @param  array<string, mixed>  $filters
      * @return Builder<User>
      */
-    private function usersInRangeQuery(string $minimum, ?string $maximum, array $filters): Builder
+    private function usersInRangeQuery(string $minimum, ?string $maximum, array $filters, ?int $tertiaryInstitutionId = null): Builder
     {
-        $aggregate = $this->bracketAggregateQuery($minimum, $maximum);
+        $aggregate = $this->bracketAggregateQuery($minimum, $maximum, $tertiaryInstitutionId);
 
         return User::query()
             ->select('users.*')
@@ -161,16 +189,23 @@ class DonorTierRepository implements DonorTierRepositoryInterface
     /**
      * One row per donor with a successful NGN payment, their lifetime total and payment count,
      * restricted to totals in [$minimum, $maximum). $maximum null means unbounded above.
+     * $tertiaryInstitutionId restricts to one institution's own donors - a tier belongs to one
+     * institution now, so its "Alumni List" tab should only ever show that institution's donors.
      *
      * @return Builder<DonationPayment>
      */
-    private function bracketAggregateQuery(string $minimum, ?string $maximum): Builder
+    private function bracketAggregateQuery(string $minimum, ?string $maximum, ?int $tertiaryInstitutionId = null): Builder
     {
         return DonationPayment::query()
             ->select('donation_payments.user_id')
             ->selectRaw('SUM(donation_payments.amount) as total')
             ->selectRaw('COUNT(*) as payments_count')
             ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->when(
+                $tertiaryInstitutionId !== null,
+                fn ($query) => $query->join('users', 'users.id', '=', 'donation_payments.user_id')
+                    ->where('users.tertiary_institution_id', $tertiaryInstitutionId)
+            )
             ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
             ->where('donation_payments.currency', 'NGN')
             ->where('donations.is_anonymous', false)

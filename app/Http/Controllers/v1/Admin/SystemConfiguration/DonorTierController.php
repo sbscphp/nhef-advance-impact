@@ -76,7 +76,7 @@ class DonorTierController extends Controller
             }
 
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Tier ID', 'Tier Name', 'Minimum Threshold', 'Maximum Threshold', 'Status', 'Last Updated']);
+            fputcsv($out, ['Tier ID', 'Institution', 'Tier Name', 'Color', 'Minimum Threshold', 'Maximum Threshold', 'Status', 'Last Updated']);
 
             foreach ($collection as $tier) {
                 fputcsv($out, $this->tierTabularRow($tier));
@@ -95,7 +95,7 @@ class DonorTierController extends Controller
         [$collection, $truncated] = $this->tierService->exportForAdmin($filters);
 
         $filename = 'donation-tiers-'.now()->format('Y-m-d-His').'.pdf';
-        $headings = ['Tier ID', 'Tier Name', 'Minimum Threshold', 'Maximum Threshold', 'Status', 'Last Updated'];
+        $headings = ['Tier ID', 'Institution', 'Tier Name', 'Color', 'Minimum Threshold', 'Maximum Threshold', 'Status', 'Last Updated'];
         $rows = $collection->values()->map(fn (DonorTier $tier): array => $this->tierTabularRow($tier));
 
         return $this->pdfReportHelper->download(
@@ -119,7 +119,9 @@ class DonorTierController extends Controller
     {
         return [
             $tier->code(),
+            $tier->institution?->name ?? 'Platform default',
             $tier->name,
+            $tier->color ?? '',
             (string) $tier->minimum_amount,
             $tier->maximum_amount !== null ? (string) $tier->maximum_amount : '',
             $tier->is_active ? 'Active' : 'Deactivated',

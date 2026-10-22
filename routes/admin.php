@@ -301,25 +301,29 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:donations.read', 'individual.records']);
         });
 
+        // Own permission set (donor_tiers.*, 2026-10-22), moved off system_configuration.*: both
+        // NHEF and an institution's own admin can hold this now - DonorTierService enforces
+        // per-row institution ownership internally for Institution scope, same split
+        // roles.*/RoleService already uses for institution-scoped custom roles.
         Route::prefix('donation-tiers')->group(function () {
             Route::post('/', [DonorTierController::class, 'store'])
-                ->middleware(['permission:system_configuration.create']);
+                ->middleware(['permission:donor_tiers.create']);
             Route::get('/', [DonorTierController::class, 'index'])
-                ->middleware(['permission:system_configuration.read']);
+                ->middleware(['permission:donor_tiers.read']);
             Route::get('/{uuid}', [DonorTierController::class, 'show'])
-                ->middleware(['permission:system_configuration.read']);
+                ->middleware(['permission:donor_tiers.read']);
             Route::patch('/{uuid}', [DonorTierController::class, 'update'])
-                ->middleware(['permission:system_configuration.update']);
+                ->middleware(['permission:donor_tiers.update']);
             Route::patch('/{uuid}/toggle-status', [DonorTierController::class, 'toggleStatus'])
-                ->middleware(['permission:system_configuration.update']);
+                ->middleware(['permission:donor_tiers.update']);
             Route::delete('/{uuid}', [DonorTierController::class, 'destroy'])
-                ->middleware(['permission:system_configuration.delete']);
+                ->middleware(['permission:donor_tiers.delete']);
             Route::get('/{uuid}/alumni', [DonorTierController::class, 'alumni'])
-                ->middleware(['permission:system_configuration.read', 'individual.records']);
+                ->middleware(['permission:donor_tiers.read', 'individual.records']);
         });
 
         // Own permission set (constituency_types.*), deliberately separate from
-        // system_configuration.* (Donation Tier Configuration's, NHEF-only): institution-admin
+        // system_configuration.* (now unused - see donor_tiers.* above): institution-admin
         // only, granted to Institution Admin and excluded from NHEF's blanket permission grant, so
         // the menu this gates only shows for admins who can actually use it.
         Route::prefix('constituency-types')->group(function () {

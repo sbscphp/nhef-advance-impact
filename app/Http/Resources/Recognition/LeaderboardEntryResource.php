@@ -20,6 +20,7 @@ class LeaderboardEntryResource extends JsonResource
             'user_type' => $this->user_type,
             'user_type_label' => $this->user_type_label,
             'tier' => $this->tier,
+            'tier_color' => $this->tier_color,
             'total' => $this->total,
             'total_formatted' => Money::format($this->total, 'NGN'),
         ];

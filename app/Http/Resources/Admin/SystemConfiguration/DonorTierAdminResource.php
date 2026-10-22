@@ -24,6 +24,12 @@ class DonorTierAdminResource extends JsonResource
             'maximum_amount' => $this->maximum_amount !== null ? (string) $this->maximum_amount : null,
             'maximum_amount_formatted' => $this->maximum_amount !== null ? Money::format($this->maximum_amount, 'NGN') : null,
             'badge_url' => $this->badge_url,
+            'color' => $this->color,
+            // Null means a platform-wide default tier, not tied to one institution.
+            'institution' => $this->whenLoaded('institution', fn () => $this->institution === null ? null : [
+                'uuid' => $this->institution->uuid,
+                'name' => $this->institution->name,
+            ]),
             'status' => $this->is_active ? 'active' : 'inactive',
             'is_active' => $this->is_active,
             'updated_at' => $this->updated_at?->toIso8601String(),

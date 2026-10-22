@@ -274,6 +274,13 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CONSTITUENCY_TYPES_READ,
             PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
             PermissionEnum::CONSTITUENCY_TYPES_DELETE,
+            // Institution-scoped (2026-10-22): manages only this institution's own donor tiers,
+            // enforced inside DonorTierService, not by a narrower permission - same split as
+            // roles.* above for institution-scoped custom roles.
+            PermissionEnum::DONOR_TIERS_CREATE,
+            PermissionEnum::DONOR_TIERS_READ,
+            PermissionEnum::DONOR_TIERS_UPDATE,
+            PermissionEnum::DONOR_TIERS_DELETE,
             PermissionEnum::VISIBILITY_MONETARY,
             PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
         ]);

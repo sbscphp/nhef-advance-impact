@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * Expects `donation_count` already set on the model (see AdminInstitutionService::alumni()).
+ * Expects `donation_count`, `tier` and `tier_color` already set on the model (see
+ * AdminInstitutionService::paginateAlumni()).
  *
  * @mixin User
  */
@@ -24,6 +25,8 @@ class InstitutionAlumniResource extends JsonResource
             'name' => trim($this->firstname.' '.$this->lastname),
             'email' => $this->email,
             'no_of_donations' => (int) ($this->donation_count ?? 0),
+            'tier' => $this->tier,
+            'tier_color' => $this->tier_color,
             'department' => $this->department,
             'status' => $this->is_active ? 'active' : 'inactive',
             'last_active' => $this->last_active_at?->toIso8601String(),

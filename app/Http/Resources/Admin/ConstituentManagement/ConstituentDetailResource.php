@@ -37,6 +37,7 @@ class ConstituentDetailResource extends JsonResource
             'organisation_name' => $this->organisation_name,
             'position' => $this->position,
             'tier' => $this->tier,
+            'tier_color' => $this->tier_color,
             'constituency_types' => $this->whenLoaded('constituencyTypes', fn () => ConstituencyTypeAdminResource::collection($this->constituencyTypes)->resolve()),
             'invite_message' => $this->invite_message,
             // Present only when the service has attached them (showForAdmin);

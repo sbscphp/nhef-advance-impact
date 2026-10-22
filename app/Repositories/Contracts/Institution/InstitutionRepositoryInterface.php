@@ -30,6 +30,17 @@ interface InstitutionRepositoryInterface
      */
     public function linkedTertiaryInstitutionIds(array $tertiaryInstitutionIds): array;
 
+    /**
+     * Maps each given tertiary_institution_id to its onboarded Institution's own id - for
+     * batch-resolving a donor's institution-scoped donor tier from their `User.tertiary_institution_id`
+     * (institutions.tertiary_institution_id is unique, so this is a 1:1 lookup). A tertiary
+     * institution id with no onboarded Institution row is simply absent from the result.
+     *
+     * @param  list<int>  $tertiaryInstitutionIds
+     * @return array<int, int> tertiary_institution_id => institution_id
+     */
+    public function institutionIdsByTertiaryInstitutionIds(array $tertiaryInstitutionIds): array;
+
     public function existsForTertiaryInstitution(int $tertiaryInstitutionId, ?int $excludeInstitutionId = null): bool;
 
     /**
