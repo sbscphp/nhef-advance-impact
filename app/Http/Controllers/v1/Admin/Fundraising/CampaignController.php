@@ -25,6 +25,7 @@ use App\Http\Resources\Admin\CampaignDetailResource;
 use App\Http\Resources\Admin\CampaignDonationResource;
 use App\Http\Resources\Admin\CampaignInstitutionResource;
 use App\Http\Resources\Admin\CampaignPledgeResource;
+use App\Http\Resources\Admin\NationalGivingDayOpeningDetailResource;
 use App\Http\Resources\Admin\NationalGivingDayOpeningResource;
 use App\Models\Admin;
 use App\Models\Campaign;
@@ -106,6 +107,41 @@ class CampaignController extends Controller
             return JsonResponser::send(false, 'National Giving Day openings retrieved.', $this->paginatedPayload($paginator, NationalGivingDayOpeningResource::class));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@indexOpenings');
+        }
+    }
+
+    public function showOpening(string $uuid)
+    {
+        try {
+            $opening = $this->campaignService->findOpeningForAdmin($uuid);
+            $opening->setAttribute('donors_count', $this->campaignService->openingDonorsCount($opening));
+            $opening->setAttribute('days_remaining', $this->campaignService->openingDaysRemaining($opening));
+            $opening->setAttribute('overview', $this->campaignService->openingDetailOverview($opening));
+
+            return JsonResponser::send(false, 'National Giving Day opening retrieved.', NationalGivingDayOpeningDetailResource::make($opening)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@showOpening');
+        }
+    }
+
+    /**
+     * @hideFromAPIDocumentation
+     */
+    public function openingInstitutions(CampaignInstitutionListRequest $request, string $uuid)
+    {
+        try {
+            $filters = $request->validated();
+
+            return match ($filters['export'] ?? null) {
+                'csv' => $this->respondInstitutionsCsv($this->campaignService->exportOpeningInstitutions($uuid, $filters)),
+                'pdf' => $this->respondInstitutionsPdf($this->campaignService->exportOpeningInstitutions($uuid, $filters)),
+                default => JsonResponser::send(false, 'National Giving Day opening institutions retrieved.', $this->paginatedPayload(
+                    $this->campaignService->listOpeningInstitutions($uuid, $filters),
+                    CampaignInstitutionResource::class
+                )),
+            };
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@openingInstitutions');
         }
     }
 

@@ -152,6 +152,10 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.create']);
             Route::get('/national-giving-day/openings', [AdminCampaignController::class, 'indexOpenings'])
                 ->middleware(['permission:campaigns.read']);
+            Route::get('/national-giving-day/openings/{uuid}', [AdminCampaignController::class, 'showOpening'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/national-giving-day/openings/{uuid}/institutions', [AdminCampaignController::class, 'openingInstitutions'])
+                ->middleware(['permission:campaigns.read']);
             Route::get('/', [AdminCampaignController::class, 'index'])
                 ->middleware(['permission:campaigns.read']);
             // Must be registered before /{uuid}; otherwise "overview" would be swallowed as a

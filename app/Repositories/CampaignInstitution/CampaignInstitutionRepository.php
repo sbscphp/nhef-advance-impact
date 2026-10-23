@@ -55,6 +55,30 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
         return $query->paginate($perPage);
     }
 
+    public function paginateForOpening(int $openingId, array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = CampaignInstitution::query()
+            ->select('campaign_institutions.*')
+            ->with(['campaign', 'institution', 'bankAccount.bank', 'projectGoals.campaignProject'])
+            ->join('campaigns', 'campaigns.id', '=', 'campaign_institutions.campaign_id')
+            ->where('campaigns.national_giving_day_opening_id', $openingId)
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->whereHas('institution', fn ($q) => $q->where('name', 'like', '%'.$filters['search'].'%'))
+            );
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'campaign_institutions.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('institutions', 'institutions.id', '=', 'campaign_institutions.institution_id')
+                ->orderBy('institutions.name', $direction),
+            'value' => fn ($query, string $direction) => $query->orderBy('campaign_institutions.goal_amount', $direction),
+        ], 'campaign_institutions.created_at');
+
+        return $query->paginate($perPage);
+    }
+
     public function paginateForInstitution(int $institutionId, array $filters, int $perPage): LengthAwarePaginator
     {
         $query = CampaignInstitution::query()
@@ -176,6 +200,22 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
             )
             ->orderBy('id')
             ->limit(5000)
+            ->get();
+    }
+
+    public function exportForOpening(int $openingId, array $filters): Collection
+    {
+        return CampaignInstitution::query()
+            ->join('campaigns', 'campaigns.id', '=', 'campaign_institutions.campaign_id')
+            ->where('campaigns.national_giving_day_opening_id', $openingId)
+            ->with(['campaign', 'institution', 'bankAccount.bank', 'projectGoals.campaignProject'])
+            ->when(
+                filled($filters['search'] ?? null),
+                fn ($query) => $query->whereHas('institution', fn ($q) => $q->where('name', 'like', '%'.$filters['search'].'%'))
+            )
+            ->orderBy('campaign_institutions.id')
+            ->limit(5000)
+            ->select('campaign_institutions.*')
             ->get();
     }
 

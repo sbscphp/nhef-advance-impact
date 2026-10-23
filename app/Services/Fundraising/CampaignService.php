@@ -314,6 +314,106 @@ class CampaignService
         return $opening;
     }
 
+    /**
+     * Unscoped by status; the admin "View National Giving Day" screen must load any opening.
+     * Unlike findOpeningOrFail() (a payload reference check, 422), a missing uuid here is a
+     * genuine 404 - same split as Campaign's own findForAdmin() vs its inline existence checks.
+     */
+    public function findOpeningForAdmin(string $uuid): NationalGivingDayOpening
+    {
+        $opening = $this->openingRepository->findByUuid($uuid);
+
+        if (! $opening instanceof NationalGivingDayOpening) {
+            throw new ApiException('National Giving Day opening not found.', 404);
+        }
+
+        $opening->load(['campaigns.campaignInstitutions.institution', 'campaigns.projects']);
+
+        return $opening;
+    }
+
+    public function openingDaysRemaining(NationalGivingDayOpening $opening): ?int
+    {
+        if ($opening->ends_at === null) {
+            return null;
+        }
+
+        return max(0, (int) now()->startOfDay()->diffInDays($opening->ends_at->copy()->startOfDay(), false));
+    }
+
+    public function openingDonorsCount(NationalGivingDayOpening $opening): int
+    {
+        return $this->campaignRepository->countDistinctDonorsForCampaigns($opening->campaigns->pluck('id')->all());
+    }
+
+    /**
+     * Backs the "View National Giving Day" header totals and Overview cards - the Opening-level
+     * equivalent of nationalGivingDayTotals()/detailOverview(), aggregated across every Campaign
+     * created under this opening (one per institution that set up its own under the same shared
+     * day) rather than a single campaign's own numbers. No `goal_amount` here (2026-10-23, FE
+     * feedback): unlike a single campaign, an opening has no one generic target - each
+     * institution sets its own project goals independently, often before every institution under
+     * this opening has even created its campaign yet.
+     *
+     * `$opening->campaigns.campaignInstitutions.institution` and `$opening->campaigns.projects`
+     * must be eager-loaded by the caller - see findOpeningForAdmin().
+     *
+     * @return array{raised_amount: string, currency: string, donations_count: int, pledges_count: int, pledges_total: string, campaigns_count: int, institutions_count: int}
+     */
+    public function openingDetailOverview(NationalGivingDayOpening $opening): array
+    {
+        $campaigns = $opening->campaigns;
+        $campaignIds = $campaigns->pluck('id')->all();
+
+        $raisedAmount = 0.0;
+        $institutionsCount = 0;
+
+        foreach ($campaigns as $campaign) {
+            $raisedAmount += (float) $this->nationalGivingDayTotals($campaign)['raised_amount'];
+            $institutionsCount += $campaign->campaignInstitutions->count();
+        }
+
+        $payments = $this->paymentRepository->statsByCampaigns($campaignIds);
+        $pledges = $this->pledgeRepository->totalsByCampaigns($campaignIds);
+
+        return [
+            'raised_amount' => (string) $raisedAmount,
+            'currency' => 'NGN',
+            'donations_count' => array_sum(array_column($payments, 'donations')),
+            'pledges_count' => array_sum(array_column($pledges, 'count')),
+            'pledges_total' => (string) array_sum(array_map('floatval', array_column($pledges, 'total'))),
+            'campaigns_count' => count($campaignIds),
+            'institutions_count' => $institutionsCount,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function listOpeningInstitutions(string $uuid, array $filters): LengthAwarePaginator
+    {
+        $opening = $this->findOpeningForAdmin($uuid);
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        $paginator = $this->campaignInstitutionRepository->paginateForOpening($opening->id, $filters, $perPage);
+        $this->attachInstitutionRowStats($paginator->items());
+
+        return $paginator;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, CampaignInstitution>
+     */
+    public function exportOpeningInstitutions(string $uuid, array $filters): Collection
+    {
+        $opening = $this->findOpeningForAdmin($uuid);
+        $rows = $this->campaignInstitutionRepository->exportForOpening($opening->id, $filters);
+        $this->attachInstitutionRowStats($rows);
+
+        return $rows;
+    }
+
     private function uniqueOpeningSlug(string $title): string
     {
         $base = Str::slug($title);
@@ -734,17 +834,7 @@ class CampaignService
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         $paginator = $this->campaignInstitutionRepository->paginateForCampaign($campaign->id, $filters, $perPage);
-
-        foreach ($paginator->items() as $row) {
-            /** @var CampaignInstitution $row */
-            $raised = (float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id)
-                + (float) $this->pledgeRepository->sumReceivedForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id);
-            $row->setAttribute('raised_amount', (string) $raised);
-
-            $pledges = $this->pledgeRepository->totalsForCampaignAndInstitution($campaign->id, $row->institution->tertiary_institution_id);
-            $row->setAttribute('pledges_count', $pledges['count']);
-            $row->setAttribute('pledges_total', $pledges['total']);
-        }
+        $this->attachInstitutionRowStats($paginator->items(), $campaign->id);
 
         return $paginator;
     }
@@ -757,18 +847,34 @@ class CampaignService
     {
         $campaign = $this->findForAdmin($uuid);
         $rows = $this->campaignInstitutionRepository->exportForCampaign($campaign->id, $filters);
+        $this->attachInstitutionRowStats($rows, $campaign->id);
 
+        return $rows;
+    }
+
+    /**
+     * Sets `raised_amount`/`pledges_count`/`pledges_total` on each Institutions-tab row. Pass
+     * `$campaignId` when every row belongs to the same one campaign (the usual case); omit it for
+     * an Opening-level listing where rows span several campaigns, so each row's own `campaign_id`
+     * is used instead.
+     *
+     * @param  iterable<CampaignInstitution>  $rows
+     */
+    private function attachInstitutionRowStats(iterable $rows, ?int $campaignId = null): void
+    {
         foreach ($rows as $row) {
+            /** @var CampaignInstitution $row */
+            $rowCampaignId = $campaignId ?? $row->campaign_id;
             $tertiaryId = $row->institution->tertiary_institution_id;
-            $row->setAttribute('raised_amount', (string) ((float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($campaign->id, $tertiaryId)
-                + (float) $this->pledgeRepository->sumReceivedForCampaignAndInstitution($campaign->id, $tertiaryId)));
 
-            $pledges = $this->pledgeRepository->totalsForCampaignAndInstitution($campaign->id, $tertiaryId);
+            $raised = (float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($rowCampaignId, $tertiaryId)
+                + (float) $this->pledgeRepository->sumReceivedForCampaignAndInstitution($rowCampaignId, $tertiaryId);
+            $row->setAttribute('raised_amount', (string) $raised);
+
+            $pledges = $this->pledgeRepository->totalsForCampaignAndInstitution($rowCampaignId, $tertiaryId);
             $row->setAttribute('pledges_count', $pledges['count']);
             $row->setAttribute('pledges_total', $pledges['total']);
         }
-
-        return $rows;
     }
 
     /**

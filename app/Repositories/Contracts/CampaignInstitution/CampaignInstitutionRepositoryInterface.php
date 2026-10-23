@@ -33,6 +33,15 @@ interface CampaignInstitutionRepositoryInterface
     public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator;
 
     /**
+     * Every institution row across every Campaign created under one National Giving Day opening -
+     * the Opening-level "Institutions" tab (an opening can have several campaigns, one per
+     * institution that set up its own under the same shared day).
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForOpening(int $openingId, array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
      * Campaigns one institution participates in, for the Institution detail "Campaign" tab.
      *
      * @param  array<string, mixed>  $filters
@@ -85,6 +94,14 @@ interface CampaignInstitutionRepositoryInterface
      * @return Collection<int, CampaignInstitution>
      */
     public function exportForCampaign(int $campaignId, array $filters): Collection;
+
+    /**
+     * Same as {@see self::exportForCampaign()} but for the Opening-level "Institutions" tab.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return Collection<int, CampaignInstitution>
+     */
+    public function exportForOpening(int $openingId, array $filters): Collection;
 
     /**
      * One row per institution on every active campaign that overlaps the window (or all active

@@ -39,6 +39,15 @@ interface CampaignRepositoryInterface
     /** Distinct donor count (registered users by id, guests by email) across the campaign's donations. */
     public function countDistinctDonors(Campaign $campaign): int;
 
+    /**
+     * Same as {@see self::countDistinctDonors()} but a single distinct count spanning several
+     * campaigns at once - a donor who gave to two campaigns under the same National Giving Day
+     * opening is counted once, not twice.
+     *
+     * @param  list<int>  $campaignIds
+     */
+    public function countDistinctDonorsForCampaigns(array $campaignIds): int;
+
     /** Count of campaigns currently marked active, regardless of their start/end dates. */
     public function countActive(): int;
 

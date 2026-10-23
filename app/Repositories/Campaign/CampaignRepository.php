@@ -58,6 +58,13 @@ class CampaignRepository implements CampaignRepositoryInterface
                     'campaignInstitutions.institution',
                     fn ($q) => $q->where('institutions.uuid', $filters['filters']['institution_uuid'])
                 )
+            )
+            ->when(
+                filled($filters['filters']['opening_uuid'] ?? null),
+                fn ($query) => $query->whereHas(
+                    'nationalGivingDayOpening',
+                    fn ($q) => $q->where('national_giving_day_openings.uuid', $filters['filters']['opening_uuid'])
+                )
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
@@ -116,6 +123,19 @@ class CampaignRepository implements CampaignRepositoryInterface
     {
         return (int) DB::table('donations')
             ->where('campaign_id', $campaign->id)
+            ->where('total_received', '>', 0)
+            ->distinct()
+            ->count(DB::raw('COALESCE(user_id, guest_email)'));
+    }
+
+    public function countDistinctDonorsForCampaigns(array $campaignIds): int
+    {
+        if ($campaignIds === []) {
+            return 0;
+        }
+
+        return (int) DB::table('donations')
+            ->whereIn('campaign_id', $campaignIds)
             ->where('total_received', '>', 0)
             ->distinct()
             ->count(DB::raw('COALESCE(user_id, guest_email)'));
