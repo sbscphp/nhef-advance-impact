@@ -4,6 +4,7 @@ namespace App\Http\Resources\Admin;
 
 use App\Models\CampaignInstitution;
 use App\Models\CampaignInstitutionProjectGoal;
+use App\Models\CampaignProject;
 use App\Support\Money;
 use App\Support\ViewerVisibility;
 use Illuminate\Http\Request;
@@ -30,6 +31,18 @@ class CampaignInstitutionResource extends JsonResource
                 'name' => $this->institution->name,
             ]),
             'currency' => $this->currency,
+            // This institution's own campaign's full project list (name/description), regardless
+            // of whether a $ breakdown has been set for any of them yet - see `project_goals`
+            // below for that. Without this, a row with no project_goals set (goal_amount still 0)
+            // gave no way to tell which projects the campaign even defines (2026-10-23).
+            'projects' => $this->whenLoaded('campaign', fn () => $this->campaign->relationLoaded('projects') ? $this->campaign->projects
+                ->map(fn (CampaignProject $project): array => [
+                    'uuid' => $project->uuid,
+                    'name' => $project->name,
+                    'description' => $project->description,
+                ])
+                ->values()
+                ->all() : null),
             // The goal is the public target, not money actually collected - shown to every
             // viewer. It's always the sum of project_goals below, never set directly
             // (2026-10-20) - see CampaignService::resolveProjectGoals().

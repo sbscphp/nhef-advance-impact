@@ -59,7 +59,7 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
     {
         $query = CampaignInstitution::query()
             ->select('campaign_institutions.*')
-            ->with(['campaign', 'institution', 'bankAccount.bank', 'projectGoals.campaignProject'])
+            ->with(['campaign.projects', 'institution', 'bankAccount.bank', 'projectGoals.campaignProject'])
             ->join('campaigns', 'campaigns.id', '=', 'campaign_institutions.campaign_id')
             ->where('campaigns.national_giving_day_opening_id', $openingId)
             ->when(
@@ -208,7 +208,7 @@ class CampaignInstitutionRepository implements CampaignInstitutionRepositoryInte
         return CampaignInstitution::query()
             ->join('campaigns', 'campaigns.id', '=', 'campaign_institutions.campaign_id')
             ->where('campaigns.national_giving_day_opening_id', $openingId)
-            ->with(['campaign', 'institution', 'bankAccount.bank', 'projectGoals.campaignProject'])
+            ->with(['campaign.projects', 'institution', 'bankAccount.bank', 'projectGoals.campaignProject'])
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->whereHas('institution', fn ($q) => $q->where('name', 'like', '%'.$filters['search'].'%'))

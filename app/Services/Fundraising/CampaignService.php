@@ -834,7 +834,7 @@ class CampaignService
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
 
         $paginator = $this->campaignInstitutionRepository->paginateForCampaign($campaign->id, $filters, $perPage);
-        $this->attachInstitutionRowStats($paginator->items(), $campaign->id);
+        $this->attachInstitutionRowStats($paginator->items(), $campaign);
 
         return $paginator;
     }
@@ -847,25 +847,31 @@ class CampaignService
     {
         $campaign = $this->findForAdmin($uuid);
         $rows = $this->campaignInstitutionRepository->exportForCampaign($campaign->id, $filters);
-        $this->attachInstitutionRowStats($rows, $campaign->id);
+        $this->attachInstitutionRowStats($rows, $campaign);
 
         return $rows;
     }
 
     /**
-     * Sets `raised_amount`/`pledges_count`/`pledges_total` on each Institutions-tab row. Pass
-     * `$campaignId` when every row belongs to the same one campaign (the usual case); omit it for
-     * an Opening-level listing where rows span several campaigns, so each row's own `campaign_id`
-     * is used instead.
+     * Sets `raised_amount`/`pledges_count`/`pledges_total` (and, when `$campaign` is given, its
+     * `campaign` relation - with `projects` already loaded via findForAdmin() - so
+     * CampaignInstitutionResource can show the campaign's own project list without a further
+     * query) on each Institutions-tab row. Pass `$campaign` when every row belongs to the same one
+     * campaign (the usual case); omit it for an Opening-level listing where rows span several
+     * campaigns, so each row's own `campaign_id`/already-eager-loaded `campaign` is used instead.
      *
      * @param  iterable<CampaignInstitution>  $rows
      */
-    private function attachInstitutionRowStats(iterable $rows, ?int $campaignId = null): void
+    private function attachInstitutionRowStats(iterable $rows, ?Campaign $campaign = null): void
     {
         foreach ($rows as $row) {
             /** @var CampaignInstitution $row */
-            $rowCampaignId = $campaignId ?? $row->campaign_id;
+            $rowCampaignId = $campaign?->id ?? $row->campaign_id;
             $tertiaryId = $row->institution->tertiary_institution_id;
+
+            if ($campaign instanceof Campaign) {
+                $row->setRelation('campaign', $campaign);
+            }
 
             $raised = (float) $this->paymentRepository->sumSuccessfulForCampaignAndInstitution($rowCampaignId, $tertiaryId)
                 + (float) $this->pledgeRepository->sumReceivedForCampaignAndInstitution($rowCampaignId, $tertiaryId);
@@ -938,6 +944,7 @@ class CampaignService
         $campaignInstitution = $this->campaignInstitutionRepository->create($campaign, $rows[0]);
         $this->campaignInstitutionProjectGoalRepository->replaceForCampaignInstitution($campaignInstitution, $projectGoals);
         $campaignInstitution->load('institution', 'bankAccount.bank', 'projectGoals.campaignProject');
+        $campaignInstitution->setRelation('campaign', $campaign);
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
@@ -998,6 +1005,7 @@ class CampaignService
         });
 
         $campaignInstitutions->load('institution', 'bankAccount.bank', 'projectGoals.campaignProject');
+        $campaignInstitutions->each(fn (CampaignInstitution $row) => $row->setRelation('campaign', $campaign));
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
@@ -1058,6 +1066,7 @@ class CampaignService
         }
 
         $campaignInstitution->load('institution', 'bankAccount.bank', 'projectGoals.campaignProject');
+        $campaignInstitution->setRelation('campaign', $campaign);
 
         GeneralHelper::storeAuditLog(
             UserTypeEnum::ADMIN,
