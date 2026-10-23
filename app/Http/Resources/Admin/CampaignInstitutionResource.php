@@ -35,12 +35,27 @@ class CampaignInstitutionResource extends JsonResource
             // of whether a $ breakdown has been set for any of them yet - see `project_goals`
             // below for that. Without this, a row with no project_goals set (goal_amount still 0)
             // gave no way to tell which projects the campaign even defines (2026-10-23).
+            // `goal_amount` is merged in here too (2026-10-23, FE feedback) from this institution's
+            // own project_goals when set for that project, 0 otherwise - no separate lookup
+            // needed. There is no per-project `raised_amount`: a donation is only ever linked to
+            // a campaign (and, through the donor, an institution), never to one specific project
+            // within it - donors don't pick a project when giving, so there's nothing to sum per
+            // project. `raised_amount` below is the institution's own total across every project.
             'projects' => $this->whenLoaded('campaign', fn () => $this->campaign->relationLoaded('projects') ? $this->campaign->projects
-                ->map(fn (CampaignProject $project): array => [
-                    'uuid' => $project->uuid,
-                    'name' => $project->name,
-                    'description' => $project->description,
-                ])
+                ->map(function (CampaignProject $project): array {
+                    $goal = $this->relationLoaded('projectGoals')
+                        ? $this->projectGoals->first(fn (CampaignInstitutionProjectGoal $g) => $g->campaign_project_id === $project->id)
+                        : null;
+                    $goalAmount = (string) ($goal->goal_amount ?? '0');
+
+                    return [
+                        'uuid' => $project->uuid,
+                        'name' => $project->name,
+                        'description' => $project->description,
+                        'goal_amount' => $goalAmount,
+                        'goal_amount_formatted' => Money::format($goalAmount, $this->currency),
+                    ];
+                })
                 ->values()
                 ->all() : null),
             // The goal is the public target, not money actually collected - shown to every
