@@ -27,6 +27,7 @@ class Project extends Model
             'budget_max' => 'decimal:2',
             'funded_by_donor' => 'boolean',
             'funded_by_donation' => 'boolean',
+            'is_sponsored' => 'boolean',
             'archived_at' => 'datetime',
             'on_hold_at' => 'datetime',
         ];

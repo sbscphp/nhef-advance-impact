@@ -130,6 +130,23 @@ class PledgeRepository implements PledgeRepositoryInterface
         ];
     }
 
+    public function totalsFulfilledByUserIds(array $userIds): array
+    {
+        if ($userIds === []) {
+            return [];
+        }
+
+        return Pledge::query()
+            ->whereIn('user_id', $userIds)
+            ->where('currency', 'NGN')
+            ->where('status', '!=', PledgeStatusEnum::CANCELLED->value)
+            ->groupBy('user_id')
+            ->selectRaw('user_id, sum(amount_paid) as total')
+            ->pluck('total', 'user_id')
+            ->map(fn ($total) => (string) $total)
+            ->all();
+    }
+
     public function totalCommittedByInstitutions(array $tertiaryInstitutionIds): array
     {
         if ($tertiaryInstitutionIds === []) {

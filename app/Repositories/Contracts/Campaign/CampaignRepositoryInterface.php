@@ -56,4 +56,12 @@ interface CampaignRepositoryInterface
 
     /** Every campaign regardless of status - matches the unfiltered campaign list's own total. */
     public function countTotal(?string $type = null): int;
+
+    /**
+     * Sum of `raised_amount` (NGN only - summing across currencies isn't meaningful) across the
+     * given campaigns, for "Available Funding Value" on the Advance Impact project wizard.
+     *
+     * @param  list<int>  $campaignIds
+     */
+    public function sumRaisedAmountForCampaigns(array $campaignIds): string;
 }

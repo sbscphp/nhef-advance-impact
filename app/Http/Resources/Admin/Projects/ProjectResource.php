@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Admin\Projects;
 
 use App\Enums\ProjectCategoryEnum;
+use App\Enums\ProjectSponsorshipTypeEnum;
 use App\Enums\ProjectStatusEnum;
 use App\Models\Project;
 use App\Support\Money;
@@ -23,6 +24,9 @@ class ProjectResource extends JsonResource
             'description' => $this->description,
             'category' => $this->category,
             'category_label' => $this->category !== null ? ProjectCategoryEnum::from($this->category)->label() : null,
+            'is_sponsored' => (bool) $this->is_sponsored,
+            'sponsorship_type' => $this->sponsorship_type,
+            'sponsorship_type_label' => $this->sponsorship_type !== null ? ProjectSponsorshipTypeEnum::from($this->sponsorship_type)->label() : null,
             'status' => $this->status,
             'status_label' => ProjectStatusEnum::from($this->status)->label(),
             'starts_at' => $this->starts_at?->toDateString(),

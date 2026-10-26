@@ -28,6 +28,8 @@ use App\Models\ProjectRisk;
 use App\Notifications\GenericDatabaseNotification;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
+use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
+use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\Project\ProjectBroadcastRepositoryInterface;
 use App\Repositories\Contracts\Project\ProjectBudgetLineRepositoryInterface;
 use App\Repositories\Contracts\Project\ProjectDeliverableRepositoryInterface;
@@ -70,8 +72,47 @@ class ProjectService
         private readonly AdminRepositoryInterface $adminRepository,
         private readonly UserRepositoryInterface $userRepository,
         private readonly CampaignRepositoryInterface $campaignRepository,
+        private readonly DonationPaymentRepositoryInterface $paymentRepository,
+        private readonly PledgeRepositoryInterface $pledgeRepository,
         private readonly NotificationDispatchService $notificationDispatchService,
     ) {}
+
+    /**
+     * "Available Funding Value" shown live in the Funding & Disbursement step once a donor
+     * and/or campaign is selected. This is each source's TOTAL raised/given to date (NGN only,
+     * same scoping as everywhere else in this app) - it is NOT netted against whatever has
+     * already been committed to this source's OTHER projects, since a project's budget is one
+     * figure, not broken down per funding source, so there is nothing to subtract from. Read
+     * this as "how much this source has given in total," not "how much of it is still free."
+     *
+     * @param  list<string>  $donorUuids
+     * @param  list<string>  $campaignUuids
+     * @return array{donor_total: string, campaign_total: string, available_total: string}
+     */
+    public function availableFunding(array $donorUuids, array $campaignUuids): array
+    {
+        $donorTotal = 0.0;
+        if ($donorUuids !== []) {
+            $donorIds = $this->resolveUserIds($donorUuids);
+            $donationTotals = $this->paymentRepository->totalsByUserIds($donorIds);
+            $pledgeTotals = $this->pledgeRepository->totalsFulfilledByUserIds($donorIds);
+
+            foreach ($donorIds as $donorId) {
+                $donorTotal += (float) ($donationTotals[$donorId]['total'] ?? 0);
+                $donorTotal += (float) ($pledgeTotals[$donorId] ?? 0);
+            }
+        }
+
+        $campaignTotal = $campaignUuids !== []
+            ? (float) $this->campaignRepository->sumRaisedAmountForCampaigns($this->resolveCampaignIds($campaignUuids))
+            : 0.0;
+
+        return [
+            'donor_total' => (string) $donorTotal,
+            'campaign_total' => (string) $campaignTotal,
+            'available_total' => (string) ($donorTotal + $campaignTotal),
+        ];
+    }
 
     /**
      * @param  list<string>  $campaignUuids

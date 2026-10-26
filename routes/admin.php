@@ -414,6 +414,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:projects.read']);
             Route::get('/metadata', [ProjectController::class, 'metadata'])
                 ->middleware(['permission:projects.read']);
+            Route::get('/available-funding', [ProjectController::class, 'availableFunding'])
+                ->middleware(['permission:projects.read']);
             Route::get('/', [ProjectController::class, 'index'])
                 ->middleware(['permission:projects.read']);
             Route::post('/', [ProjectController::class, 'store'])

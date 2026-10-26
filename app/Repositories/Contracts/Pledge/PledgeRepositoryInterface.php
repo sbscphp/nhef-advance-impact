@@ -53,6 +53,15 @@ interface PledgeRepositoryInterface
     public function overviewForUser(int $userId): array;
 
     /**
+     * Sum of `amount_paid` (actually fulfilled, not just pledged) per user, NGN only, excluding
+     * cancelled pledges - for "Available Funding Value" on the Advance Impact project wizard.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, string>
+     */
+    public function totalsFulfilledByUserIds(array $userIds): array;
+
+    /**
      * Committed (not yet paid) NGN pledge value per donor's tertiary institution, excluding cancelled pledges.
      *
      * @param  list<int>  $tertiaryInstitutionIds

@@ -141,6 +141,18 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->count(DB::raw('COALESCE(user_id, guest_email)'));
     }
 
+    public function sumRaisedAmountForCampaigns(array $campaignIds): string
+    {
+        if ($campaignIds === []) {
+            return '0';
+        }
+
+        return (string) Campaign::query()
+            ->whereIn('id', $campaignIds)
+            ->where('currency', 'NGN')
+            ->sum('raised_amount');
+    }
+
     public function countActive(): int
     {
         return Campaign::query()->active()->count();

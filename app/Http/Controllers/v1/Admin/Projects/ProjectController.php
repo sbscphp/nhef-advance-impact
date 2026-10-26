@@ -6,6 +6,7 @@ use App\Enums\AuditActionEnum;
 use App\Enums\ProjectBroadcastDeliveryEnum;
 use App\Enums\ProjectCategoryEnum;
 use App\Enums\ProjectDocumentCategoryEnum;
+use App\Enums\ProjectSponsorshipTypeEnum;
 use App\Enums\ProjectRiskSeverityEnum;
 use App\Enums\ProjectRiskStatusEnum;
 use App\Enums\ProjectStatusEnum;
@@ -22,6 +23,7 @@ use App\Http\Requests\Admin\Projects\CreateProjectObjectiveRequest;
 use App\Http\Requests\Admin\Projects\CreateProjectRequest;
 use App\Http\Requests\Admin\Projects\GenerateProjectReportRequest;
 use App\Http\Requests\Admin\Projects\ProjectAuditLogListRequest;
+use App\Http\Requests\Admin\Projects\ProjectAvailableFundingRequest;
 use App\Http\Requests\Admin\Projects\ProjectBroadcastListRequest;
 use App\Http\Requests\Admin\Projects\ProjectBudgetLineListRequest;
 use App\Http\Requests\Admin\Projects\ProjectDeliverableListRequest;
@@ -97,6 +99,11 @@ class ProjectController extends Controller
                 'label' => $category->label(),
             ], ProjectDocumentCategoryEnum::cases());
 
+            $sponsorshipTypes = array_map(fn (ProjectSponsorshipTypeEnum $type): array => [
+                'value' => $type->value,
+                'label' => $type->label(),
+            ], ProjectSponsorshipTypeEnum::cases());
+
             $broadcastDeliveryOptions = array_map(fn (ProjectBroadcastDeliveryEnum $option): array => [
                 'value' => $option->value,
                 'label' => $option->label(),
@@ -136,6 +143,7 @@ class ProjectController extends Controller
                 'statuses' => $statuses,
                 'categories' => $categories,
                 'document_categories' => $documentCategories,
+                'sponsorship_types' => $sponsorshipTypes,
                 'broadcast_delivery_options' => $broadcastDeliveryOptions,
                 'risk_severities' => $riskSeverities,
                 'risk_statuses' => $riskStatuses,
@@ -146,6 +154,28 @@ class ProjectController extends Controller
             ]);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Projects\ProjectController@metadata');
+        }
+    }
+
+    public function availableFunding(ProjectAvailableFundingRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+            $totals = $this->projectService->availableFunding(
+                $validated['donor_uuids'] ?? [],
+                $validated['campaign_uuids'] ?? [],
+            );
+
+            return JsonResponser::send(false, 'Available funding retrieved.', [
+                'donor_total' => $totals['donor_total'],
+                'donor_total_formatted' => Money::format($totals['donor_total'], 'NGN'),
+                'campaign_total' => $totals['campaign_total'],
+                'campaign_total_formatted' => Money::format($totals['campaign_total'], 'NGN'),
+                'available_total' => $totals['available_total'],
+                'available_total_formatted' => Money::format($totals['available_total'], 'NGN'),
+            ]);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Projects\ProjectController@availableFunding');
         }
     }
 

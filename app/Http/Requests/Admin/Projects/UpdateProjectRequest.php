@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Projects;
 
 use App\Enums\ProjectCategoryEnum;
+use App\Enums\ProjectSponsorshipTypeEnum;
 use App\Http\Requests\ApiFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,6 +18,8 @@ class UpdateProjectRequest extends ApiFormRequest
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string'],
             'category' => ['sometimes', 'nullable', Rule::in(ProjectCategoryEnum::values())],
+            'is_sponsored' => ['sometimes', 'boolean'],
+            'sponsorship_type' => ['sometimes', 'nullable', Rule::in(ProjectSponsorshipTypeEnum::values()), 'required_if:is_sponsored,true'],
             'starts_at' => ['sometimes', 'nullable', 'date'],
             'ends_at' => ['sometimes', 'nullable', 'date', 'after_or_equal:starts_at'],
             'country' => ['sometimes', 'nullable', 'string', 'max:255'],
