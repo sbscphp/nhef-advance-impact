@@ -34,6 +34,7 @@ class MenteeProfileResource extends JsonResource
                 'employment_status' => $this->user->employment_status,
                 'organisation_name' => $this->user->organisation_name,
                 'position' => $this->user->position,
+                'last_active_at' => $this->user->last_active_at?->toIso8601String(),
             ]),
             'interest_areas' => $this->interest_areas,
             'skills' => $this->skills,

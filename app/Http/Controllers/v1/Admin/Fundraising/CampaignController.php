@@ -14,22 +14,25 @@ use App\Http\Requests\Admin\Campaigns\CampaignOverviewRequest;
 use App\Http\Requests\Admin\Campaigns\CampaignPledgeListRequest;
 use App\Http\Requests\Admin\Campaigns\CreateCampaignRequest;
 use App\Http\Requests\Admin\Campaigns\CreateNationalGivingDayCampaignRequest;
+use App\Http\Requests\Admin\Campaigns\CreateNationalGivingDayOpeningRequest;
+use App\Http\Requests\Admin\Campaigns\NationalGivingDayOpeningListRequest;
 use App\Http\Requests\Admin\Campaigns\SyncCampaignInstitutionsRequest;
 use App\Http\Requests\Admin\Campaigns\UpdateCampaignInstitutionRequest;
 use App\Http\Requests\Admin\Campaigns\UpdateCampaignRequest;
 use App\Http\Requests\Admin\DateRangeStatsRequest;
-use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Http\Resources\Admin\CampaignAdminResource;
 use App\Http\Resources\Admin\CampaignDetailResource;
 use App\Http\Resources\Admin\CampaignDonationResource;
 use App\Http\Resources\Admin\CampaignInstitutionResource;
 use App\Http\Resources\Admin\CampaignPledgeResource;
+use App\Http\Resources\Admin\NationalGivingDayOpeningDetailResource;
+use App\Http\Resources\Admin\NationalGivingDayOpeningResource;
 use App\Models\Admin;
 use App\Models\Campaign;
 use App\Models\CampaignInstitution;
-use App\Support\Money;
 use App\Responser\JsonResponser;
 use App\Services\Fundraising\CampaignService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -80,6 +83,65 @@ class CampaignController extends Controller
             return JsonResponser::send(false, 'National Giving Day campaign created successfully.', CampaignAdminResource::make($campaign)->resolve());
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@storeNationalGivingDay');
+        }
+    }
+
+    public function storeOpening(CreateNationalGivingDayOpeningRequest $request)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $opening = $this->campaignService->createOpening($request->validated(), $admin);
+
+            return JsonResponser::send(false, 'National Giving Day opening announced successfully.', NationalGivingDayOpeningResource::make($opening)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@storeOpening');
+        }
+    }
+
+    public function indexOpenings(NationalGivingDayOpeningListRequest $request)
+    {
+        try {
+            $perPage = max(1, min((int) ($request->validated('per_page') ?? 15), 100));
+            $paginator = $this->campaignService->paginateOpeningsForAdmin($request->validated(), $perPage);
+
+            return JsonResponser::send(false, 'National Giving Day openings retrieved.', $this->paginatedPayload($paginator, NationalGivingDayOpeningResource::class));
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@indexOpenings');
+        }
+    }
+
+    public function showOpening(string $uuid)
+    {
+        try {
+            $opening = $this->campaignService->findOpeningForAdmin($uuid);
+            $opening->setAttribute('donors_count', $this->campaignService->openingDonorsCount($opening));
+            $opening->setAttribute('days_remaining', $this->campaignService->openingDaysRemaining($opening));
+            $opening->setAttribute('overview', $this->campaignService->openingDetailOverview($opening));
+
+            return JsonResponser::send(false, 'National Giving Day opening retrieved.', NationalGivingDayOpeningDetailResource::make($opening)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@showOpening');
+        }
+    }
+
+    /**
+     * @hideFromAPIDocumentation
+     */
+    public function openingInstitutions(CampaignInstitutionListRequest $request, string $uuid)
+    {
+        try {
+            $filters = $request->validated();
+
+            return match ($filters['export'] ?? null) {
+                'csv' => $this->respondInstitutionsCsv($this->campaignService->exportOpeningInstitutions($uuid, $filters)),
+                'pdf' => $this->respondInstitutionsPdf($this->campaignService->exportOpeningInstitutions($uuid, $filters)),
+                default => JsonResponser::send(false, 'National Giving Day opening institutions retrieved.', $this->paginatedPayload(
+                    $this->campaignService->listOpeningInstitutions($uuid, $filters),
+                    CampaignInstitutionResource::class
+                )),
+            };
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@openingInstitutions');
         }
     }
 
@@ -300,6 +362,39 @@ class CampaignController extends Controller
             return JsonResponser::send(false, 'Campaign donor breakdown retrieved.', $breakdown);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@donorBreakdown');
+        }
+    }
+
+    public function givingVelocity(DateRangeStatsRequest $request, string $uuid)
+    {
+        try {
+            $velocity = $this->campaignService->givingVelocity($uuid, $request->validated());
+
+            return JsonResponser::send(false, 'Campaign giving velocity retrieved.', $velocity);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@givingVelocity');
+        }
+    }
+
+    public function geographyDistribution(DateRangeStatsRequest $request, string $uuid)
+    {
+        try {
+            $distribution = $this->campaignService->geographyDistribution($uuid, $request->validated());
+
+            return JsonResponser::send(false, 'Campaign geography distribution retrieved.', $distribution);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@geographyDistribution');
+        }
+    }
+
+    public function leaderboard(Request $request, string $uuid)
+    {
+        try {
+            $leaderboard = $this->campaignService->leaderboard($uuid, ['limit' => $request->query('limit')]);
+
+            return JsonResponser::send(false, 'Campaign leaderboard retrieved.', $leaderboard);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@leaderboard');
         }
     }
 

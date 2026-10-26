@@ -4,6 +4,8 @@ namespace App\Services\Audit;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\UserTypeEnum;
+use App\Helpers\PermissionModuleMapper;
+use App\Models\Admin;
 use App\Models\AuditLog;
 use App\Models\Institution;
 use App\Models\Project;
@@ -125,6 +127,19 @@ class AuditTrailQueryService
         if (! ViewerVisibility::canSeeIndividualRecords()) {
             $query->where('audit_logs.user_type', UserTypeEnum::ADMIN->value)
                 ->whereNotIn('audit_logs.action', AuditActionEnum::individualLevelValues());
+        }
+
+        $actor = request()->user();
+        if ($actor instanceof Admin) {
+            $restricted = PermissionModuleMapper::restrictedModuleKeys(
+                $actor->getAllPermissions()->pluck('name')->all()
+            );
+
+            if ($restricted !== []) {
+                $query->where(fn (Builder $q) => $q
+                    ->whereNotIn('audit_logs.action_module', $restricted)
+                    ->orWhereNull('audit_logs.action_module'));
+            }
         }
 
         $userType = $filters['user_type'] ?? null;

@@ -12,6 +12,7 @@ use App\Helpers\GeneralHelper;
 use App\Jobs\SendConstituentInviteEmailJob;
 use App\Models\Admin;
 use App\Models\DonationPayment;
+use App\Models\DonorTier;
 use App\Models\Institution;
 use App\Models\Pledge;
 use App\Models\User;
@@ -20,6 +21,7 @@ use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
+use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Services\Notifications\NotificationDispatchService;
@@ -39,6 +41,7 @@ class AdminConstituentService
         private readonly DonorTierRepositoryInterface $donorTierRepository,
         private readonly EventRegistrationRepositoryInterface $eventRegistrationRepository,
         private readonly NotificationDispatchService $notificationDispatchService,
+        private readonly InstitutionRepositoryInterface $institutionRepository,
     ) {}
 
     /**
@@ -119,8 +122,10 @@ class AdminConstituentService
     }
 
     /**
-     * Attaches `donations_count` and `total_donations` (lifetime, NGN successful payments) read
-     * back by {@see ConstituentAdminResource}, in one grouped query rather than one per row.
+     * Attaches `donations_count` and `total_donations` (lifetime, NGN successful payments), plus
+     * `tier`/`tier_color` resolved against each donor's OWN institution's tier ladder
+     * (institution-scoped tiers, 2026-10-22) - read back by {@see ConstituentAdminResource}, all
+     * in grouped queries rather than one per row.
      *
      * @param  iterable<User>  $users
      */
@@ -129,10 +134,47 @@ class AdminConstituentService
         $users = collect($users);
         $totals = $this->paymentRepository->totalsByUserIds($users->pluck('id')->all());
 
+        $tertiaryIds = $users->pluck('tertiary_institution_id')->filter()->unique()->values()->all();
+        $institutionIds = $this->institutionRepository->institutionIdsByTertiaryInstitutionIds($tertiaryIds);
+        $tiersByInstitution = $this->donorTierRepository->activeOrderedByThresholdForInstitutions(array_values($institutionIds));
+        $defaultTiers = null;
+
         foreach ($users as $user) {
+            $total = $totals[$user->id]['total'] ?? '0';
             $user->setAttribute('donations_count', $totals[$user->id]['count'] ?? 0);
-            $user->setAttribute('total_donations', $totals[$user->id]['total'] ?? '0');
+            $user->setAttribute('total_donations', $total);
+
+            $institutionId = $user->tertiary_institution_id !== null ? ($institutionIds[$user->tertiary_institution_id] ?? null) : null;
+            $tiers = $institutionId !== null ? ($tiersByInstitution[$institutionId] ?? null) : null;
+
+            if (! $tiers instanceof Collection || $tiers->isEmpty()) {
+                $defaultTiers ??= $this->donorTierRepository->activeOrderedByThreshold(null);
+                $tiers = $defaultTiers;
+            }
+
+            $tier = $this->tierForAmount($tiers, $total);
+            $user->setAttribute('tier', $tier?->name);
+            $user->setAttribute('tier_color', $tier?->color);
         }
+    }
+
+    /**
+     * The highest active tier whose minimum_amount the total meets - same rule as
+     * {@see DonorTierRepositoryInterface::findForAmount()}, but bucketed in memory against an
+     * already-resolved tier list instead of a query per row, since this runs once per paginated page.
+     *
+     * @param  Collection<int, DonorTier>  $tiersAscending
+     */
+    private function tierForAmount(Collection $tiersAscending, string $amount): ?DonorTier
+    {
+        $matched = null;
+        foreach ($tiersAscending as $tier) {
+            if (bccomp($amount, (string) $tier->minimum_amount, 2) >= 0) {
+                $matched = $tier;
+            }
+        }
+
+        return $matched;
     }
 
     /**
@@ -163,18 +205,9 @@ class AdminConstituentService
     {
         $user = $this->findForAdmin($uuid);
         $user->loadMissing(['tertiaryInstitution', 'constituencyTypes']);
-        $user->setAttribute('tier', $this->resolveTierLabel($user));
         $this->attachDonationStats([$user]);
 
         return $user;
-    }
-
-    public function resolveTierLabel(User $user): ?string
-    {
-        $total = $this->paymentRepository->sumSuccessfulForUser($user->id, null, null);
-        $tier = $this->donorTierRepository->findForAmount($total);
-
-        return $tier?->name;
     }
 
     /**

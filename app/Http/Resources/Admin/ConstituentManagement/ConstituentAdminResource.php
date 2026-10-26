@@ -34,6 +34,9 @@ class ConstituentAdminResource extends JsonResource
             'donations_count' => $this->when(array_key_exists('donations_count', $this->resource->getAttributes()), fn () => (int) $this->donations_count),
             'total_donations' => $this->when(array_key_exists('total_donations', $this->resource->getAttributes()), fn () => (string) $this->total_donations),
             'total_donations_formatted' => $this->when(array_key_exists('total_donations', $this->resource->getAttributes()), fn () => Money::format($this->total_donations, 'NGN')),
+            // Set by AdminConstituentService::attachDonationStats() alongside the totals above.
+            'tier' => $this->when(array_key_exists('tier', $this->resource->getAttributes()), fn () => $this->tier),
+            'tier_color' => $this->when(array_key_exists('tier_color', $this->resource->getAttributes()), fn () => $this->tier_color),
             'status' => $this->status,
             'is_active' => $this->is_active,
             'last_active_at' => $this->last_active_at?->toIso8601String(),

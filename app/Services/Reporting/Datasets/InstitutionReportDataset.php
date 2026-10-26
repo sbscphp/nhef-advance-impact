@@ -2,6 +2,7 @@
 
 namespace App\Services\Reporting\Datasets;
 
+use App\Http\Resources\Admin\ConstituentManagement\InstitutionAdminResource;
 use App\Models\Institution;
 use App\Services\ConstituentManagement\InstitutionStatsLoader;
 use App\Services\Reporting\Datasets\Concerns\BuildsSimpleAggregateQuery;
@@ -26,18 +27,17 @@ class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecor
         return ['total_donations', 'total_pledges'];
     }
 
+    /**
+     * Matches the Partner Institutions table exactly ({@see InstitutionAdminResource}) - no fields beyond what that screen shows.
+     */
     public function nativeFields(): array
     {
         return [
             'Identity' => [
                 ['key' => 'institution_id', 'label' => 'Institution ID', 'type' => 'string'],
                 ['key' => 'name', 'label' => 'Institution Name', 'type' => 'string'],
-            ],
-            'Contact' => [
+                ['key' => 'slug', 'label' => 'Slug', 'type' => 'string'],
                 ['key' => 'email', 'label' => 'Email', 'type' => 'string'],
-                ['key' => 'phone_number', 'label' => 'Phone Number', 'type' => 'string'],
-                ['key' => 'state', 'label' => 'State', 'type' => 'string'],
-                ['key' => 'country', 'label' => 'Country', 'type' => 'string'],
             ],
             'Constituents' => [
                 ['key' => 'alumni_count', 'label' => 'Alumni', 'type' => 'number'],
@@ -52,8 +52,9 @@ class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecor
             ],
             'Status' => [
                 ['key' => 'status', 'label' => 'Status', 'type' => 'string'],
-                ['key' => 'invited_at', 'label' => 'Invited Date', 'type' => 'date'],
-                ['key' => 'onboarded_at', 'label' => 'Onboarded Date', 'type' => 'date'],
+                ['key' => 'is_active', 'label' => 'Active', 'type' => 'boolean'],
+                ['key' => 'date_added', 'label' => 'Date Added', 'type' => 'date'],
+                ['key' => 'date_onboarded', 'label' => 'Onboarded Date', 'type' => 'date'],
             ],
         ];
     }
@@ -84,15 +85,14 @@ class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecor
         $all = [
             'institution_id' => $record->code(),
             'name' => $record->name,
+            'slug' => $record->slug,
             'email' => $record->email,
-            'phone_number' => $record->phone_number,
-            'state' => $record->state,
-            'country' => $record->country,
             ...$record->statsPayload(),
             ...$record->moneyStatsPayload(),
             'status' => $record->status,
-            'invited_at' => $record->invited_at?->toIso8601String(),
-            'onboarded_at' => $record->onboarded_at?->toIso8601String(),
+            'is_active' => $record->is_active,
+            'date_added' => $record->created_at?->toIso8601String(),
+            'date_onboarded' => $record->onboarded_at?->toIso8601String(),
         ];
 
         return array_intersect_key($all, array_flip($nativeFieldKeys));
@@ -100,7 +100,7 @@ class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecor
 
     public function fieldableMorphClass(): string
     {
-        return (new Institution())->getMorphClass();
+        return (new Institution)->getMorphClass();
     }
 
     public function fieldableId(Model $record): int
@@ -112,7 +112,7 @@ class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecor
     {
         return [
             ['key' => 'status', 'label' => 'Status', 'type' => 'string'],
-            ['key' => 'state', 'label' => 'State', 'type' => 'string'],
+            ['key' => 'is_active', 'label' => 'Active', 'type' => 'boolean'],
         ];
     }
 
@@ -120,7 +120,7 @@ class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecor
     {
         return $this->resolveGroupableColumn([
             'status' => 'status',
-            'state' => 'state',
+            'is_active' => 'is_active',
         ], $key);
     }
 

@@ -36,18 +36,26 @@ class SettingsController extends Controller
     {
         try {
             $admin = $this->requireAdmin($request);
+            $validated = $request->validated();
             $previousName = (string) $admin->name;
-            $newName = (string) $request->validated('name');
+            $updateName = array_key_exists('name', $validated);
+            $newName = $updateName ? (string) $validated['name'] : $previousName;
+
             $profile = $this->settingsService->updateAdminProfile(
                 $admin,
                 $newName,
+                $updateName,
                 $request->validated('job_title'),
-                array_key_exists('job_title', $request->validated()),
+                array_key_exists('job_title', $validated),
+                $request->validated('phone_number'),
+                array_key_exists('phone_number', $validated),
+                $request->validated('country_code'),
+                array_key_exists('country_code', $validated),
                 $request->validated('profile_picture'),
-                array_key_exists('profile_picture', $request->validated()),
+                array_key_exists('profile_picture', $validated),
             );
 
-            if ($previousName !== $newName) {
+            if ($updateName && $previousName !== $newName) {
                 GeneralHelper::storeAuditLog(
                     UserTypeEnum::ADMIN,
                     AuditActionEnum::PROFILE_UPDATED,

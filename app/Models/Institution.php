@@ -8,8 +8,6 @@ use App\Traits\HasUuid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Spatie\Multitenancy\Models\Tenant;
 
 class Institution extends Tenant
@@ -107,19 +105,10 @@ class Institution extends Tenant
         return array_key_exists('alumni_count', $this->attributes);
     }
 
+    /** No logo of its own (2026-10-23) - always the linked tertiary institution's. */
     public function logoUrl(): ?string
     {
-        $path = $this->logo_file_path;
-
-        if (empty($path)) {
-            return null;
-        }
-
-        if (Str::startsWith($path, ['http://', 'https://'])) {
-            return $path;
-        }
-
-        return Storage::disk((string) config('filesystems.public_disk', 'public'))->url($path);
+        return $this->tertiaryInstitution?->logoUrl();
     }
 
     /**

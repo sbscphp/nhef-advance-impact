@@ -17,6 +17,7 @@ use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
+use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
@@ -39,6 +40,7 @@ class AdminInstitutionService
         private readonly TertiaryInstitutionRepositoryInterface $tertiaryInstitutionRepository,
         private readonly AdminRepositoryInterface $adminRepository,
         private readonly InstitutionStatsLoader $statsLoader,
+        private readonly DonorTierRepositoryInterface $donorTierRepository,
     ) {}
 
     /**
@@ -331,9 +333,23 @@ class AdminInstitutionService
 
         $userIds = array_map(fn ($user) => $user->id, $paginator->items());
         $donationCounts = $this->donationRepository->countByUserIds($userIds);
+        $totals = $this->donationPaymentRepository->totalsByUserIds($userIds);
+
+        // One institution already, so one tier lookup for the whole page - institution-scoped
+        // tiers (2026-10-22), falling back to the platform-wide default set if this institution
+        // hasn't configured its own.
+        $tiers = $this->donorTierRepository->activeOrderedByThreshold($institution->id);
+        if ($tiers->isEmpty()) {
+            $tiers = $this->donorTierRepository->activeOrderedByThreshold(null);
+        }
 
         foreach ($paginator->items() as $user) {
             $user->setAttribute('donation_count', $donationCounts[$user->id] ?? 0);
+
+            $total = $totals[$user->id]['total'] ?? '0';
+            $tier = $tiers->filter(fn ($candidate) => bccomp($total, (string) $candidate->minimum_amount, 2) >= 0)->last();
+            $user->setAttribute('tier', $tier?->name);
+            $user->setAttribute('tier_color', $tier?->color);
         }
 
         return $paginator;
@@ -357,5 +373,18 @@ class AdminInstitutionService
         }
 
         return $paginator;
+    }
+
+    /**
+     * This institution's own admin users, paginated - client feedback (2026-10-16): NHEF had no
+     * way at all to see which admins manage a given institution, anywhere in the product.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateAdmins(Institution $institution, array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->adminRepository->paginateForInstitution($institution->id, $filters, $perPage);
     }
 }

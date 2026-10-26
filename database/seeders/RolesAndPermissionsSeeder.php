@@ -89,8 +89,14 @@ class RolesAndPermissionsSeeder extends Seeder
         // menus only show what NHEF can actually use, and none of these can be silently toggled
         // back on for NHEF via Roles & Permissions. campaigns.create_standard and
         // constituency_types.* are excluded for the same reason (see their own grants below).
-        // events.* going away doesn't touch the Dashboard's "Event Tracking" widget, which is
-        // gated by dashboard.read alone, not events.read.
+        // dashboard.read alone (not events.read) is what gates the Dashboard's "Event Tracking"
+        // widget, so excluding events.* here never touched that widget either way.
+        // events.read is carved back out below (2026-10-20) for Super Admin only, so they can view
+        // the standalone Events module read-only; events.create/update/delete and Admin's own
+        // events.read stay excluded. alumni.read is carved back out the same way (2026-10-21):
+        // the "Partner Institutions" > institution detail page's Alumni tab
+        // (GET .../institutions/{uuid}/alumni) needs it, and 403'd for Super Admin without it -
+        // alumni.create/update/delete and Admin's own alumni.read stay excluded.
         $nhefExcluded = [
             PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
             PermissionEnum::CONSTITUENCY_TYPES_CREATE,
@@ -98,7 +104,6 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
             PermissionEnum::CONSTITUENCY_TYPES_DELETE,
             PermissionEnum::ALUMNI_CREATE,
-            PermissionEnum::ALUMNI_READ,
             PermissionEnum::ALUMNI_UPDATE,
             PermissionEnum::ALUMNI_DELETE,
             PermissionEnum::NETWORKING_CREATE,
@@ -122,18 +127,20 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CRM_UPDATE,
             PermissionEnum::CRM_DELETE,
             PermissionEnum::EVENTS_CREATE,
-            PermissionEnum::EVENTS_READ,
             PermissionEnum::EVENTS_UPDATE,
             PermissionEnum::EVENTS_DELETE,
         ];
 
-        // Super Admin-only, not shared with Admin: the user explicitly wants NHEF's plain "Admin"
-        // role to keep individual-record visibility and the Donation module, only Super Admin is
-        // denied both (2026-10-02: Super Admin no longer needs donations.* at all, including the
-        // aggregate-only /donation/overview it was originally kept for).
+        // Super Admin-only, not shared with Admin: the Donation module itself stays off for both
+        // NHEF roles (2026-10-02: Super Admin no longer needs donations.* at all, including the
+        // aggregate-only /donation/overview it was originally kept for) - that decision is
+        // unrelated to individual-record visibility, which Super Admin now holds too (2026-10-20:
+        // previously revoked below along with donations.*, now carved back out so Super Admin can
+        // see individual-level records on every module whose base *.read permission they already
+        // hold - Constituents, Campaigns, Events, System Configuration; still has no effect on
+        // Donations, Alumni, Communications since Super Admin lacks *.read on those).
         $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [
             ...$nhefExcluded,
-            PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
             PermissionEnum::DONATIONS_CREATE,
             PermissionEnum::DONATIONS_READ,
             PermissionEnum::DONATIONS_UPDATE,
@@ -144,6 +151,16 @@ class RolesAndPermissionsSeeder extends Seeder
             ...$nhefExcluded,
             PermissionEnum::ROLES_DELETE,
             PermissionEnum::ADMINS_DELETE,
+            // Announcing the National Giving Day opening is Super Admin only (2026-10-20), not
+            // shared with NHEF's plain "Admin" role - narrower than the existing
+            // campaigns.create_national_giving_day, which both already hold.
+            PermissionEnum::CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY,
+            // Super Admin only (2026-10-20, see the grant above) - Admin keeps the rest of
+            // events.* excluded via $nhefExcluded.
+            PermissionEnum::EVENTS_READ,
+            // Super Admin only (2026-10-21, see the grant above) - Admin keeps the rest of
+            // alumni.* excluded via $nhefExcluded.
+            PermissionEnum::ALUMNI_READ,
         ]));
 
         // One-time corrections (2026-09-30): `grant()`/givePermissionTo() only adds, never strips,
@@ -182,20 +199,27 @@ class RolesAndPermissionsSeeder extends Seeder
                 ?->revokePermissionTo(array_map(fn (PermissionEnum $permission): string => $permission->value, $nhefExcluded));
         }
 
-        // Super Admin only (see the grant above) - Admin keeps both of these.
+        // Donations only (see the grant above) - Admin keeps the Donation module. Individual-
+        // record visibility is no longer revoked here (2026-10-20) - see that grant's comment.
         Role::query()
             ->where('name', RoleEnum::SUPER_ADMIN->value)
             ->where('guard_name', self::GUARD)
             ->first()
             ?->revokePermissionTo([
-                PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS->value,
                 PermissionEnum::DONATIONS_CREATE->value,
                 PermissionEnum::DONATIONS_READ->value,
                 PermissionEnum::DONATIONS_UPDATE->value,
                 PermissionEnum::DONATIONS_DELETE->value,
             ]);
 
-        // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields, roles.
+        // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields.
+        // roles.* IS now granted (2026-10-16): an institution admin may create/manage custom
+        // roles for their own team. `RoleService` scopes this to rows where `institution_id`
+        // matches the actor's own institution - the shared "Institution Admin" template
+        // (institution_id null) stays visible for reference but is never editable/deletable by
+        // them, Super-Admin-only, same as every other global/system role. A custom role's
+        // permissions are also capped to a subset of the creating admin's own, enforced in
+        // RoleService::create()/update(), so nobody can hand out a permission they don't hold.
         // dashboard.read IS granted, but the NHEF-only dashboard cards (National Snapshot,
         // Active Campaign Tracking) branch on AdminScopeEnum internally (DashboardService), so this
         // only unlocks the institution-scoped shape of the shared endpoints, never the NHEF-wide
@@ -225,6 +249,10 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::ADMINS_CREATE,
             PermissionEnum::ADMINS_READ,
             PermissionEnum::ADMINS_UPDATE,
+            PermissionEnum::ROLES_CREATE,
+            PermissionEnum::ROLES_READ,
+            PermissionEnum::ROLES_UPDATE,
+            PermissionEnum::ROLES_DELETE,
             PermissionEnum::EVENTS_CREATE,
             PermissionEnum::EVENTS_READ,
             PermissionEnum::EVENTS_UPDATE,
@@ -246,27 +274,40 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CONSTITUENCY_TYPES_READ,
             PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
             PermissionEnum::CONSTITUENCY_TYPES_DELETE,
+            // Institution-scoped (2026-10-22): manages only this institution's own donor tiers,
+            // enforced inside DonorTierService, not by a narrower permission - same split as
+            // roles.* above for institution-scoped custom roles.
+            PermissionEnum::DONOR_TIERS_CREATE,
+            PermissionEnum::DONOR_TIERS_READ,
+            PermissionEnum::DONOR_TIERS_UPDATE,
+            PermissionEnum::DONOR_TIERS_DELETE,
             PermissionEnum::VISIBILITY_MONETARY,
             PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
         ]);
 
-        // Read-only evaluator: institution-level summaries, no money, no individual records, no audit
-        // trail, no events (2026-10-02: no Event Management screen for this role either, same as
-        // Super Admin). Reports.create is only the export/download action.
+        // Read-only evaluator. Reports.create is only the export/download action. 2026-10-14 FME
+        // dashboard review: this role now sees institution-level money (visibility.monetary) and
+        // the Live Activity feed (audit_trail.read). 2026-10-14 FME Constituents/Alumni/Partner
+        // Institutions screens: this role now also sees named individual constituent and alumni
+        // records (alumni.read, visibility.individual_records) - reverses the 22 Sep decision that
+        // FME never sees individual records under any circumstances; the new Figma screens show
+        // named rows directly, so per the client's own screens that rule no longer holds.
+        // 2026-10-14 FME Events/Mentorship screens: this role now also sees events.read and
+        // mentorship.read - reverses the 2026-10-02 "no Event Management screen for this role,
+        // same as Super Admin" decision, same reasoning (new screens win).
         $this->grant(RoleEnum::MINISTRY_OF_EDUCATION, [
             PermissionEnum::DASHBOARD_READ,
             PermissionEnum::CONSTITUENTS_READ,
+            PermissionEnum::ALUMNI_READ,
             PermissionEnum::CAMPAIGNS_READ,
+            PermissionEnum::EVENTS_READ,
+            PermissionEnum::MENTORSHIP_READ,
             PermissionEnum::REPORTS_READ,
             PermissionEnum::REPORTS_CREATE,
+            PermissionEnum::AUDIT_TRAIL_READ,
+            PermissionEnum::VISIBILITY_MONETARY,
+            PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
         ]);
-
-        // grant() only adds, never strips - revoke what a prior seeder run already granted.
-        Role::query()
-            ->where('name', RoleEnum::MINISTRY_OF_EDUCATION->value)
-            ->where('guard_name', self::GUARD)
-            ->first()
-            ?->revokePermissionTo(PermissionEnum::EVENTS_READ->value);
     }
 
     /**

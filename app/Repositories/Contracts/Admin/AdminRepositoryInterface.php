@@ -5,6 +5,7 @@ namespace App\Repositories\Contracts\Admin;
 use App\Models\Admin;
 use App\Models\Institution;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 interface AdminRepositoryInterface
 {
@@ -31,4 +32,11 @@ interface AdminRepositoryInterface
      * @return list<string>
      */
     public function uuidsForInstitutions(array $institutionIds): array;
+
+    /**
+     * One institution's own admin users, paginated - NHEF's "View Institution" drill-down.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForInstitution(int $institutionId, array $filters, int $perPage): LengthAwarePaginator;
 }

@@ -146,6 +146,18 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.create']);
             Route::post('/national-giving-day', [AdminCampaignController::class, 'storeNationalGivingDay'])
                 ->middleware(['permission:campaigns.create']);
+            // Announcing the yearly opening vs creating a campaign under it: route-level check is
+            // the broad campaigns.create (same as above); the narrower
+            // campaigns.announce_national_giving_day is enforced inside
+            // CampaignService::createOpening() itself, same pattern as createNationalGivingDay().
+            Route::post('/national-giving-day/openings', [AdminCampaignController::class, 'storeOpening'])
+                ->middleware(['permission:campaigns.create']);
+            Route::get('/national-giving-day/openings', [AdminCampaignController::class, 'indexOpenings'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/national-giving-day/openings/{uuid}', [AdminCampaignController::class, 'showOpening'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/national-giving-day/openings/{uuid}/institutions', [AdminCampaignController::class, 'openingInstitutions'])
+                ->middleware(['permission:campaigns.read']);
             Route::get('/', [AdminCampaignController::class, 'index'])
                 ->middleware(['permission:campaigns.read']);
             // Must be registered before /{uuid}; otherwise "overview" would be swallowed as a
@@ -178,6 +190,13 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.read', 'individual.records']);
             Route::get('/{uuid}/donor-breakdown', [AdminCampaignController::class, 'donorBreakdown'])
                 ->middleware(['permission:campaigns.read']);
+            Route::get('/{uuid}/giving-velocity', [AdminCampaignController::class, 'givingVelocity'])
+                ->middleware(['permission:campaigns.read']);
+            Route::get('/{uuid}/geography-distribution', [AdminCampaignController::class, 'geographyDistribution'])
+                ->middleware(['permission:campaigns.read']);
+            // Named donor rows, same visibility rule as donations/pledges above.
+            Route::get('/{uuid}/leaderboard', [AdminCampaignController::class, 'leaderboard'])
+                ->middleware(['permission:campaigns.read', 'individual.records']);
         });
 
         Route::prefix('events')->group(function () {
@@ -288,25 +307,29 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:donations.read', 'individual.records']);
         });
 
+        // Own permission set (donor_tiers.*, 2026-10-22), moved off system_configuration.*: both
+        // NHEF and an institution's own admin can hold this now - DonorTierService enforces
+        // per-row institution ownership internally for Institution scope, same split
+        // roles.*/RoleService already uses for institution-scoped custom roles.
         Route::prefix('donation-tiers')->group(function () {
             Route::post('/', [DonorTierController::class, 'store'])
-                ->middleware(['permission:system_configuration.create']);
+                ->middleware(['permission:donor_tiers.create']);
             Route::get('/', [DonorTierController::class, 'index'])
-                ->middleware(['permission:system_configuration.read']);
+                ->middleware(['permission:donor_tiers.read']);
             Route::get('/{uuid}', [DonorTierController::class, 'show'])
-                ->middleware(['permission:system_configuration.read']);
+                ->middleware(['permission:donor_tiers.read']);
             Route::patch('/{uuid}', [DonorTierController::class, 'update'])
-                ->middleware(['permission:system_configuration.update']);
+                ->middleware(['permission:donor_tiers.update']);
             Route::patch('/{uuid}/toggle-status', [DonorTierController::class, 'toggleStatus'])
-                ->middleware(['permission:system_configuration.update']);
+                ->middleware(['permission:donor_tiers.update']);
             Route::delete('/{uuid}', [DonorTierController::class, 'destroy'])
-                ->middleware(['permission:system_configuration.delete']);
+                ->middleware(['permission:donor_tiers.delete']);
             Route::get('/{uuid}/alumni', [DonorTierController::class, 'alumni'])
-                ->middleware(['permission:system_configuration.read', 'individual.records']);
+                ->middleware(['permission:donor_tiers.read', 'individual.records']);
         });
 
         // Own permission set (constituency_types.*), deliberately separate from
-        // system_configuration.* (Donation Tier Configuration's, NHEF-only): institution-admin
+        // system_configuration.* (now unused - see donor_tiers.* above): institution-admin
         // only, granted to Institution Admin and excluded from NHEF's blanket permission grant, so
         // the menu this gates only shows for admins who can actually use it.
         Route::prefix('constituency-types')->group(function () {
@@ -749,6 +772,11 @@ Route::prefix('v1/admin')->group(function () {
             Route::get('/{uuid}/alumni', [ConstituentInstitutionController::class, 'alumni'])
                 ->middleware(['permission:alumni.read', 'individual.records']);
             Route::get('/{uuid}/campaigns', [ConstituentInstitutionController::class, 'campaigns'])
+                ->middleware(['permission:constituents.read']);
+            // Same gate as the institution detail page itself, not admins.read - this is "View
+            // Institution" drilling into its admins, not the separate NHEF-wide User Management
+            // screen (client feedback, 2026-10-16: no screen anywhere showed this before).
+            Route::get('/{uuid}/admins', [ConstituentInstitutionController::class, 'admins'])
                 ->middleware(['permission:constituents.read']);
         });
 

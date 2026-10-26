@@ -56,11 +56,10 @@ class EventController extends Controller
         }
     }
 
-    public function overview(DateRangeStatsRequest $request)
+    public function overview()
     {
         try {
-            $window = ListingFilterRules::resolveDateWindow($request->validated());
-            $overview = $this->eventService->overview($window['start'], $window['end']);
+            $overview = $this->eventService->overview();
 
             return JsonResponser::send(false, 'Event overview retrieved.', $overview);
         } catch (\Throwable $th) {

@@ -91,15 +91,25 @@ class Admin extends Authenticatable
         return $this->syncRolesUnchecked(...$roles);
     }
 
-    /** Backstop for every code path (seeders, tinker, services): an account can only hold roles that match its scope. */
+    /**
+     * Backstop for every code path (seeders, tinker, services): an account can only hold roles
+     * that match its scope - either a shared system role allowed for that scope, or (institution
+     * scope only) a custom role that institution created for its own team.
+     */
     private function assertRolesFitScope(array $roles): void
     {
         foreach (collect($roles)->flatten()->filter() as $role) {
-            $name = $this->getStoredRole($role)->name;
+            $resolved = $this->getStoredRole($role);
 
-            if (! $this->scope()->allowsRole($name)) {
-                throw new InvalidArgumentException("The {$name} role does not fit an admin account in {$this->scope()->value} scope.");
+            if ($this->scope()->allowsRole($resolved->name)) {
+                continue;
             }
+
+            if ($this->scope() === AdminScopeEnum::INSTITUTION && $resolved->institution_id === $this->institution_id) {
+                continue;
+            }
+
+            throw new InvalidArgumentException("The {$resolved->name} role does not fit an admin account in {$this->scope()->value} scope.");
         }
     }
 

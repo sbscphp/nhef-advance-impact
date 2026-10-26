@@ -21,6 +21,7 @@ class TertiaryInstitutionResource extends JsonResource
             'state' => $this->state,
             'city' => $this->city,
             'abbreviation' => $this->abbreviation,
+            'logo_url' => $this->logoUrl(),
         ];
     }
 }

@@ -18,7 +18,7 @@ class AdminListResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $this->resource->loadMissing('roles:id,name');
+        $this->resource->loadMissing(['roles:id,name', 'institution:id,uuid,name']);
 
         return [
             'admin_id' => $this->uuid,
@@ -27,6 +27,11 @@ class AdminListResource extends JsonResource
             'job_title' => $this->job_title,
             'role' => $this->roles->first()?->name,
             'email' => $this->email,
+            // Null for NHEF-level admins (Super Admin, Admin); set for an Institution Admin.
+            'institution' => $this->institution === null ? null : [
+                'uuid' => $this->institution->uuid,
+                'name' => $this->institution->name,
+            ],
             'last_active' => $this->last_active_at,
             'status' => $this->is_active ? 'active' : 'inactive',
         ];

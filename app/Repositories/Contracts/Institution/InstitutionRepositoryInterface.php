@@ -30,6 +30,17 @@ interface InstitutionRepositoryInterface
      */
     public function linkedTertiaryInstitutionIds(array $tertiaryInstitutionIds): array;
 
+    /**
+     * Maps each given tertiary_institution_id to its onboarded Institution's own id - for
+     * batch-resolving a donor's institution-scoped donor tier from their `User.tertiary_institution_id`
+     * (institutions.tertiary_institution_id is unique, so this is a 1:1 lookup). A tertiary
+     * institution id with no onboarded Institution row is simply absent from the result.
+     *
+     * @param  list<int>  $tertiaryInstitutionIds
+     * @return array<int, int> tertiary_institution_id => institution_id
+     */
+    public function institutionIdsByTertiaryInstitutionIds(array $tertiaryInstitutionIds): array;
+
     public function existsForTertiaryInstitution(int $tertiaryInstitutionId, ?int $excludeInstitutionId = null): bool;
 
     /**
@@ -48,7 +59,7 @@ interface InstitutionRepositoryInterface
     public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator;
 
     /**
-     * @return array{all: int, active: int, access_revoked: int}
+     * @return array{all: int, invite_sent: int, active: int, on_hold: int, access_revoked: int, completed: int}
      */
     public function countByStatus(?CarbonInterface $start, ?CarbonInterface $end): array;
 

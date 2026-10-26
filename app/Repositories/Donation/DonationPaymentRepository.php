@@ -9,6 +9,7 @@ use App\Models\DonationPayment;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -509,6 +510,55 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->groupBy('date', 'users.constituent_type')
             ->selectRaw('DATE(donation_payments.paid_at) as date, users.constituent_type, sum(donation_payments.amount) as total')
             ->orderBy('date')
+            ->get();
+    }
+
+    public function dailyTotalsForCampaign(int $campaignId, CarbonInterface $start, CarbonInterface $end): Collection
+    {
+        return DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->where('donations.campaign_id', $campaignId)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->whereBetween('donation_payments.paid_at', [$start, $end])
+            ->groupBy('date')
+            ->selectRaw('DATE(donation_payments.paid_at) as date, sum(donation_payments.amount) as total')
+            ->orderBy('date')
+            ->get();
+    }
+
+    public function geographyDistributionForCampaign(int $campaignId, ?string $from, ?string $to): Collection
+    {
+        return DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('users', 'users.id', '=', 'donation_payments.user_id')
+            // Left join: a donor with no resolvable country (common - see country_of_residence_id's
+            // registration-form restrictions) must still be counted, grouped under "Unknown", not
+            // silently dropped from the chart the way an inner join would drop them.
+            ->leftJoin('countries', function (JoinClause $join): void {
+                $join->on('countries.id', '=', DB::raw('coalesce(users.country_of_residence_id, users.country_of_operation_id)'));
+            })
+            ->where('donations.campaign_id', $campaignId)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->when($from !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '>=', $from))
+            ->when($to !== null, fn ($query) => $query->whereDate('donation_payments.paid_at', '<=', $to))
+            ->groupByRaw("coalesce(countries.name, 'Unknown')")
+            ->selectRaw("coalesce(countries.name, 'Unknown') as country, count(distinct donation_payments.user_id) as donors")
+            ->orderByDesc('donors')
+            ->get();
+    }
+
+    public function topDonorsForCampaign(int $campaignId, int $limit): Collection
+    {
+        return DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->where('donations.campaign_id', $campaignId)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donations.is_anonymous', false)
+            ->whereNotNull('donation_payments.user_id')
+            ->groupBy('donation_payments.user_id')
+            ->selectRaw('donation_payments.user_id, sum(donation_payments.amount) as total')
+            ->orderByDesc('total')
+            ->limit($limit)
             ->get();
     }
 }

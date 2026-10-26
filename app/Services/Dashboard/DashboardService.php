@@ -3,8 +3,10 @@
 namespace App\Services\Dashboard;
 
 use App\Enums\AdminScopeEnum;
+use App\Enums\eRole;
 use App\Exceptions\ApiException;
 use App\Http\Requests\Concerns\ListingFilterRules;
+use App\Models\Admin;
 use App\Models\CampaignInstitution;
 use App\Models\Event;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
@@ -57,6 +59,10 @@ class DashboardService
             return $this->institutionSnapshot();
         }
 
+        if ($this->isMinistryOfEducation()) {
+            return $this->ministrySnapshot($filters);
+        }
+
         $window = ListingFilterRules::resolveDateWindow($filters);
         $types = $this->userRepository->countByConstituentType($window['start'], $window['end']);
 
@@ -69,13 +75,50 @@ class DashboardService
     }
 
     /**
+     * FME's own stat-card row (Total Constituents / Total Funds Raised / Active Campaigns /
+     * Active Pledges), kept separate from the Super Admin snapshot above rather than branching
+     * inside it, since the two shapes share nothing and Super Admin's is due for its own
+     * (separately planned) rework.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function ministrySnapshot(array $filters): array
+    {
+        $window = ListingFilterRules::resolveDateWindow($filters);
+        $start = $window['start']?->toDateString();
+        $end = $window['end']?->toDateString();
+
+        $types = $this->userRepository->countByConstituentType($window['start'], $window['end']);
+        $totalRaised = $this->paymentRepository->sumSuccessfulForAdmin($start, $end);
+
+        return array_merge(ListingFilterRules::periodMeta($filters), [
+            'total_constituents' => $types['alumni'] + $types['non_alumni'] + $types['organization'],
+            ...ViewerVisibility::money([
+                'total_raised' => $totalRaised,
+                'total_raised_formatted' => Money::format($totalRaised, 'NGN'),
+            ]),
+            'active_campaigns' => $this->campaignRepository->countActive(),
+            'active_pledges' => $this->pledgeRepository->countActive(),
+        ]);
+    }
+
+    /** Request-scoped: matches how {@see ViewerVisibility} resolves the current admin. */
+    private function isMinistryOfEducation(): bool
+    {
+        $actor = request()->user();
+
+        return $actor instanceof Admin && $actor->hasRole(eRole::MINISTRY_OF_EDUCATION->value);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function institutionSnapshot(): array
     {
         $types = $this->userRepository->countByConstituentType(null, null);
         $totalRaised = $this->paymentRepository->sumSuccessfulForAdmin(null, null);
-        $events = $this->eventRepository->countByStatusBuckets(null, null);
+        $events = $this->eventRepository->countByStatusBuckets();
 
         return [
             'alumni_count' => $types['alumni'],
@@ -117,6 +160,8 @@ class DashboardService
                 'ends_at' => $row->campaign->ends_at?->toIso8601String(),
                 'currency' => $row->currency,
                 ...ViewerVisibility::money([
+                    'raised' => $raised,
+                    'raised_formatted' => Money::format($raised, $row->currency),
                     'target' => (string) $row->goal_amount,
                     'target_formatted' => Money::format($row->goal_amount, $row->currency),
                     'percent_completed' => $row->progressPercentage($raised),
@@ -164,7 +209,7 @@ class DashboardService
      */
     private function eventIntelligence(array $filters): array
     {
-        $events = $this->eventRepository->countByStatusBuckets(null, null);
+        $events = $this->eventRepository->countByStatusBuckets();
         $window = $this->resolveTrendWindow($filters);
 
         return [

@@ -61,6 +61,19 @@ class InstitutionRepository implements InstitutionRepositoryInterface
             ->all();
     }
 
+    public function institutionIdsByTertiaryInstitutionIds(array $tertiaryInstitutionIds): array
+    {
+        if ($tertiaryInstitutionIds === []) {
+            return [];
+        }
+
+        return Institution::query()
+            ->whereIn('tertiary_institution_id', $tertiaryInstitutionIds)
+            ->pluck('id', 'tertiary_institution_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     public function existsForTertiaryInstitution(int $tertiaryInstitutionId, ?int $excludeInstitutionId = null): bool
     {
         return Institution::query()
@@ -116,8 +129,11 @@ class InstitutionRepository implements InstitutionRepositoryInterface
 
         return [
             'all' => (int) $scoped()->count(),
+            'invite_sent' => (int) $scoped()->where('status', InstitutionStatusEnum::INVITE_SENT->value)->count(),
             'active' => (int) $scoped()->where('status', InstitutionStatusEnum::ACTIVE->value)->count(),
+            'on_hold' => (int) $scoped()->where('status', InstitutionStatusEnum::ON_HOLD->value)->count(),
             'access_revoked' => (int) $scoped()->where('status', InstitutionStatusEnum::ACCESS_REVOKED->value)->count(),
+            'completed' => (int) $scoped()->where('status', InstitutionStatusEnum::COMPLETED->value)->count(),
         ];
     }
 

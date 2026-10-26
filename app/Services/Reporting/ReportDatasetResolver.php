@@ -6,12 +6,13 @@ use App\Enums\ReportDatasetEnum;
 use App\Exceptions\ApiException;
 use App\Services\Reporting\Datasets\AdminUserReportDataset;
 use App\Services\Reporting\Datasets\AlumniReportDataset;
+use App\Services\Reporting\Datasets\AuditTrailReportDataset;
 use App\Services\Reporting\Datasets\CampaignReportDataset;
 use App\Services\Reporting\Datasets\DonationReportDataset;
 use App\Services\Reporting\Datasets\EventReportDataset;
-use App\Services\Reporting\Datasets\EventWaitlistReportDataset;
 use App\Services\Reporting\Datasets\InstitutionReportDataset;
-use App\Services\Reporting\Datasets\MailReportDataset;
+use App\Services\Reporting\Datasets\MenteeReportDataset;
+use App\Services\Reporting\Datasets\MentorReportDataset;
 use App\Services\Reporting\Datasets\MentorshipReportDataset;
 use App\Services\Reporting\Datasets\NetworkingReportDataset;
 use App\Services\Reporting\Datasets\PledgeReportDataset;
@@ -43,11 +44,11 @@ class ReportDatasetResolver
         private readonly EventReportDataset $eventDataset,
         private readonly PledgeReportDataset $pledgeDataset,
         private readonly ProspectReportDataset $prospectDataset,
-        private readonly MailReportDataset $mailDataset,
         private readonly MentorshipReportDataset $mentorshipDataset,
+        private readonly MentorReportDataset $mentorDataset,
+        private readonly MenteeReportDataset $menteeDataset,
         private readonly NetworkingReportDataset $networkingDataset,
         private readonly AdminUserReportDataset $adminUserDataset,
-        private readonly EventWaitlistReportDataset $eventWaitlistDataset,
         private readonly ProjectReportDataset $projectDataset,
         private readonly ProjectMilestoneReportDataset $projectMilestoneDataset,
         private readonly ProjectDeliverableReportDataset $projectDeliverableDataset,
@@ -61,6 +62,7 @@ class ReportDatasetResolver
         private readonly ResearchMilestoneReportDataset $researchMilestoneDataset,
         private readonly ResearchDeliverableReportDataset $researchDeliverableDataset,
         private readonly InstitutionReportDataset $institutionDataset,
+        private readonly AuditTrailReportDataset $auditTrailDataset,
     ) {}
 
     public function make(string $dataset): ReportDatasetInterface
@@ -78,11 +80,11 @@ class ReportDatasetResolver
             ReportDatasetEnum::EVENT => $this->eventDataset,
             ReportDatasetEnum::PLEDGE => $this->pledgeDataset,
             ReportDatasetEnum::PROSPECT => $this->prospectDataset,
-            ReportDatasetEnum::MAIL => $this->mailDataset,
             ReportDatasetEnum::MENTORSHIP => $this->mentorshipDataset,
+            ReportDatasetEnum::MENTOR => $this->mentorDataset,
+            ReportDatasetEnum::MENTEE => $this->menteeDataset,
             ReportDatasetEnum::NETWORKING => $this->networkingDataset,
             ReportDatasetEnum::ADMIN_USER => $this->adminUserDataset,
-            ReportDatasetEnum::EVENT_WAITLIST => $this->eventWaitlistDataset,
             ReportDatasetEnum::PROJECT => $this->projectDataset,
             ReportDatasetEnum::PROJECT_MILESTONE => $this->projectMilestoneDataset,
             ReportDatasetEnum::PROJECT_DELIVERABLE => $this->projectDeliverableDataset,
@@ -96,6 +98,7 @@ class ReportDatasetResolver
             ReportDatasetEnum::RESEARCH_MILESTONE => $this->researchMilestoneDataset,
             ReportDatasetEnum::RESEARCH_DELIVERABLE => $this->researchDeliverableDataset,
             ReportDatasetEnum::INSTITUTION => $this->institutionDataset,
+            ReportDatasetEnum::AUDIT_TRAIL => $this->auditTrailDataset,
             null => throw new ApiException("Unsupported report dataset: {$dataset}", 422),
         };
     }

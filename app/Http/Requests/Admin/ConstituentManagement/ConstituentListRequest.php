@@ -33,6 +33,7 @@ class ConstituentListRequest extends ApiFormRequest
                 // several (an "Other Constituent" tab showing non_alumni + organization together).
                 'filters.constituent_type' => ['sometimes', 'nullable', 'array'],
                 'filters.constituent_type.*' => [Rule::in(ConstituentTypeEnum::values())],
+                'filters.tertiary_institution_uuid' => ['sometimes', 'nullable', 'uuid', Rule::exists('tertiary_institutions', 'uuid')],
                 'export' => ['sometimes', 'nullable', 'string', Rule::in(['csv', 'pdf'])],
             ]
         );
@@ -42,6 +43,7 @@ class ConstituentListRequest extends ApiFormRequest
     {
         return array_merge(parent::messages(), ListingFilterRules::listingMessages(), [
             'filters.status.in' => 'Status filter is invalid.',
+            'filters.tertiary_institution_uuid.exists' => 'Institution filter must be a valid institution.',
             'export.in' => "Export format must be either 'csv' or 'pdf'.",
         ]);
     }

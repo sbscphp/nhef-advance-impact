@@ -45,6 +45,8 @@ class AuthResource extends JsonResource
             'name' => $admin->name,
             'user_code' => $admin->code(),
             'job_title' => $admin->job_title,
+            'phone_number' => $admin->phone_number,
+            'country_code' => $admin->country_code,
             'profile_picture_url' => $admin->profile_picture_url,
             'email' => $admin->email,
             'email_verified_at' => $admin->email_verified_at,

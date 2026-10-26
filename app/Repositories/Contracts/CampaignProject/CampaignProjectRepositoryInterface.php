@@ -14,6 +14,14 @@ interface CampaignProjectRepositoryInterface
     public function allForCampaign(int $campaignId): Collection;
 
     /**
+     * Every project across every Campaign created under one National Giving Day opening - the
+     * Opening-level "Projects" tab.
+     *
+     * @return Collection<int, CampaignProject>
+     */
+    public function allForOpening(int $openingId): Collection;
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function create(Campaign $campaign, array $data): CampaignProject;

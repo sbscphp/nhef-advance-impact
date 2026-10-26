@@ -2,11 +2,13 @@
 
 namespace App\Services\Recognition;
 
+use App\Enums\ConstituentTypeEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Models\DonationPayment;
 use App\Models\DonorTier;
 use App\Models\User;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -20,6 +22,7 @@ class RecognitionService
 {
     public function __construct(
         private readonly DonorTierRepositoryInterface $donorTierRepository,
+        private readonly InstitutionRepositoryInterface $institutionRepository,
     ) {}
 
     /**
@@ -33,22 +36,28 @@ class RecognitionService
             ->orderByDesc('total')
             ->paginate($perPage);
 
-        $tiers = $this->donorTierRepository->activeOrderedByThreshold();
         $users = User::query()
+            ->with('tertiaryInstitution')
             ->whereIn('id', collect($paginator->items())->pluck('user_id'))
             ->get()
             ->keyBy('id');
 
+        $tiersByInstitution = $this->tiersForUsers($users);
+
         $startRank = ($paginator->currentPage() - 1) * $paginator->perPage() + 1;
 
-        $entries = collect($paginator->items())->values()->map(function ($row, int $index) use ($users, $tiers, $startRank) {
+        $entries = collect($paginator->items())->values()->map(function ($row, int $index) use ($users, $tiersByInstitution, $startRank) {
             $user = $users->get($row->user_id);
+            $tier = $user !== null ? $this->tierFor($this->tiersForUser($user, $tiersByInstitution), (string) $row->total) : null;
 
             return (object) [
                 'rank' => $startRank + $index,
                 'donor_name' => $user?->displayName() ?? 'Donor',
                 'avatar_url' => $user?->profile_picture_url,
-                'tier' => $this->tierFor($tiers, (string) $row->total)?->name,
+                'user_type' => $user?->constituent_type,
+                'user_type_label' => ConstituentTypeEnum::tryFrom((string) $user?->constituent_type)?->label(),
+                'tier' => $tier?->name,
+                'tier_color' => $tier?->color,
                 'total' => (string) $row->total,
             ];
         });
@@ -59,7 +68,7 @@ class RecognitionService
     }
 
     /**
-     * @return array{rank: ?int, tier: ?string, total: string, total_formatted: string, next_tier: ?string, amount_to_next_tier: ?string, amount_to_next_tier_formatted: ?string}
+     * @return array{rank: ?int, tier: ?string, tier_color: ?string, total: string, total_formatted: string, next_tier: ?string, amount_to_next_tier: ?string, amount_to_next_tier_formatted: ?string}
      */
     public function myRank(User $user): array
     {
@@ -72,7 +81,7 @@ class RecognitionService
             ->where('currency', 'NGN')
             ->sum('amount');
 
-        $tiers = $this->donorTierRepository->activeOrderedByThreshold();
+        $tiers = $this->donorTierRepository->activeOrderedByThreshold($this->institutionIdFor($user));
         $currentTier = $this->tierFor($tiers, $total);
         $nextTier = $tiers->first(fn ($tier) => (float) $tier->minimum_amount > (float) $total);
 
@@ -86,6 +95,7 @@ class RecognitionService
         return [
             'rank' => $total > 0 ? $higherCount + 1 : null,
             'tier' => $currentTier?->name,
+            'tier_color' => $currentTier?->color,
             'total' => $total,
             'total_formatted' => Money::format($total, 'NGN'),
             'next_tier' => $nextTier?->name,
@@ -118,5 +128,58 @@ class RecognitionService
     private function tierFor(Collection $tiers, string $total): ?object
     {
         return $tiers->filter(fn ($tier) => (float) $tier->minimum_amount <= (float) $total)->last();
+    }
+
+    /**
+     * This donor's own Institution id (for their tier lookup), resolved from their
+     * tertiary_institution_id; null if they have none or it isn't an onboarded institution -
+     * the repository falls back to the platform-wide default tiers in that case.
+     */
+    private function institutionIdFor(User $user): ?int
+    {
+        if ($user->tertiary_institution_id === null) {
+            return null;
+        }
+
+        return $this->institutionRepository
+            ->institutionIdsByTertiaryInstitutionIds([$user->tertiary_institution_id])[$user->tertiary_institution_id] ?? null;
+    }
+
+    /**
+     * Batch version of {@see self::institutionIdFor()} plus their active tier sets in one go,
+     * for the leaderboard's page of (potentially many different institutions') donors.
+     *
+     * @param  Collection<int, User>  $users
+     * @return array{institutionIds: array<int, int>, tiers: array<int, Collection<int, DonorTier>>}
+     */
+    private function tiersForUsers(Collection $users): array
+    {
+        $tertiaryIds = $users->pluck('tertiary_institution_id')->filter()->unique()->values()->all();
+        $institutionIds = $this->institutionRepository->institutionIdsByTertiaryInstitutionIds($tertiaryIds);
+
+        $tiers = $this->donorTierRepository->activeOrderedByThresholdForInstitutions(array_values($institutionIds));
+
+        return ['institutionIds' => $institutionIds, 'tiers' => $tiers];
+    }
+
+    /**
+     * @param  array{institutionIds: array<int, int>, tiers: array<int, Collection<int, DonorTier>>}  $batch
+     * @return Collection<int, DonorTier>
+     */
+    private function tiersForUser(User $user, array $batch): Collection
+    {
+        $institutionId = $user->tertiary_institution_id !== null
+            ? ($batch['institutionIds'][$user->tertiary_institution_id] ?? null)
+            : null;
+
+        $tiers = $institutionId !== null ? ($batch['tiers'][$institutionId] ?? null) : null;
+
+        if ($tiers instanceof Collection && $tiers->isNotEmpty()) {
+            return $tiers->values();
+        }
+
+        // No tiers of this institution's own (or none resolvable) - same default-tier fallback
+        // DonorTierRepository::activeOrderedByThreshold() uses for a single lookup.
+        return $this->donorTierRepository->activeOrderedByThreshold(null);
     }
 }

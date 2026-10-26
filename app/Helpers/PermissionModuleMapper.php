@@ -38,6 +38,7 @@ final class PermissionModuleMapper
             'audit_trail',
             'system_configuration',
             'constituency_type',
+            'donor_tier',
             'visibility',
         ];
     }
@@ -63,6 +64,7 @@ final class PermissionModuleMapper
             'audit_trail' => 'audit_trail',
             'system_configuration' => 'system_configuration',
             'constituency_types' => 'constituency_type',
+            'donor_tiers' => 'donor_tier',
             'visibility' => 'visibility',
             default => 'other',
         };
@@ -163,6 +165,7 @@ final class PermissionModuleMapper
             'system_configuration' => 'System Configuration',
             'custom_field' => 'Custom Field',
             'constituency_type' => 'Constituency Type Configuration',
+            'donor_tier' => 'Donation Tier Configuration',
         ];
 
         $crudModules = array_filter(self::groupedApiPermissions(), fn (array $module): bool => $module['key'] !== 'visibility');
@@ -187,6 +190,41 @@ final class PermissionModuleMapper
                 'actions' => $actions,
             ];
         }, array_values($crudModules));
+    }
+
+    /**
+     * ModuleEnums keys the actor holds at least one permission for, used to scope cross-module
+     * data (e.g. notifications) to what their role can actually open.
+     *
+     * @param  list<string>  $permissionNames
+     * @return list<string>
+     */
+    public static function accessibleModuleKeys(array $permissionNames): array
+    {
+        return array_values(array_unique(array_map(
+            fn (string $name): string => self::moduleKeyForPermissionName($name),
+            $permissionNames
+        )));
+    }
+
+    /**
+     * ModuleEnums keys that ARE gated by at least one permission in the system, but which the
+     * given permission set holds none of. Used to hide cross-module data (e.g. notifications) for
+     * modules the actor's role doesn't grant, without touching modules that carry no permission at
+     * all (authentication, settings: see their ModuleEnums docblocks) - those stay visible to
+     * everyone since there's nothing to be denied.
+     *
+     * @param  list<string>  $permissionNames
+     * @return list<string>
+     */
+    public static function restrictedModuleKeys(array $permissionNames): array
+    {
+        $gated = self::accessibleModuleKeys(array_map(
+            fn (ePermission $permission): string => $permission->value,
+            ePermission::cases()
+        ));
+
+        return array_values(array_diff($gated, self::accessibleModuleKeys($permissionNames)));
     }
 
     /**

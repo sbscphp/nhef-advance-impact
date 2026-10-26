@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Admin\SystemConfiguration;
 
+use App\Enums\AdminScopeEnum;
 use App\Http\Requests\ApiFormRequest;
+use App\Models\Admin;
+use App\Models\Institution;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 
@@ -19,12 +22,36 @@ class CreateDonorTierRequest extends ApiFormRequest
      */
     public function rules(): array
     {
+        $actor = $this->user();
+        $isInstitutionScope = $actor instanceof Admin && AdminScopeEnum::of($actor) === AdminScopeEnum::INSTITUTION;
+
+        // Institution-scoped (2026-10-22): an institution admin's tier always belongs to their
+        // own institution (DonorTierService ignores institution_uuid for them, never trusting
+        // client input for this), so it's optional here, not required - NHEF alone must pick one.
+        // Tier names only have to be unique within the same institution, so "Silver Supporter"
+        // can exist once per institution, not once platform-wide.
+        $institutionId = $isInstitutionScope
+            ? $actor->institution_id
+            : Institution::query()->where('uuid', (string) $this->input('institution_uuid'))->value('id');
+
         return [
-            'name' => ['required', 'string', 'max:255', Rule::unique('donor_tiers', 'name')],
+            'institution_uuid' => [$isInstitutionScope ? 'sometimes' : 'required', 'uuid', 'exists:institutions,uuid'],
+            'name' => ['required', 'string', 'max:255', Rule::unique('donor_tiers', 'name')->where('institution_id', $institutionId)],
             'minimum_amount' => ['required', 'numeric', 'min:0'],
             'maximum_amount' => ['required', 'numeric', 'gt:minimum_amount'],
+            'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'badge' => ['required', $this->badgeRule()],
         ];
+    }
+
+    public function messages(): array
+    {
+        return array_merge(parent::messages(), [
+            'institution_uuid.required' => 'Please select which institution this tier belongs to.',
+            'institution_uuid.exists' => 'The selected institution does not exist.',
+            'name.unique' => 'This institution already has a tier with this name.',
+            'color.regex' => 'Color must be a hex code, e.g. #C0C0C0.',
+        ]);
     }
 
     private function badgeRule(): \Closure

@@ -47,6 +47,11 @@ class CampaignDetailResource extends JsonResource
             'assigned_to' => $this->assigneePayload(),
             'allocated_admin' => $this->assigneePayload(),
             ...$this->bankAccountFields(),
+            // Only ever set for a national_giving_day campaign.
+            'national_giving_day_opening' => $this->whenLoaded('nationalGivingDayOpening', fn () => $this->nationalGivingDayOpening === null ? null : [
+                'uuid' => $this->nationalGivingDayOpening->uuid,
+                'title' => $this->nationalGivingDayOpening->title,
+            ]),
             'overview' => $this->when(array_key_exists('overview', $this->resource->getAttributes()), fn () => $this->overviewPayload()),
             'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),

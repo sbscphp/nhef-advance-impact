@@ -13,6 +13,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * DonorTierSeeder, now with admin CRUD ({@see DonorTierService}). `maximum_amount` is a display/
  * validation field only, not used for tier resolution, which stays governed purely by
  * minimum_amount brackets to avoid two conflicting definitions of tier membership.
+ *
+ * Institution-scoped (2026-10-22): a donor's tier is resolved against their own institution's
+ * tiers; `institution_id` null means a platform-wide default, used as a fallback when an
+ * institution has no tiers of its own configured yet.
  */
 class DonorTier extends Model
 {
@@ -38,5 +42,10 @@ class DonorTier extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();
+    }
+
+    public function institution(): BelongsTo
+    {
+        return $this->belongsTo(Institution::class);
     }
 }

@@ -43,9 +43,12 @@ interface EventRepositoryInterface
     public function slugExists(string $slug): bool;
 
     /**
+     * Current-state counts, not windowed by date: "Scheduled" is inherently forward-looking
+     * (starts_at > now), so a backward-looking date filter would always zero it out.
+     *
      * @return array{all: int, scheduled: int, ongoing: int, completed: int, archived: int}
      */
-    public function countByStatusBuckets(?CarbonInterface $start, ?CarbonInterface $end): array;
+    public function countByStatusBuckets(): array;
 
     /**
      * Published events that haven't ended yet, per institution; feeds the public institution

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\SystemConfiguration;
 
 use App\Http\Requests\ApiFormRequest;
+use App\Models\DonorTier;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 
@@ -20,13 +21,25 @@ class UpdateDonorTierRequest extends ApiFormRequest
     public function rules(): array
     {
         $tierUuid = $this->route('uuid');
+        // Which institution the uniqueness check scopes to - the tier's own, fixed at creation
+        // (institution_id isn't editable here, see DonorTierService::update()).
+        $institutionId = DonorTier::query()->where('uuid', (string) $tierUuid)->value('institution_id');
 
         return [
-            'name' => ['sometimes', 'string', 'max:255', Rule::unique('donor_tiers', 'name')->ignore($tierUuid, 'uuid')],
+            'name' => ['sometimes', 'string', 'max:255', Rule::unique('donor_tiers', 'name')->where('institution_id', $institutionId)->ignore($tierUuid, 'uuid')],
             'minimum_amount' => ['sometimes', 'numeric', 'min:0'],
             'maximum_amount' => ['sometimes', 'numeric', 'gt:minimum_amount'],
+            'color' => ['sometimes', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'badge' => ['sometimes', 'nullable', $this->badgeRule()],
         ];
+    }
+
+    public function messages(): array
+    {
+        return array_merge(parent::messages(), [
+            'name.unique' => 'This institution already has a tier with this name.',
+            'color.regex' => 'Color must be a hex code, e.g. #C0C0C0.',
+        ]);
     }
 
     private function badgeRule(): \Closure

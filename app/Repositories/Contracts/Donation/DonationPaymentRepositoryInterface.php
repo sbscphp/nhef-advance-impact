@@ -174,4 +174,29 @@ interface DonationPaymentRepositoryInterface
      * @return Collection<int, object{date: string, constituent_type: string, total: string}>
      */
     public function dailyTotalsByConstituentType(CarbonInterface $start, CarbonInterface $end): Collection;
+
+    /**
+     * Daily sum of successful payments for one campaign; feeds its "Giving Velocity" chart.
+     *
+     * @return Collection<int, object{date: string, total: string}>
+     */
+    public function dailyTotalsForCampaign(int $campaignId, CarbonInterface $start, CarbonInterface $end): Collection;
+
+    /**
+     * Distinct donor count per country for one campaign's successful payments, ordered highest
+     * first; feeds its "Geography Distribution" chart. A donor counts under whichever of
+     * `country_of_residence_id`/`country_of_operation_id` they have set (the latter covers
+     * organisation donors, who have no residence).
+     *
+     * @return Collection<int, object{country: string, donors: int}>
+     */
+    public function geographyDistributionForCampaign(int $campaignId, ?string $from, ?string $to): Collection;
+
+    /**
+     * Top donors to one campaign by lifetime-to-this-campaign total, non-anonymous only; feeds
+     * its "Donor Recognition Wall" leaderboard.
+     *
+     * @return Collection<int, object{user_id: int, total: string}>
+     */
+    public function topDonorsForCampaign(int $campaignId, int $limit): Collection;
 }

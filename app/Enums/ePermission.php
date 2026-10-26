@@ -29,6 +29,10 @@ enum ePermission: string
     case CAMPAIGNS_CREATE_STANDARD = 'campaigns.create_standard';
     case CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY = 'campaigns.create_national_giving_day';
 
+    // Announcing the yearly National Giving Day opening (the shared date) is a distinct, narrower
+    // action from creating a campaign under it - Super Admin only, not even NHEF's plain "Admin".
+    case CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY = 'campaigns.announce_national_giving_day';
+
     case DONATIONS_CREATE = 'donations.create';
     case DONATIONS_READ = 'donations.read';
     case DONATIONS_UPDATE = 'donations.update';
@@ -81,7 +85,10 @@ enum ePermission: string
     case CUSTOM_FIELDS_UPDATE = 'custom_fields.update';
     case CUSTOM_FIELDS_DELETE = 'custom_fields.delete';
 
-    // Donation Tier Configuration only, NHEF-only.
+    // No longer gates anything (2026-10-22): Donation Tier Configuration, its only user, moved
+    // to its own donor_tiers.* below, the same way Constituency Type Configuration already had
+    // (see that case's own comment). Left in place rather than deleted in case a role was given
+    // it directly via Roles & Permissions outside this seeder.
     case SYSTEM_CONFIGURATION_CREATE = 'system_configuration.create';
     case SYSTEM_CONFIGURATION_READ = 'system_configuration.read';
     case SYSTEM_CONFIGURATION_UPDATE = 'system_configuration.update';
@@ -93,6 +100,15 @@ enum ePermission: string
     case CONSTITUENCY_TYPES_READ = 'constituency_types.read';
     case CONSTITUENCY_TYPES_UPDATE = 'constituency_types.update';
     case CONSTITUENCY_TYPES_DELETE = 'constituency_types.delete';
+
+    // Donation Tier Configuration (2026-10-22): institution-scoped, NHEF and each institution's
+    // own admin can both hold this - DonorTierService enforces per-row ownership internally for
+    // Institution scope (same split as roles.*/RoleService for institution-scoped custom roles),
+    // not a separate permission per scope.
+    case DONOR_TIERS_CREATE = 'donor_tiers.create';
+    case DONOR_TIERS_READ = 'donor_tiers.read';
+    case DONOR_TIERS_UPDATE = 'donor_tiers.update';
+    case DONOR_TIERS_DELETE = 'donor_tiers.delete';
 
     // Read-only; there is no create/update/delete for the audit trail itself.
     case AUDIT_TRAIL_READ = 'audit_trail.read';

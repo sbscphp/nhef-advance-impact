@@ -26,6 +26,7 @@ class DonorTierListRequest extends ApiFormRequest
             ListingFilterRules::rules(['name', 'value']),
             [
                 'filters.status' => ['sometimes', 'nullable', Rule::in(['active', 'inactive'])],
+                'filters.institution_uuid' => ['sometimes', 'nullable', 'uuid', Rule::exists('institutions', 'uuid')],
                 'export' => ['sometimes', 'nullable', 'string', Rule::in(['csv', 'pdf'])],
             ]
         );
@@ -34,6 +35,7 @@ class DonorTierListRequest extends ApiFormRequest
     public function messages(): array
     {
         return array_merge(parent::messages(), ListingFilterRules::listingMessages(), [
+            'filters.institution_uuid.exists' => 'The selected institution does not exist.',
             'export.in' => "Export format must be either 'csv' or 'pdf'.",
         ]);
     }

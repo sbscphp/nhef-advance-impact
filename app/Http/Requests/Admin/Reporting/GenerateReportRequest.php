@@ -24,6 +24,7 @@ class GenerateReportRequest extends ApiFormRequest
             'dataset' => ['required', Rule::in(ReportDatasetEnum::values())],
             'fields' => ['required', 'array', 'min:1'],
             'fields.*' => ['string'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'format' => ['required', Rule::in(['csv', 'pdf'])],
         ]);
     }

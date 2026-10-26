@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Enums\CampaignTypeEnum;
 use App\Http\Resources\Concerns\PresentsCampaign;
 use App\Models\Campaign;
 use Illuminate\Http\Request;
@@ -25,7 +26,7 @@ class CampaignAdminResource extends JsonResource
             'cover_image_url' => $this->cover_image_url,
             'type' => $this->type,
             'currency' => $this->currency,
-            ...$this->amountsPayload(),
+            ...$this->amountsPayload(withProgress: true),
             'status' => $this->status,
             ...$this->schedulePayload(),
             ...$this->projectsPayload(),
@@ -43,6 +44,19 @@ class CampaignAdminResource extends JsonResource
             'institutions_count' => $this->when(array_key_exists('institutions_count', $this->resource->getAttributes()), fn () => (int) $this->institutions_count),
             // One per standard campaign, several for a National Giving Day campaign.
             'institutions' => $this->when(array_key_exists('institutions', $this->resource->getAttributes()), fn () => $this->institutions),
+            // Same data as `institutions`, exposed singular for a standard campaign (null for
+            // National Giving Day, which has none or several) so the "exactly one owner" case
+            // doesn't have to be inferred from array length.
+            'institution' => $this->when(
+                array_key_exists('institutions', $this->resource->getAttributes()),
+                fn () => $this->type === CampaignTypeEnum::STANDARD->value ? ($this->institutions[0] ?? null) : null
+            ),
+            // Only ever set for a national_giving_day campaign (null for standard, and null for a
+            // pre-existing NGD campaign created before this concept existed).
+            'national_giving_day_opening' => $this->whenLoaded('nationalGivingDayOpening', fn () => $this->nationalGivingDayOpening === null ? null : [
+                'uuid' => $this->nationalGivingDayOpening->uuid,
+                'title' => $this->nationalGivingDayOpening->title,
+            ]),
             'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

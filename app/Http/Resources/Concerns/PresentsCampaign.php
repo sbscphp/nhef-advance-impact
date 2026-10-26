@@ -43,6 +43,10 @@ trait PresentsCampaign
     }
 
     /**
+     * A project is purely a name/description grouping under a campaign (2026-10-20): it no
+     * longer carries its own goal - that moved to each institution's project_goals breakdown
+     * (see CampaignService::resolveProjectGoals()), shown instead on CampaignInstitutionResource.
+     *
      * @return array<string, mixed>
      */
     protected function projectsPayload(bool $withDescription = true): array
@@ -53,32 +57,15 @@ trait PresentsCampaign
             return [];
         }
 
-        $total = (float) $campaign->projects->sum('goal_amount');
-        // Donations are recorded against the campaign as a whole, never earmarked to one project
-        // (MakeDonationRequest has no project_uuid field), so there's no real per-project raised
-        // figure to compute from. Every project gets the campaign's own funding progress instead.
-        $campaignProgress = $campaign->progressPercentage();
-
         return [
-            // Goals are the public target, not money actually collected - shown to every viewer.
             'projects' => $campaign->projects
-                ->map(function (CampaignProject $project) use ($total, $campaignProgress, $withDescription): array {
-                    $percentOfCampaign = $total > 0 ? round(((float) $project->goal_amount / $total) * 100, 2) : 0.0;
-
-                    return [
-                        'uuid' => $project->uuid,
-                        'name' => $project->name,
-                        'goal_amount' => (string) $project->goal_amount,
-                        'goal_amount_formatted' => Money::format($project->goal_amount, 'NGN'),
-                        'percent_of_campaign' => $percentOfCampaign,
-                        'progress_percentage' => $campaignProgress,
-                        ...($withDescription ? ['description' => $project->description] : []),
-                    ];
-                })
+                ->map(fn (CampaignProject $project): array => [
+                    'uuid' => $project->uuid,
+                    'name' => $project->name,
+                    ...($withDescription ? ['description' => $project->description] : []),
+                ])
                 ->values()
                 ->all(),
-            'projects_total' => (string) $total,
-            'projects_total_formatted' => Money::format($total, 'NGN'),
         ];
     }
 
