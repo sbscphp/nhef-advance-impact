@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin\ConstituentManagement;
 
+use App\Enums\InstitutionRequiredOfficerRoleEnum;
 use App\Http\Requests\ApiFormRequest;
+use Illuminate\Validation\Validator;
 
 class InviteInstitutionRequest extends ApiFormRequest
 {
@@ -16,22 +18,12 @@ class InviteInstitutionRequest extends ApiFormRequest
             'email' => ['required', 'email', 'max:255', 'unique:institutions,email'],
             'phone_number' => ['sometimes', 'nullable', 'string', 'max:30'],
             'invite_message' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            // Client requirement (2026-10-23): three key offices, captured for NHEF's own
-            // records. The Advancement Database Manager becomes the institution's own admin
-            // login (see AdminInstitutionService::invite()); the other two are contact info only.
-            'vc_name' => ['required', 'string', 'max:255'],
-            'vc_email' => ['required', 'email', 'max:255'],
-            'vc_phone_number' => ['required', 'string', 'max:30'],
-            'advancement_director_name' => ['required', 'string', 'max:255'],
-            'advancement_director_email' => ['required', 'email', 'max:255'],
-            'advancement_director_phone_number' => ['required', 'string', 'max:30'],
-            'advancement_database_manager_name' => ['required', 'string', 'max:255'],
-            'advancement_database_manager_email' => ['required', 'email', 'max:255'],
-            'advancement_database_manager_phone_number' => ['required', 'string', 'max:30'],
-            // Any further custom officers beyond the three fixed ones above (2026-10-26) -
-            // optional at invite time; can also be added one at a time afterward via
-            // POST .../institutions/{uuid}/officers.
-            'officers' => ['sometimes', 'array'],
+            // One array for every contact (2026-10-26, FE feedback) - the three required offices
+            // (see InstitutionRequiredOfficerRoleEnum) identified by `role`, same as any further
+            // custom officer. The Advancement Database Manager entry becomes the institution's
+            // own admin login (see AdminInstitutionService::invite()); the rest are contact info
+            // only. Checked for the three required roles in withValidator() below.
+            'officers' => ['required', 'array', 'min:3'],
             'officers.*.role' => ['required', 'string', 'max:255'],
             'officers.*.name' => ['required', 'string', 'max:255'],
             'officers.*.email' => ['required', 'email', 'max:255'],
@@ -43,19 +35,25 @@ class InviteInstitutionRequest extends ApiFormRequest
     {
         return array_merge(parent::messages(), [
             'email.unique' => 'An institution with this email already exists.',
-            'officers.*.role.required' => 'Please enter a role for each officer.',
-            'officers.*.name.required' => 'Please enter a name for each officer.',
-            'officers.*.email.required' => 'Please enter an email for each officer.',
-            'officers.*.phone_number.required' => 'Please enter a phone number for each officer.',
-            'vc_name.required' => 'Please enter the Vice Chancellor\'s name.',
-            'vc_email.required' => 'Please enter the Vice Chancellor\'s email.',
-            'vc_phone_number.required' => 'Please enter the Vice Chancellor\'s phone number.',
-            'advancement_director_name.required' => 'Please enter the Advancement Director\'s name.',
-            'advancement_director_email.required' => 'Please enter the Advancement Director\'s email.',
-            'advancement_director_phone_number.required' => 'Please enter the Advancement Director\'s phone number.',
-            'advancement_database_manager_name.required' => 'Please enter the Advancement Database Manager\'s name.',
-            'advancement_database_manager_email.required' => 'Please enter the Advancement Database Manager\'s email.',
-            'advancement_database_manager_phone_number.required' => 'Please enter the Advancement Database Manager\'s phone number.',
+            'officers.required' => 'Please add the institution\'s contacts.',
+            'officers.min' => 'Please include the Vice Chancellor, Advancement Director, and Advancement Database Manager.',
+            'officers.*.role.required' => 'Please enter a role for each contact.',
+            'officers.*.name.required' => 'Please enter a name for each contact.',
+            'officers.*.email.required' => 'Please enter an email for each contact.',
+            'officers.*.phone_number.required' => 'Please enter a phone number for each contact.',
         ]);
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $roles = collect((array) $this->input('officers', []))->pluck('role')->all();
+
+            foreach (InstitutionRequiredOfficerRoleEnum::cases() as $required) {
+                if (! in_array($required->value, $roles, true)) {
+                    $validator->errors()->add('officers', 'Please include a contact for the '.$required->label().'.');
+                }
+            }
+        });
     }
 }
