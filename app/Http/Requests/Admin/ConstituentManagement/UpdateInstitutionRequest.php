@@ -24,15 +24,8 @@ class UpdateInstitutionRequest extends ApiFormRequest
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'invite_message' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'status' => ['sometimes', Rule::in(InstitutionStatusEnum::values())],
-            'vc_name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'vc_email' => ['sometimes', 'nullable', 'email', 'max:255'],
-            'vc_phone_number' => ['sometimes', 'nullable', 'string', 'max:30'],
-            'advancement_director_name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'advancement_director_email' => ['sometimes', 'nullable', 'email', 'max:255'],
-            'advancement_director_phone_number' => ['sometimes', 'nullable', 'string', 'max:30'],
-            'advancement_database_manager_name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'advancement_database_manager_email' => ['sometimes', 'nullable', 'email', 'max:255'],
-            'advancement_database_manager_phone_number' => ['sometimes', 'nullable', 'string', 'max:30'],
+            // Every contact (the three required offices and any custom one) is edited via
+            // POST/PATCH/DELETE .../institutions/{uuid}/officers now (2026-10-26), not here.
         ];
     }
 

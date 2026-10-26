@@ -3,6 +3,7 @@
 namespace App\Services\ConstituentManagement;
 
 use App\Enums\AuditActionEnum;
+use App\Enums\InstitutionRequiredOfficerRoleEnum;
 use App\Enums\InstitutionStatusEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
@@ -62,20 +63,26 @@ class AdminInstitutionService
         }
 
         $email = (string) $payload['email'];
-        $adminEmail = (string) $payload['advancement_database_manager_email'];
+
+        // The Advancement Database Manager's entry in `officers` becomes the institution's own
+        // admin login (2026-10-23, client requirement); InviteInstitutionRequest already
+        // guarantees one exists before this method ever runs.
+        $officers = (array) $payload['officers'];
+        $admOfficer = collect($officers)->firstWhere('role', InstitutionRequiredOfficerRoleEnum::ADVANCEMENT_DATABASE_MANAGER->value);
+        $adminEmail = (string) $admOfficer['email'];
+        $adminName = (string) $admOfficer['name'];
 
         if ($this->institutionRepository->emailExists($email) || $this->adminRepository->emailExists($email)) {
             throw new ApiException('An institution or admin with this email already exists.', 422);
         }
 
-        // The Advancement Database Manager becomes the institution's own admin login (2026-10-23,
-        // client requirement) - checked separately since it's a different email from the
-        // institution's own above, and is the one that actually needs to be unique as a login.
+        // Checked separately since it's a different email from the institution's own above, and
+        // is the one that actually needs to be unique as a login.
         if ($adminEmail !== $email && $this->adminRepository->emailExists($adminEmail)) {
             throw new ApiException('An admin with the Advancement Database Manager\'s email already exists.', 422);
         }
 
-        $institution = DB::transaction(function () use ($payload, $tertiaryInstitution, $actor, $email, $adminEmail): Institution {
+        $institution = DB::transaction(function () use ($payload, $tertiaryInstitution, $actor, $email, $adminEmail, $adminName, $officers): Institution {
             $institution = $this->institutionRepository->create([
                 'name' => $tertiaryInstitution->name,
                 'slug' => $this->uniqueSlug($tertiaryInstitution->name),
@@ -83,24 +90,15 @@ class AdminInstitutionService
                 'email' => $email,
                 'phone_number' => $payload['phone_number'] ?? null,
                 'invite_message' => $payload['invite_message'] ?? null,
-                'vc_name' => $payload['vc_name'],
-                'vc_email' => $payload['vc_email'],
-                'vc_phone_number' => $payload['vc_phone_number'],
-                'advancement_director_name' => $payload['advancement_director_name'],
-                'advancement_director_email' => $payload['advancement_director_email'],
-                'advancement_director_phone_number' => $payload['advancement_director_phone_number'],
-                'advancement_database_manager_name' => $payload['advancement_database_manager_name'],
-                'advancement_database_manager_email' => $payload['advancement_database_manager_email'],
-                'advancement_database_manager_phone_number' => $payload['advancement_database_manager_phone_number'],
                 'status' => InstitutionStatusEnum::INVITE_SENT->value,
                 'is_active' => true,
                 'created_by' => $actor->uuid,
                 'invited_at' => now(),
             ]);
 
-            $this->adminRepository->createInstitutionOwner($institution, (string) $payload['advancement_database_manager_name'], $adminEmail);
+            $this->adminRepository->createInstitutionOwner($institution, $adminName, $adminEmail);
 
-            foreach ((array) ($payload['officers'] ?? []) as $officer) {
+            foreach ($officers as $officer) {
                 $this->institutionOfficerRepository->create($institution, [
                     'role' => $officer['role'],
                     'name' => $officer['name'],
@@ -235,9 +233,6 @@ class AdminInstitutionService
 
         foreach ([
             'email', 'phone_number', 'country', 'state', 'address', 'invite_message', 'status',
-            'vc_name', 'vc_email', 'vc_phone_number',
-            'advancement_director_name', 'advancement_director_email', 'advancement_director_phone_number',
-            'advancement_database_manager_name', 'advancement_database_manager_email', 'advancement_database_manager_phone_number',
         ] as $field) {
             if (array_key_exists($field, $payload)) {
                 $updates[$field] = $payload[$field];
