@@ -4,12 +4,14 @@ namespace App\Http\Controllers\v1\Admin\ConstituentManagement;
 
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ConstituentManagement\AddInstitutionOfficerRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionAdminListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionAlumniListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionCampaignListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InviteInstitutionRequest;
 use App\Http\Requests\Admin\ConstituentManagement\TertiaryInstitutionOptionListRequest;
+use App\Http\Requests\Admin\ConstituentManagement\UpdateInstitutionOfficerRequest;
 use App\Http\Requests\Admin\ConstituentManagement\UpdateInstitutionRequest;
 use App\Http\Requests\Admin\DateRangeStatsRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
@@ -18,6 +20,7 @@ use App\Http\Resources\Admin\ConstituentManagement\InstitutionAdminResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionAlumniResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionCampaignResource;
 use App\Http\Resources\Admin\ConstituentManagement\InstitutionDetailResource;
+use App\Http\Resources\Admin\ConstituentManagement\InstitutionOfficerResource;
 use App\Http\Resources\Admin\ConstituentManagement\TertiaryInstitutionOptionResource;
 use App\Models\Admin;
 use App\Models\Institution;
@@ -165,6 +168,42 @@ class InstitutionController extends Controller
             return JsonResponser::send(false, 'Institution campaigns retrieved.', $this->paginatedPayload($paginator, InstitutionCampaignResource::class));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@campaigns');
+        }
+    }
+
+    public function addOfficer(AddInstitutionOfficerRequest $request, string $uuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $officer = $this->institutionService->addOfficer($uuid, $request->validated(), $admin, $request);
+
+            return JsonResponser::send(false, 'Officer added.', InstitutionOfficerResource::make($officer)->resolve(), 201);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@addOfficer');
+        }
+    }
+
+    public function updateOfficer(UpdateInstitutionOfficerRequest $request, string $uuid, string $officerUuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $officer = $this->institutionService->updateOfficer($uuid, $officerUuid, $request->validated(), $admin, $request);
+
+            return JsonResponser::send(false, 'Officer updated.', InstitutionOfficerResource::make($officer)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@updateOfficer');
+        }
+    }
+
+    public function removeOfficer(Request $request, string $uuid, string $officerUuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $this->institutionService->removeOfficer($uuid, $officerUuid, $admin, $request);
+
+            return JsonResponser::send(false, 'Officer removed.', null);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@removeOfficer');
         }
     }
 

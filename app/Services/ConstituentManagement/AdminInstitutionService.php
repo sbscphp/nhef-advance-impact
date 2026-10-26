@@ -12,6 +12,7 @@ use App\Jobs\SendInstitutionInviteEmailJob;
 use App\Models\Admin;
 use App\Models\CampaignInstitution;
 use App\Models\Institution;
+use App\Models\InstitutionOfficer;
 use App\Models\TertiaryInstitution;
 use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
@@ -19,6 +20,7 @@ use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
+use App\Repositories\Contracts\InstitutionOfficer\InstitutionOfficerRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
 use App\Repositories\Contracts\User\UserRepositoryInterface;
@@ -41,6 +43,7 @@ class AdminInstitutionService
         private readonly AdminRepositoryInterface $adminRepository,
         private readonly InstitutionStatsLoader $statsLoader,
         private readonly DonorTierRepositoryInterface $donorTierRepository,
+        private readonly InstitutionOfficerRepositoryInterface $institutionOfficerRepository,
     ) {}
 
     /**
@@ -59,12 +62,20 @@ class AdminInstitutionService
         }
 
         $email = (string) $payload['email'];
+        $adminEmail = (string) $payload['advancement_database_manager_email'];
 
         if ($this->institutionRepository->emailExists($email) || $this->adminRepository->emailExists($email)) {
             throw new ApiException('An institution or admin with this email already exists.', 422);
         }
 
-        $institution = DB::transaction(function () use ($payload, $tertiaryInstitution, $actor, $email): Institution {
+        // The Advancement Database Manager becomes the institution's own admin login (2026-10-23,
+        // client requirement) - checked separately since it's a different email from the
+        // institution's own above, and is the one that actually needs to be unique as a login.
+        if ($adminEmail !== $email && $this->adminRepository->emailExists($adminEmail)) {
+            throw new ApiException('An admin with the Advancement Database Manager\'s email already exists.', 422);
+        }
+
+        $institution = DB::transaction(function () use ($payload, $tertiaryInstitution, $actor, $email, $adminEmail): Institution {
             $institution = $this->institutionRepository->create([
                 'name' => $tertiaryInstitution->name,
                 'slug' => $this->uniqueSlug($tertiaryInstitution->name),
@@ -72,13 +83,36 @@ class AdminInstitutionService
                 'email' => $email,
                 'phone_number' => $payload['phone_number'] ?? null,
                 'invite_message' => $payload['invite_message'] ?? null,
+                'vc_name' => $payload['vc_name'],
+                'vc_email' => $payload['vc_email'],
+                'vc_phone_number' => $payload['vc_phone_number'],
+                'advancement_director_name' => $payload['advancement_director_name'],
+                'advancement_director_email' => $payload['advancement_director_email'],
+                'advancement_director_phone_number' => $payload['advancement_director_phone_number'],
+                'advancement_database_manager_name' => $payload['advancement_database_manager_name'],
+                'advancement_database_manager_email' => $payload['advancement_database_manager_email'],
+                'advancement_database_manager_phone_number' => $payload['advancement_database_manager_phone_number'],
                 'status' => InstitutionStatusEnum::INVITE_SENT->value,
                 'is_active' => true,
                 'created_by' => $actor->uuid,
                 'invited_at' => now(),
             ]);
 
-            $this->adminRepository->createInstitutionOwner($institution, $institution->name, $email);
+            $this->adminRepository->createInstitutionOwner($institution, (string) $payload['advancement_database_manager_name'], $adminEmail);
+
+            foreach ((array) ($payload['officers'] ?? []) as $officer) {
+                $this->institutionOfficerRepository->create($institution, [
+                    'role' => $officer['role'],
+                    'name' => $officer['name'],
+                    'email' => $officer['email'],
+                    'phone_number' => $officer['phone_number'],
+                ]);
+            }
+
+            // create()'s hasMany()->create() calls above don't populate this instance's own
+            // `officers` relation, so InstitutionDetailResource's whenLoaded('officers') would
+            // silently omit the key entirely without this.
+            $institution->load('officers');
 
             return $institution;
         });
@@ -199,7 +233,12 @@ class AdminInstitutionService
             $updates['tertiary_institution_id'] = $tertiaryInstitution->id;
         }
 
-        foreach (['email', 'phone_number', 'country', 'state', 'address', 'invite_message', 'status'] as $field) {
+        foreach ([
+            'email', 'phone_number', 'country', 'state', 'address', 'invite_message', 'status',
+            'vc_name', 'vc_email', 'vc_phone_number',
+            'advancement_director_name', 'advancement_director_email', 'advancement_director_phone_number',
+            'advancement_database_manager_name', 'advancement_database_manager_email', 'advancement_database_manager_phone_number',
+        ] as $field) {
             if (array_key_exists($field, $payload)) {
                 $updates[$field] = $payload[$field];
             }
@@ -316,6 +355,105 @@ class AdminInstitutionService
         );
 
         return $institution;
+    }
+
+    /**
+     * Any further custom officers beyond the three fixed ones on `institutions` itself
+     * (2026-10-26, client requirement) - `role` is free-typed, not an enum, since the FE defines
+     * it per entry rather than picking from a preset list. Contact info only, no login.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function addOfficer(string $uuid, array $payload, Admin $actor, Request $request): InstitutionOfficer
+    {
+        $institution = $this->findForAdmin($uuid);
+
+        $officer = $this->institutionOfficerRepository->create($institution, [
+            'role' => $payload['role'],
+            'name' => $payload['name'],
+            'email' => $payload['email'],
+            'phone_number' => $payload['phone_number'],
+        ]);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::INSTITUTION_OFFICER_ADDED,
+            $request,
+            $actor->uuid,
+            ['institution_uuid' => $institution->uuid, 'officer_uuid' => $officer->uuid, 'role' => $officer->role, 'name' => $officer->name],
+            $actor->displayName().' added '.$officer->name.' ('.$officer->role.') to institution: '.$institution->name.'.',
+            Institution::class,
+            $institution->uuid,
+            ModuleEnums::constituent_management,
+            201,
+        );
+
+        return $officer;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateOfficer(string $uuid, string $officerUuid, array $payload, Admin $actor, Request $request): InstitutionOfficer
+    {
+        $institution = $this->findForAdmin($uuid);
+
+        $officer = $this->institutionOfficerRepository->findForInstitution($institution->id, $officerUuid);
+        if (! $officer instanceof InstitutionOfficer) {
+            throw new ApiException('Institution officer not found.', 404);
+        }
+
+        $updates = [];
+        foreach (['role', 'name', 'email', 'phone_number'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $updates[$field] = $payload[$field];
+            }
+        }
+
+        if ($updates !== []) {
+            $officer = $this->institutionOfficerRepository->update($officer, $updates);
+        }
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::INSTITUTION_OFFICER_UPDATED,
+            $request,
+            $actor->uuid,
+            ['institution_uuid' => $institution->uuid, 'officer_uuid' => $officer->uuid, 'fields' => array_keys($updates)],
+            $actor->displayName().' updated an officer on institution: '.$institution->name.'.',
+            Institution::class,
+            $institution->uuid,
+            ModuleEnums::constituent_management,
+            200,
+        );
+
+        return $officer;
+    }
+
+    public function removeOfficer(string $uuid, string $officerUuid, Admin $actor, Request $request): void
+    {
+        $institution = $this->findForAdmin($uuid);
+
+        $officer = $this->institutionOfficerRepository->findForInstitution($institution->id, $officerUuid);
+        if (! $officer instanceof InstitutionOfficer) {
+            throw new ApiException('Institution officer not found.', 404);
+        }
+
+        $officerName = $officer->name;
+        $this->institutionOfficerRepository->delete($officer);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::INSTITUTION_OFFICER_REMOVED,
+            $request,
+            $actor->uuid,
+            ['institution_uuid' => $institution->uuid, 'name' => $officerName],
+            $actor->displayName().' removed '.$officerName.' from institution: '.$institution->name.'.',
+            Institution::class,
+            $institution->uuid,
+            ModuleEnums::constituent_management,
+            200,
+        );
     }
 
     /**
