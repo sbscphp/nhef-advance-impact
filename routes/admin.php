@@ -595,6 +595,14 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:alumni.read', 'individual.records']);
             Route::get('/{uuid}/campaigns', [ConstituentInstitutionController::class, 'campaigns'])
                 ->middleware(['permission:constituents.read']);
+            // Custom key-contact officers beyond the three fixed ones on the institution itself
+            // (2026-10-26, client requirement) - free-typed role per entry.
+            Route::post('/{uuid}/officers', [ConstituentInstitutionController::class, 'addOfficer'])
+                ->middleware(['permission:constituents.update']);
+            Route::patch('/{uuid}/officers/{officerUuid}', [ConstituentInstitutionController::class, 'updateOfficer'])
+                ->middleware(['permission:constituents.update']);
+            Route::delete('/{uuid}/officers/{officerUuid}', [ConstituentInstitutionController::class, 'removeOfficer'])
+                ->middleware(['permission:constituents.update']);
             // Same gate as the institution detail page itself, not admins.read - this is "View
             // Institution" drilling into its admins, not the separate NHEF-wide User Management
             // screen (client feedback, 2026-10-16: no screen anywhere showed this before).

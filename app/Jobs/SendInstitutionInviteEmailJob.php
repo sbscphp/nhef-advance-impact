@@ -41,12 +41,17 @@ class SendInstitutionInviteEmailJob implements ShouldQueue
                 ->oldest('id')
                 ->first();
 
-            $passwords = app(PasswordResetService::class);
-            $setPasswordUrl = $owner instanceof Admin
-                ? $passwords->adminSetPasswordUrl($passwords->issueResetTokenFor($owner), null, $owner->email)
-                : null;
+            // The Advancement Database Manager is this owner account (2026-10-23, client
+            // requirement) - the invite goes to them, not the institution's own general email,
+            // since they're the one who actually needs the password-set link below.
+            if (! $owner instanceof Admin) {
+                return;
+            }
 
-            Mail::to($institution->email)->send(new InstitutionInviteMail(
+            $passwords = app(PasswordResetService::class);
+            $setPasswordUrl = $passwords->adminSetPasswordUrl($passwords->issueResetTokenFor($owner), null, $owner->email);
+
+            Mail::to($owner->email)->send(new InstitutionInviteMail(
                 $institution->name,
                 $theme,
                 $institution->invite_message,

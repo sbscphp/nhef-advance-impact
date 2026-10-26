@@ -30,7 +30,7 @@ class InstitutionRepository implements InstitutionRepositoryInterface
 
     public function findByUuid(string $uuid): ?Institution
     {
-        return Institution::query()->with('tertiaryInstitution')->where('uuid', $uuid)->first();
+        return Institution::query()->with(['tertiaryInstitution', 'officers'])->where('uuid', $uuid)->first();
     }
 
     public function nameExists(string $name): bool
