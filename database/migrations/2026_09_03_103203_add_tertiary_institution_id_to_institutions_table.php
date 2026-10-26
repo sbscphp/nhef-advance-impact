@@ -38,7 +38,8 @@ return new class extends Migration
         foreach ($rows as $row) {
             $canonicalName = self::KNOWN_MAPPINGS[$row->name] ?? $row->name;
 
-            $institutionId = DB::table('tertiary_institutions')->whereRaw('LOWER(name) = ?', [strtolower($canonicalName)])->value('id');
+            $institutionId = DB::table('tertiary_institutions')->whereRaw('LOWER(name) = ?', [strtolower($canonicalName)])->value('id')
+                ?? DB::table('tertiary_institutions')->whereRaw('LOWER(name) = ?', [strtolower($row->name)])->value('id');
 
             if ($institutionId === null) {
                 $institutionId = DB::table('tertiary_institutions')->insertGetId([

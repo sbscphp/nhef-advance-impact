@@ -37,7 +37,10 @@ return new class extends Migration
         foreach ($rawValues as $raw) {
             $canonicalName = self::KNOWN_MAPPINGS[$raw] ?? $raw;
 
-            $institutionId = DB::table('tertiary_institutions')->whereRaw('LOWER(name) = ?', [strtolower($canonicalName)])->value('id');
+            // Fall back to the raw name too - the institutions backfill may already have registered
+            // it as an unverified row when the canonical seeded list wasn't present.
+            $institutionId = DB::table('tertiary_institutions')->whereRaw('LOWER(name) = ?', [strtolower($canonicalName)])->value('id')
+                ?? DB::table('tertiary_institutions')->whereRaw('LOWER(name) = ?', [strtolower($raw)])->value('id');
 
             if ($institutionId === null) {
                 $institutionId = DB::table('tertiary_institutions')->insertGetId([
