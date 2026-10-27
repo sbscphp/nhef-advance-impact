@@ -59,11 +59,11 @@ use Illuminate\Support\Str;
 
 /**
  * Realistic, interconnected demo data: 3 institutions (University of Lagos + 2 more), each with
- * constituents, campaigns, donations/pledges, events and mentorship activity, plus one shared
- * National Giving Day campaign across all three. Everything flows through the real repository
- * layer (and MentorshipService/CampaignService where no payment gateway is involved) so derived
- * numbers - campaign raised_amount, institution stats, donor tiers, dashboard cards, report
- * datasets - all reconcile against real rows instead of being hand-set separately.
+ * constituents, campaigns, donations/pledges, events and mentorship activity. Everything flows
+ * through the real repository layer (and MentorshipService/CampaignService where no payment
+ * gateway is involved) so derived numbers - campaign raised_amount, institution stats, donor
+ * tiers, dashboard cards, report datasets - all reconcile against real rows instead of being
+ * hand-set separately.
  *
  * Intended to run on a fresh-ish environment (local or staging) after the base seeders
  * (RolesAndPermissionsSeeder, InstitutionSeeder/CountrySeeder) have already run - it bails out
@@ -72,6 +72,13 @@ use Illuminate\Support\Str;
  * exist, so tiers are never missing even on a standalone `db:seed --class=DemoDataSeeder` run.
  * Institutions/admins are resolved with firstOrCreate, so running it again is safe but will add a
  * second batch of constituents/campaigns/events rather than silently no-op.
+ *
+ * No shared National Giving Day campaign (2026-10-27, AdvanceImpact): that flow requires
+ * CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY, Super-Admin-only by design and deliberately excluded
+ * from Super Admin's AdvanceImpact grant (Fundraising isn't on their own sidebar here, it's an
+ * institution opt-in module) - and "National Giving Day" is itself an NHEF/Nexus-specific concept
+ * that doesn't fit AdvanceImpact's broader, non-university audience anyway. Each institution's own
+ * standard campaigns (created via its own admin, who does hold campaigns.create) are unaffected.
  *
  * php artisan db:seed --class=DemoDataSeeder
  */
@@ -207,12 +214,6 @@ class DemoDataSeeder extends Seeder
             $this->createMentorshipActivity($constituents);
             $this->createNetworkingActivity($institution, $constituents, $admin);
         }
-
-        $this->command?->info('Seeding shared National Giving Day campaign...');
-        $ngd = $this->createNationalGivingDayCampaign($institutions, $admins, $bankAccounts, $superAdmin);
-        $allConstituents = collect($constituentsByInstitution)->flatten(1)->all();
-        $this->createDonationsForCampaign($ngd, $allConstituents, 30, spreadDays: 21);
-        $this->createPledgesForCampaign($ngd, $allConstituents, rand(8, 14));
 
         $this->command?->info('Demo data seeding complete.');
     }
@@ -404,58 +405,6 @@ class DemoDataSeeder extends Seeder
         }
 
         return $campaigns;
-    }
-
-    /**
-     * @param  array<int, Institution>  $institutions
-     * @param  array<int, Admin>  $admins
-     * @param  array<int, BankAccount>  $bankAccounts
-     */
-    private function createNationalGivingDayCampaign(array $institutions, array $admins, array $bankAccounts, Admin $superAdmin): Campaign
-    {
-        // Projects carry no goal of their own (2026-10-20) - each institution sets its own goal
-        // per project via project_goals; the institution's total is derived from those.
-        $projectNames = ['Scholarships', 'Library & Research Upgrade', 'Emergency Student Relief'];
-
-        $institutionRows = [];
-        foreach ($institutions as $institutionId => $institution) {
-            $projectGoals = [];
-            foreach ($projectNames as $projectName) {
-                $projectGoals[] = [
-                    'project_name' => $projectName,
-                    'goal_amount' => [2_000_000, 3_000_000, 4_000_000, 5_000_000][array_rand([2_000_000, 3_000_000, 4_000_000, 5_000_000])],
-                ];
-            }
-
-            $institutionRows[] = [
-                'institution_id' => $institution->uuid,
-                'currency' => 'NGN',
-                'bank_account_id' => $bankAccounts[$institutionId]->uuid,
-                'project_goals' => $projectGoals,
-            ];
-        }
-
-        $opening = $this->campaignService->createOpening([
-            'title' => 'NHEF National Giving Day 2026',
-            'description' => 'NHEF\'s annual, nationwide day of giving - every partner institution runs its own campaign under this shared opening.',
-            'starts_at' => Carbon::now()->subDays(14)->toDateString(),
-            'ends_at' => Carbon::now()->subDays(12)->toDateString(),
-            'assigned_admin_id' => $superAdmin->uuid,
-        ], $superAdmin);
-
-        $campaign = $this->campaignService->createNationalGivingDay([
-            'title' => 'NHEF National Giving Day 2026',
-            'description' => 'A coordinated day of giving across NHEF partner institutions, with funds routed to each institution\'s own recipient account.',
-            'opening_uuid' => $opening->uuid,
-            'timer_lead_hours' => 72,
-            'assigned_admin_id' => reset($admins)->uuid,
-            'projects' => array_map(fn (string $name): array => ['name' => $name], $projectNames),
-            'institutions' => $institutionRows,
-        ], $superAdmin, $this->request);
-
-        $campaign->forceFill(['created_at' => Carbon::now()->subDays(20)])->save();
-
-        return $campaign;
     }
 
     /**
