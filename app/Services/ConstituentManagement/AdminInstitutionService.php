@@ -3,7 +3,6 @@
 namespace App\Services\ConstituentManagement;
 
 use App\Enums\AuditActionEnum;
-use App\Enums\InstitutionRequiredOfficerRoleEnum;
 use App\Enums\InstitutionStatusEnum;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
@@ -21,6 +20,7 @@ use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
+use App\Repositories\Contracts\InstitutionModule\InstitutionModuleRepositoryInterface;
 use App\Repositories\Contracts\InstitutionOfficer\InstitutionOfficerRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
@@ -45,48 +45,31 @@ class AdminInstitutionService
         private readonly InstitutionStatsLoader $statsLoader,
         private readonly DonorTierRepositoryInterface $donorTierRepository,
         private readonly InstitutionOfficerRepositoryInterface $institutionOfficerRepository,
+        private readonly InstitutionModuleRepositoryInterface $institutionModuleRepository,
     ) {}
 
     /**
+     * AdvanceImpact Invite Institution (2026-10-26): no tertiary-institution lookup, a single
+     * contact person (not three required officers) who becomes the institution's admin login, and
+     * a `modules` grant (the "System Access Allowable" checklist) persisted via
+     * InstitutionModuleRepositoryInterface.
+     *
      * @param  array<string, mixed>  $payload
      */
     public function invite(array $payload, Admin $actor, Request $request): Institution
     {
-        $tertiaryInstitution = $this->tertiaryInstitutionRepository->findByUuid((string) $payload['tertiary_institution_uuid']);
-
-        if (! $tertiaryInstitution instanceof TertiaryInstitution) {
-            throw new ApiException('Tertiary institution not found.', 404);
-        }
-
-        if ($this->institutionRepository->existsForTertiaryInstitution($tertiaryInstitution->id)) {
-            throw new ApiException('This institution has already been invited.', 422);
-        }
-
+        $name = (string) $payload['name'];
         $email = (string) $payload['email'];
-
-        // The Advancement Database Manager's entry in `officers` becomes the institution's own
-        // admin login (2026-10-23, client requirement); InviteInstitutionRequest already
-        // guarantees one exists before this method ever runs.
-        $officers = (array) $payload['officers'];
-        $admOfficer = collect($officers)->firstWhere('role', InstitutionRequiredOfficerRoleEnum::ADVANCEMENT_DATABASE_MANAGER->value);
-        $adminEmail = (string) $admOfficer['email'];
-        $adminName = (string) $admOfficer['name'];
+        $adminName = trim($payload['first_name'].' '.$payload['last_name']);
 
         if ($this->institutionRepository->emailExists($email) || $this->adminRepository->emailExists($email)) {
             throw new ApiException('An institution or admin with this email already exists.', 422);
         }
 
-        // Checked separately since it's a different email from the institution's own above, and
-        // is the one that actually needs to be unique as a login.
-        if ($adminEmail !== $email && $this->adminRepository->emailExists($adminEmail)) {
-            throw new ApiException('An admin with the Advancement Database Manager\'s email already exists.', 422);
-        }
-
-        $institution = DB::transaction(function () use ($payload, $tertiaryInstitution, $actor, $email, $adminEmail, $adminName, $officers): Institution {
+        $institution = DB::transaction(function () use ($payload, $actor, $name, $email, $adminName): Institution {
             $institution = $this->institutionRepository->create([
-                'name' => $tertiaryInstitution->name,
-                'slug' => $this->uniqueSlug($tertiaryInstitution->name),
-                'tertiary_institution_id' => $tertiaryInstitution->id,
+                'name' => $name,
+                'slug' => $this->uniqueSlug($name),
                 'email' => $email,
                 'phone_number' => $payload['phone_number'] ?? null,
                 'invite_message' => $payload['invite_message'] ?? null,
@@ -96,21 +79,13 @@ class AdminInstitutionService
                 'invited_at' => now(),
             ]);
 
-            $this->adminRepository->createInstitutionOwner($institution, $adminName, $adminEmail);
-
-            foreach ($officers as $officer) {
-                $this->institutionOfficerRepository->create($institution, [
-                    'role' => $officer['role'],
-                    'name' => $officer['name'],
-                    'email' => $officer['email'],
-                    'phone_number' => $officer['phone_number'],
-                ]);
-            }
+            $this->adminRepository->createInstitutionOwner($institution, $adminName, $email);
+            $this->institutionModuleRepository->syncForInstitution($institution, (array) $payload['modules']);
 
             // create()'s hasMany()->create() calls above don't populate this instance's own
-            // `officers` relation, so InstitutionDetailResource's whenLoaded('officers') would
-            // silently omit the key entirely without this.
-            $institution->load('officers');
+            // relations, so InstitutionDetailResource's whenLoaded() checks would silently omit
+            // these keys entirely without this.
+            $institution->load(['officers', 'modules']);
 
             return $institution;
         });

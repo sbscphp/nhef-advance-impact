@@ -58,10 +58,13 @@ Route::prefix('v1/admin')->group(function () {
     });
 
     Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
-        Route::get('/', [NotificationController::class, 'index']);
-        Route::get('/summary', [NotificationController::class, 'summary']);
+        Route::get('/', [NotificationController::class, 'index'])
+            ->middleware(['permission:notifications.read']);
+        Route::get('/summary', [NotificationController::class, 'summary'])
+            ->middleware(['permission:notifications.read']);
         Route::post('/read-all', [NotificationController::class, 'markAllRead']);
-        Route::get('/{id}', [NotificationController::class, 'show']);
+        Route::get('/{id}', [NotificationController::class, 'show'])
+            ->middleware(['permission:notifications.read']);
         Route::patch('/{id}/read', [NotificationController::class, 'markRead']);
         Route::patch('/{id}/unread', [NotificationController::class, 'markUnread']);
         Route::delete('/{id}/dismiss', [NotificationController::class, 'dismiss']);

@@ -5,6 +5,7 @@ use App\Http\Middleware\ApplyTenantContext;
 use App\Http\Middleware\AttemptSanctumAuthentication;
 use App\Http\Middleware\EnsureAccessToken;
 use App\Http\Middleware\EnsureIndividualRecordsVisible;
+use App\Http\Middleware\EnsureInstitutionModuleGranted;
 use App\Http\Middleware\EnsureLandlordContext;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             EnsureAccessToken::class,
             TrackLastActiveAt::class,
             ApplyTenantContext::class,
+            EnsureInstitutionModuleGranted::class,
         ]);
 
         // Do not call config() here: the config repository is not bound until

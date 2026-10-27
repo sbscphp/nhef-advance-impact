@@ -79,31 +79,23 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         $everything = PermissionEnum::cases();
 
-        // NHEF-level accounts see institution aggregates, never individual donor/alumni records,
-        // and their permission grant matches exactly what their own Figma menu shows (2026-09-30
-        // pass): Dashboard, Institution Management, National Giving Day, Report, User Management,
-        // Audit Trail, Notification, System Configuration, My Profile Setting. Alumni, Networking,
-        // Mentorship, Custom Field, Communications, CRM and (standalone) Events are Institution
-        // Admin's own menu items, not NHEF's, even though NHEF previously held all of them via this
-        // "everything except X" blanket grant - excluded below so the frontend's permission-driven
-        // menus only show what NHEF can actually use, and none of these can be silently toggled
-        // back on for NHEF via Roles & Permissions. campaigns.create_standard and
-        // constituency_types.* are excluded for the same reason (see their own grants below).
-        // dashboard.read alone (not events.read) is what gates the Dashboard's "Event Tracking"
-        // widget, so excluding events.* here never touched that widget either way.
-        // events.read is carved back out below (2026-10-20) for Super Admin only, so they can view
-        // the standalone Events module read-only; events.create/update/delete and Admin's own
-        // events.read stay excluded. alumni.read is carved back out the same way (2026-10-21):
-        // the "Partner Institutions" > institution detail page's Alumni tab
-        // (GET .../institutions/{uuid}/alumni) needs it, and 403'd for Super Admin without it -
-        // alumni.create/update/delete and Admin's own alumni.read stay excluded.
+        // AdvanceImpact Super Admin/Admin accounts (2026-10-26 cleanup): grant matches exactly
+        // what their own AdvanceImpact Figma sidebar shows - Dashboard, Constituent Management,
+        // User Management, Reporting, Audit Trail, Notification, System Configuration, My Profile
+        // Setting - nothing else. Alumni, Networking, Mentorship, Custom Field, Communications,
+        // CRM, Events, Fundraising/Campaigns, Projects and Research are all institution-level,
+        // either Institution Admin's own menu items or opt-in modules toggled per institution via
+        // the Invite Institution "System Access Allowable" checklist - never Super Admin/Admin's
+        // own CRUD, so none of them belong in this blanket "everything except X" grant and none
+        // can be silently toggled back on via Roles & Permissions. constituency_types.* is
+        // excluded for the same reason (see its own grant below).
         $nhefExcluded = [
-            PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
             PermissionEnum::CONSTITUENCY_TYPES_CREATE,
             PermissionEnum::CONSTITUENCY_TYPES_READ,
             PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
             PermissionEnum::CONSTITUENCY_TYPES_DELETE,
             PermissionEnum::ALUMNI_CREATE,
+            PermissionEnum::ALUMNI_READ,
             PermissionEnum::ALUMNI_UPDATE,
             PermissionEnum::ALUMNI_DELETE,
             PermissionEnum::NETWORKING_CREATE,
@@ -127,8 +119,24 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CRM_UPDATE,
             PermissionEnum::CRM_DELETE,
             PermissionEnum::EVENTS_CREATE,
+            PermissionEnum::EVENTS_READ,
             PermissionEnum::EVENTS_UPDATE,
             PermissionEnum::EVENTS_DELETE,
+            PermissionEnum::CAMPAIGNS_CREATE,
+            PermissionEnum::CAMPAIGNS_READ,
+            PermissionEnum::CAMPAIGNS_UPDATE,
+            PermissionEnum::CAMPAIGNS_DELETE,
+            PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
+            PermissionEnum::CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY,
+            PermissionEnum::CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY,
+            PermissionEnum::PROJECTS_CREATE,
+            PermissionEnum::PROJECTS_READ,
+            PermissionEnum::PROJECTS_UPDATE,
+            PermissionEnum::PROJECTS_DELETE,
+            PermissionEnum::RESEARCH_CREATE,
+            PermissionEnum::RESEARCH_READ,
+            PermissionEnum::RESEARCH_UPDATE,
+            PermissionEnum::RESEARCH_DELETE,
         ];
 
         // Super Admin-only, not shared with Admin: the Donation module itself stays off for both
@@ -137,8 +145,8 @@ class RolesAndPermissionsSeeder extends Seeder
         // unrelated to individual-record visibility, which Super Admin now holds too (2026-10-20:
         // previously revoked below along with donations.*, now carved back out so Super Admin can
         // see individual-level records on every module whose base *.read permission they already
-        // hold - Constituents, Campaigns, Events, System Configuration; still has no effect on
-        // Donations, Alumni, Communications since Super Admin lacks *.read on those).
+        // hold - Constituents, System Configuration; still has no effect on Donations since Super
+        // Admin lacks *.read on it).
         $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [
             ...$nhefExcluded,
             PermissionEnum::DONATIONS_CREATE,
@@ -151,16 +159,6 @@ class RolesAndPermissionsSeeder extends Seeder
             ...$nhefExcluded,
             PermissionEnum::ROLES_DELETE,
             PermissionEnum::ADMINS_DELETE,
-            // Announcing the National Giving Day opening is Super Admin only (2026-10-20), not
-            // shared with NHEF's plain "Admin" role - narrower than the existing
-            // campaigns.create_national_giving_day, which both already hold.
-            PermissionEnum::CAMPAIGNS_ANNOUNCE_NATIONAL_GIVING_DAY,
-            // Super Admin only (2026-10-20, see the grant above) - Admin keeps the rest of
-            // events.* excluded via $nhefExcluded.
-            PermissionEnum::EVENTS_READ,
-            // Super Admin only (2026-10-21, see the grant above) - Admin keeps the rest of
-            // alumni.* excluded via $nhefExcluded.
-            PermissionEnum::ALUMNI_READ,
         ]));
 
         // One-time corrections (2026-09-30): `grant()`/givePermissionTo() only adds, never strips,
@@ -267,9 +265,27 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CRM_CREATE,
             PermissionEnum::CRM_READ,
             PermissionEnum::CRM_UPDATE,
+            // AdvanceImpact opt-in modules (2026-10-27): held at the role level like CRM/Campaigns
+            // above, but whether they're actually usable on a given institution is additionally
+            // gated per-institution by EnsureInstitutionModuleGranted against the "System Access
+            // Allowable" grant Super Admin set at invite time - granting the role here is not the
+            // same as granting the module.
+            PermissionEnum::PROJECTS_CREATE,
+            PermissionEnum::PROJECTS_READ,
+            PermissionEnum::PROJECTS_UPDATE,
+            PermissionEnum::PROJECTS_DELETE,
+            PermissionEnum::RESEARCH_CREATE,
+            PermissionEnum::RESEARCH_READ,
+            PermissionEnum::RESEARCH_UPDATE,
+            PermissionEnum::RESEARCH_DELETE,
+            PermissionEnum::CUSTOM_FIELDS_CREATE,
+            PermissionEnum::CUSTOM_FIELDS_READ,
+            PermissionEnum::CUSTOM_FIELDS_UPDATE,
+            PermissionEnum::CUSTOM_FIELDS_DELETE,
             PermissionEnum::REPORTS_CREATE,
             PermissionEnum::REPORTS_READ,
             PermissionEnum::AUDIT_TRAIL_READ,
+            PermissionEnum::NOTIFICATIONS_READ,
             PermissionEnum::CONSTITUENCY_TYPES_CREATE,
             PermissionEnum::CONSTITUENCY_TYPES_READ,
             PermissionEnum::CONSTITUENCY_TYPES_UPDATE,
@@ -281,30 +297,6 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::DONOR_TIERS_READ,
             PermissionEnum::DONOR_TIERS_UPDATE,
             PermissionEnum::DONOR_TIERS_DELETE,
-            PermissionEnum::VISIBILITY_MONETARY,
-            PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
-        ]);
-
-        // Read-only evaluator. Reports.create is only the export/download action. 2026-10-14 FME
-        // dashboard review: this role now sees institution-level money (visibility.monetary) and
-        // the Live Activity feed (audit_trail.read). 2026-10-14 FME Constituents/Alumni/Partner
-        // Institutions screens: this role now also sees named individual constituent and alumni
-        // records (alumni.read, visibility.individual_records) - reverses the 22 Sep decision that
-        // FME never sees individual records under any circumstances; the new Figma screens show
-        // named rows directly, so per the client's own screens that rule no longer holds.
-        // 2026-10-14 FME Events/Mentorship screens: this role now also sees events.read and
-        // mentorship.read - reverses the 2026-10-02 "no Event Management screen for this role,
-        // same as Super Admin" decision, same reasoning (new screens win).
-        $this->grant(RoleEnum::MINISTRY_OF_EDUCATION, [
-            PermissionEnum::DASHBOARD_READ,
-            PermissionEnum::CONSTITUENTS_READ,
-            PermissionEnum::ALUMNI_READ,
-            PermissionEnum::CAMPAIGNS_READ,
-            PermissionEnum::EVENTS_READ,
-            PermissionEnum::MENTORSHIP_READ,
-            PermissionEnum::REPORTS_READ,
-            PermissionEnum::REPORTS_CREATE,
-            PermissionEnum::AUDIT_TRAIL_READ,
             PermissionEnum::VISIBILITY_MONETARY,
             PermissionEnum::VISIBILITY_INDIVIDUAL_RECORDS,
         ]);

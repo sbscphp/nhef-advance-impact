@@ -113,6 +113,11 @@ enum ePermission: string
     // Read-only; there is no create/update/delete for the audit trail itself.
     case AUDIT_TRAIL_READ = 'audit_trail.read';
 
+    // Read-only, same as audit_trail.read - the notification list/summary/detail views, not the
+    // self-service actions on your own notifications (mark read/unread, dismiss, read-all), which
+    // stay ungated for every admin regardless of role.
+    case NOTIFICATIONS_READ = 'notifications.read';
+
     // Advance-Impact-only: projects, milestones, deliverables, budgets, expenditures, impact reports, documents.
     case PROJECTS_CREATE = 'projects.create';
     case PROJECTS_READ = 'projects.read';

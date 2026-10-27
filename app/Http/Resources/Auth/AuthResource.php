@@ -3,11 +3,13 @@
 namespace App\Http\Resources\Auth;
 
 use App\Enums\CustomerRegistrationStepEnum;
+use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
 use App\Helpers\PermissionModuleMapper;
-use App\Support\ViewerVisibility;
 use App\Http\Resources\UserResource;
 use App\Models\Admin;
+use App\Repositories\Contracts\InstitutionModule\InstitutionModuleRepositoryInterface;
+use App\Support\ViewerVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -70,7 +72,7 @@ class AuthResource extends JsonResource
         }
 
         $admin->loadMissing('permissions');
-        $permissionNames = $admin->getAllPermissions()->pluck('name')->values()->all();
+        $permissionNames = $this->visiblePermissionNames($admin, $admin->getAllPermissions()->pluck('name')->values()->all());
 
         return array_merge($payload, [
             'roles' => $admin->roles->pluck('name')->values(),
@@ -78,5 +80,33 @@ class AuthResource extends JsonResource
             'permissions_by_module' => PermissionModuleMapper::groupedApiPermissionsForNames($permissionNames),
             'visibility' => ViewerVisibility::flagsFor($admin),
         ]);
+    }
+
+    /**
+     * Drops any permission whose module is one of {@see ModuleEnums::institutionGateableModuleKeys()}
+     * but isn't in this admin's institution's own module grant, so the sidebar never advertises a
+     * module {@see \App\Http\Middleware\EnsureInstitutionModuleGranted} would 403 on. NHEF admins
+     * (no institution) are unaffected - every gateable module is institution-scoped by definition.
+     *
+     * @param  list<string>  $permissionNames
+     * @return list<string>
+     */
+    private function visiblePermissionNames(Admin $admin, array $permissionNames): array
+    {
+        if ($admin->institution_id === null) {
+            return $permissionNames;
+        }
+
+        $gateable = ModuleEnums::institutionGateableModuleKeys();
+        $granted = app(InstitutionModuleRepositoryInterface::class)->keysForInstitution($admin->institution_id);
+
+        return array_values(array_filter(
+            $permissionNames,
+            function (string $name) use ($gateable, $granted): bool {
+                $moduleKey = PermissionModuleMapper::moduleKeyForPermissionName($name);
+
+                return ! in_array($moduleKey, $gateable, true) || $granted->contains($moduleKey);
+            }
+        ));
     }
 }

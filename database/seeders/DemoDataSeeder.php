@@ -69,13 +69,13 @@ use Illuminate\Support\Str;
  * (RolesAndPermissionsSeeder, InstitutionSeeder/CountrySeeder) have already run - it bails out
  * early with a command error if no Super Admin account exists yet (AdminSeeder's job). Donor
  * tiers are the one exception: this seeder calls DonorTierSeeder itself once its own institutions
- * exist, so tiers are never missing even on a standalone `db:seed --class=FmeDemoDataSeeder` run.
+ * exist, so tiers are never missing even on a standalone `db:seed --class=DemoDataSeeder` run.
  * Institutions/admins are resolved with firstOrCreate, so running it again is safe but will add a
  * second batch of constituents/campaigns/events rather than silently no-op.
  *
- * php artisan db:seed --class=FmeDemoDataSeeder
+ * php artisan db:seed --class=DemoDataSeeder
  */
-class FmeDemoDataSeeder extends Seeder
+class DemoDataSeeder extends Seeder
 {
     use DemoDataFaker;
 
@@ -179,7 +179,7 @@ class FmeDemoDataSeeder extends Seeder
 
         // Every institution above now exists, so this gives each one its own donor tier ladder
         // (institution-scoped, 2026-10-22) even if DatabaseSeeder's own earlier DonorTierSeeder
-        // call never ran - e.g. a standalone `db:seed --class=FmeDemoDataSeeder`. Idempotent
+        // call never ran - e.g. a standalone `db:seed --class=DemoDataSeeder`. Idempotent
         // (updateOrCreate), so calling it again here is harmless when it already ran too.
         $this->command?->info('Seeding donor tiers...');
         $this->call([DonorTierSeeder::class]);

@@ -15,6 +15,7 @@ enum ModuleEnums: string
     case constituent_management = 'constituent_management';
     case user_management = 'user_management';
     case audit_trail = 'audit_trail';
+    case notification = 'notification';
 
     /** Personal account settings (profile, password, 2FA). */
     case settings = 'settings';
@@ -51,6 +52,9 @@ enum ModuleEnums: string
     /** Advance-Impact-only: research initiatives, objectives, milestones, and deliverables. */
     case research_management = 'research_management';
 
+    /** Advance-Impact-only: not built yet, reserved as a System Access Allowable toggle. */
+    case proposal = 'proposal';
+
     /** Constituency Type Configuration; kept separate from system_configuration (a different audience). */
     case constituency_type = 'constituency_type';
 
@@ -66,6 +70,7 @@ enum ModuleEnums: string
             self::constituent_management => 'Constituent management',
             self::user_management => 'User management',
             self::audit_trail => 'Audit trail',
+            self::notification => 'Notification',
             self::settings => 'Settings',
             self::authentication => 'Authentication',
             self::fundraising => 'Fundraising',
@@ -80,6 +85,7 @@ enum ModuleEnums: string
             self::system_configuration => 'System configuration',
             self::project_management => 'Project management',
             self::research_management => 'Research management',
+            self::proposal => 'Proposal',
             self::constituency_type => 'Constituency type',
             self::donor_tier => 'Donation tier configuration',
         };
@@ -125,6 +131,60 @@ enum ModuleEnums: string
             self::donation->value,
             self::events->value,
         ];
+    }
+
+    /**
+     * The AdvanceImpact Invite Institution screen's "System Access Allowable" checklist - which
+     * modules Super Admin may grant an institution. Excludes `settings` (always-on/personal, not
+     * a toggle) and every Nexus-only module (`alumni`, `communications`, `events`, `mentorship`,
+     * `networking`, `constituency_type`, `donor_tier`), `guest`, and `authentication`.
+     *
+     * @return list<string>
+     */
+    public static function institutionModuleKeys(): array
+    {
+        return array_map(fn (self $module): string => $module->value, [
+            self::dashboard,
+            self::crm,
+            self::constituent_management,
+            self::fundraising,
+            self::project_management,
+            self::proposal,
+            self::research_management,
+            self::user_management,
+            self::donation,
+            self::reporting,
+            self::custom_field,
+            self::audit_trail,
+            self::notification,
+            self::system_configuration,
+        ]);
+    }
+
+    /**
+     * Subset of {@see self::institutionModuleKeys()} actually enforced against
+     * `institution_modules` ({@see \App\Http\Middleware\EnsureInstitutionModuleGranted}) - the
+     * structural basics (dashboard, constituent_management, user_management, reporting,
+     * audit_trail, notification, system_configuration) stay on regardless of the checklist, since
+     * an institution needs them to administer itself at all and an accidental unchecked box must
+     * never lock an institution out of its own account. Matches the 2026-10-09 client minutes:
+     * constituent/database management is core, Research/Proposal/Project Management are opt-in -
+     * extended here to the other Nexus-parity modules (CRM, Fundraising, Donation, Custom Fields)
+     * for the same "institution picks what it needs" reasoning.
+     *
+     * @return list<string>
+     */
+    public static function institutionGateableModuleKeys(): array
+    {
+        return array_map(fn (self $module): string => $module->value, [
+            self::crm,
+            self::fundraising,
+            self::donation,
+            self::project_management,
+            self::proposal,
+            self::research_management,
+            self::custom_field,
+        ]);
     }
 
     /**

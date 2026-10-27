@@ -55,6 +55,11 @@ class Institution extends Tenant
         return $this->hasMany(InstitutionOfficer::class);
     }
 
+    public function modules(): HasMany
+    {
+        return $this->hasMany(InstitutionModule::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

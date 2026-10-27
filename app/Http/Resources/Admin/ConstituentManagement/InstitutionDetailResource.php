@@ -36,6 +36,9 @@ class InstitutionDetailResource extends JsonResource
             // POST/PATCH/DELETE .../officers. The Advancement Database Manager entry's own
             // email/name become the institution's admin login (see AdminInstitutionService::invite()).
             'officers' => InstitutionOfficerResource::collection($this->whenLoaded('officers')),
+            // AdvanceImpact "System Access Allowable" grant (ModuleEnums values), set at invite
+            // time and editable afterward.
+            'modules' => $this->whenLoaded('modules', fn () => $this->modules->pluck('module_key')),
             'status' => $this->status,
             'is_active' => $this->is_active,
             'date_added' => $this->created_at?->toIso8601String(),
