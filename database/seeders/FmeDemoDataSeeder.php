@@ -4,10 +4,12 @@ namespace Database\Seeders;
 
 use App\Enums\AuditActionEnum;
 use App\Enums\ConstituentTypeEnum;
+use App\Enums\CustomFieldTypeEnum;
 use App\Enums\DonationFrequencyEnum;
 use App\Enums\DonationStatusEnum;
 use App\Enums\eRole;
 use App\Enums\EventRegistrationStatusEnum;
+use App\Enums\EventStatusEnum;
 use App\Enums\MentorshipMatchedByEnum;
 use App\Enums\MentorshipMatchStatusEnum;
 use App\Enums\ModuleEnums;
@@ -16,14 +18,22 @@ use App\Enums\NetworkingReactionEmojiEnum;
 use App\Enums\PaymentStatusEnum;
 use App\Enums\PledgeFrequencyEnum;
 use App\Enums\PledgeStatusEnum;
+use App\Enums\ProposalRecipientStatusEnum;
+use App\Enums\ProposalStatusEnum;
+use App\Enums\ProspectCallPriorityEnum;
+use App\Enums\ProspectInviteTypeEnum;
+use App\Enums\ProspectPipelineStageEnum;
 use App\Enums\SocialPlatformEnum;
+use App\Enums\TaskPriorityEnum;
 use App\Enums\UserTypeEnum;
 use App\Helpers\GeneralHelper;
 use App\Models\Admin;
 use App\Models\Bank;
 use App\Models\BankAccount;
 use App\Models\Campaign;
+use App\Models\ConstituencyType;
 use App\Models\Country;
+use App\Models\CustomFieldDefinition;
 use App\Models\DonationPayment;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -39,8 +49,10 @@ use App\Models\MentorshipReview;
 use App\Models\NetworkingChannel;
 use App\Models\NetworkingMessage;
 use App\Models\Pledge;
+use App\Models\ProposalRecipient;
 use App\Models\User;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
+use App\Repositories\Contracts\Communications\MailRecipientRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
@@ -48,6 +60,14 @@ use App\Repositories\Contracts\Event\EventTicketTypeRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeInstallmentRepositoryInterface;
 use App\Repositories\Contracts\Pledge\PledgeRepositoryInterface;
 use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepositoryInterface;
+use App\Services\Communications\CallLogService;
+use App\Services\Communications\MailService;
+use App\Services\Communications\TaskService;
+use App\Services\ConstituencyType\ConstituencyTypeService;
+use App\Services\Crm\ProposalService;
+use App\Services\Crm\ProspectService;
+use App\Services\CustomFields\CustomFieldDefinitionService;
+use App\Services\CustomFields\CustomFieldValueService;
 use App\Services\Fundraising\CampaignService;
 use App\Services\Mentorship\MentorshipService;
 use Carbon\Carbon;
@@ -59,11 +79,13 @@ use Illuminate\Support\Str;
 
 /**
  * Realistic, interconnected demo data: 3 institutions (University of Lagos + 2 more), each with
- * constituents, campaigns, donations/pledges, events and mentorship activity, plus one shared
- * National Giving Day campaign across all three. Everything flows through the real repository
- * layer (and MentorshipService/CampaignService where no payment gateway is involved) so derived
- * numbers - campaign raised_amount, institution stats, donor tiers, dashboard cards, report
- * datasets - all reconcile against real rows instead of being hand-set separately.
+ * constituents, campaigns, donations/pledges, events, mentorship, networking, CRM pipeline
+ * activity and communications activity, plus one shared National Giving Day campaign across all
+ * institutions, a shared custom-field set and a shared constituency-type set. Everything flows
+ * through the real service/repository layer (CampaignService, MentorshipService, ProspectService,
+ * MailService, etc.) so derived numbers - campaign raised_amount, institution stats, donor tiers,
+ * dashboard cards, report datasets - all reconcile against real rows instead of being hand-set
+ * separately.
  *
  * Intended to run on a fresh-ish environment (local or staging) after the base seeders
  * (RolesAndPermissionsSeeder, InstitutionSeeder/CountrySeeder) have already run - it bails out
@@ -137,6 +159,11 @@ class FmeDemoDataSeeder extends Seeder
         // dead socket. Demo data should never attempt a real network mail send, so redirect
         // outbound mail to the log channel for the duration of this seeder only.
         config(['mail.default' => 'log']);
+        // MailService::send() dispatches SendMailCampaignJob onto the queue; QUEUE_CONNECTION is
+        // database by default, so without a worker running that job never executes and every
+        // seeded mail stays stuck "sending" with no mail_recipients rows. Running it inline, same
+        // mail.default override above, is seeder-only and reverts once the process ends.
+        config(['queue.default' => 'sync']);
 
         $this->campaignRepository = app(CampaignRepositoryInterface::class);
         $this->donationRepository = app(DonationRepositoryInterface::class);
@@ -184,6 +211,16 @@ class FmeDemoDataSeeder extends Seeder
         $this->command?->info('Seeding donor tiers...');
         $this->call([DonorTierSeeder::class]);
 
+        // Custom field definitions and constituency types are both platform-wide (no
+        // institution_id column on either), so they're created once here rather than per
+        // institution - name-checked first since, unlike the rest of this seeder, a second run
+        // would otherwise fail on the unique `name` column instead of silently duplicating.
+        $this->command?->info('Seeding custom field definitions...');
+        $this->createCustomFieldDefinitions($superAdmin);
+
+        $this->command?->info('Seeding constituency types...');
+        $this->createConstituencyTypes(reset($admins));
+
         foreach ($institutions as $institutionId => $institution) {
             $admin = $admins[$institutionId];
             $bankAccount = $bankAccounts[$institutionId];
@@ -206,6 +243,18 @@ class FmeDemoDataSeeder extends Seeder
 
             $this->createMentorshipActivity($constituents);
             $this->createNetworkingActivity($institution, $constituents, $admin);
+
+            $this->command?->info("Seeding CRM and communications activity for {$institution->name}...");
+            $this->createCrmActivity($institution, $admin);
+            $this->createCommunicationsActivity($institution, $admin, $constituents);
+            $this->conferConstituencyTypes($admin, $constituents);
+        }
+
+        // One event total, not per-institution, so the Archived bucket isn't permanently empty -
+        // picked after the loop so every institution has already contributed its 3 timeline specs.
+        $archivable = Event::query()->where('status', EventStatusEnum::PUBLISHED->value)->inRandomOrder()->first();
+        if ($archivable instanceof Event) {
+            $archivable->forceFill(['status' => EventStatusEnum::ARCHIVED->value])->save();
         }
 
         $this->command?->info('Seeding shared National Giving Day campaign...');
@@ -213,6 +262,9 @@ class FmeDemoDataSeeder extends Seeder
         $allConstituents = collect($constituentsByInstitution)->flatten(1)->all();
         $this->createDonationsForCampaign($ngd, $allConstituents, 30, spreadDays: 21);
         $this->createPledgesForCampaign($ngd, $allConstituents, rand(8, 14));
+
+        $this->command?->info('Attaching custom field values to constituents...');
+        $this->attachCustomFieldValues($allConstituents);
 
         $this->command?->info('Demo data seeding complete.');
     }
@@ -435,11 +487,13 @@ class FmeDemoDataSeeder extends Seeder
             ];
         }
 
+        // Ongoing now and stays that way for a month, not already-expired - a previous version of
+        // this seeder set starts_at/ends_at both in the past, so the opening was dead on arrival.
         $opening = $this->campaignService->createOpening([
             'title' => 'NHEF National Giving Day 2026',
             'description' => 'NHEF\'s annual, nationwide day of giving - every partner institution runs its own campaign under this shared opening.',
-            'starts_at' => Carbon::now()->subDays(14)->toDateString(),
-            'ends_at' => Carbon::now()->subDays(12)->toDateString(),
+            'starts_at' => Carbon::now()->subDays(2)->toDateString(),
+            'ends_at' => Carbon::now()->addDays(30)->toDateString(),
             'assigned_admin_id' => $superAdmin->uuid,
         ], $superAdmin);
 
@@ -601,18 +655,39 @@ class FmeDemoDataSeeder extends Seeder
     }
 
     /**
+     * One of each timeline (scheduled/ongoing/completed) per institution, so the admin Events
+     * dashboard's status buckets aren't permanently stuck at "all scheduled, nothing else" - a
+     * previous version always used a future starts_at, so `displayStatus()` (purely derived from
+     * starts_at/ends_at vs now(), see Event::scopeWhereDisplayStatus()) could never return
+     * anything but "scheduled".
+     *
      * @return list<Event>
      */
     private function createEvents(Institution $institution, Admin $admin): array
     {
         $specs = [
-            ['title' => $institution->name.' Alumni Homecoming 2026', 'capacity' => 10, 'price' => 15_000, 'waitlist' => true],
-            ['title' => $institution->name.' Career Development Workshop', 'capacity' => 60, 'price' => 0, 'waitlist' => false],
+            ['title' => $institution->name.' Alumni Homecoming 2026', 'capacity' => 10, 'price' => 15_000, 'waitlist' => true, 'timeline' => 'scheduled'],
+            ['title' => $institution->name.' Career Development Workshop', 'capacity' => 60, 'price' => 0, 'waitlist' => false, 'timeline' => 'ongoing'],
+            ['title' => $institution->name.' Annual Fundraising Gala', 'capacity' => 40, 'price' => 25_000, 'waitlist' => false, 'timeline' => 'completed'],
         ];
 
         $events = [];
         foreach ($specs as $spec) {
-            $startsAt = Carbon::now()->addDays(rand(10, 45));
+            // "Ongoing" ends far enough out it won't flip to "completed" for weeks.
+            switch ($spec['timeline']) {
+                case 'ongoing':
+                    $startsAt = Carbon::now()->subDays(rand(2, 5));
+                    $endsAt = Carbon::now()->addDays(rand(15, 30));
+                    break;
+                case 'completed':
+                    $startsAt = Carbon::now()->subDays(rand(30, 60));
+                    $endsAt = Carbon::now()->subDays(rand(25, 29));
+                    break;
+                default:
+                    $startsAt = Carbon::now()->addDays(rand(10, 45));
+                    $endsAt = (clone $startsAt)->addHours(4);
+            }
+
             $event = Event::query()->create([
                 'title' => $spec['title'],
                 'slug' => Str::slug($spec['title']).'-'.Str::random(4),
@@ -621,7 +696,7 @@ class FmeDemoDataSeeder extends Seeder
                 'venue_name' => $institution->name.' Alumni Hall',
                 'venue_address' => $institution->name.' Campus',
                 'starts_at' => $startsAt,
-                'ends_at' => (clone $startsAt)->addHours(4),
+                'ends_at' => $endsAt,
                 'registration_ends_at' => (clone $startsAt)->subDay(),
                 'capacity' => $spec['capacity'],
                 'seats_taken' => 0,
@@ -923,5 +998,270 @@ class FmeDemoDataSeeder extends Seeder
         ]);
 
         unset($firstMessage);
+    }
+
+    /**
+     * 3 Prospects moved through the real pipeline (ProspectService::changeStage(), not a
+     * hand-set `stage` column, so ProspectStageHistory rows are real too), spread across
+     * institutions so all 5 ProspectPipelineStageEnum stages appear somewhere in the Kanban.
+     * Must run with this institution as the current tenant - Prospect uses OwnedByInstitution,
+     * which only stamps institution_id when a tenant is current.
+     */
+    private function createCrmActivity(Institution $institution, Admin $admin): void
+    {
+        $leadSources = ['Referral', 'Alumni Event', 'Cold Outreach', 'Website Inquiry'];
+        $stages = ProspectPipelineStageEnum::values();
+        $baseStageIndex = $institution->id % count($stages);
+
+        $prospectService = app(ProspectService::class);
+        $proposalService = app(ProposalService::class);
+
+        $institution->makeCurrent();
+
+        for ($i = 0; $i < 3; $i++) {
+            $firstName = $this->fakerName('firstName');
+            $lastName = $this->fakerName('lastName');
+
+            $prospect = $prospectService->create([
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => Str::lower($firstName.'.'.$lastName).'.'.Str::random(6).'@example.test',
+                'phone' => $this->nigerianPhoneNumber(),
+                'lead_source' => $leadSources[array_rand($leadSources)],
+                'estimated_value' => (string) rand(500_000, 10_000_000),
+                'assign_to' => $admin->uuid,
+            ], $admin, $this->request);
+
+            $targetStageIndex = ($baseStageIndex + $i) % count($stages);
+            for ($s = 1; $s <= $targetStageIndex; $s++) {
+                $prospect = $prospectService->changeStage($prospect->uuid, $stages[$s], $admin, $this->request);
+            }
+
+            $prospectService->logCall($prospect->uuid, [
+                'call_purpose' => 'Introductory call',
+                'description' => 'Discussed potential partnership and giving interests with '.$institution->name.'.',
+                'priority' => ProspectCallPriorityEnum::MEDIUM->value,
+            ], $admin, $this->request);
+
+            $inviteStart = Carbon::now()->addDays(rand(10, 30));
+            $prospectService->sendInvite($prospect->uuid, [
+                'title' => $institution->name.' Donor Appreciation Evening',
+                'description' => 'An evening to recognize and engage prospective major donors.',
+                'start_date' => $inviteStart->toDateString(),
+                'end_date' => (clone $inviteStart)->addDay()->toDateString(),
+                'time' => '18:00',
+                'invite_type' => ProspectInviteTypeEnum::PHYSICAL->value,
+                'venue' => $institution->name.' Alumni Hall',
+            ], $admin, $this->request);
+
+            // Only the first prospect per institution, to keep seeder volume/runtime sane - lands
+            // as "scheduled" not "sent" (ProspectService::composeMessage() always queues the send,
+            // see its own docblock), which is itself a realistic demo state.
+            if ($i === 0) {
+                $prospectService->composeMessage($prospect->uuid, [
+                    'subject' => 'Following up on our conversation',
+                    'send_date' => Carbon::now()->addDays(2)->toDateString(),
+                    'body' => 'Thank you for your time - looking forward to continuing the conversation about how you can support '.$institution->name.'.',
+                ], $admin, $this->request);
+            }
+
+            // Only the most-advanced prospect per institution.
+            if ($i === 2) {
+                $proposal = $proposalService->create($prospect->uuid, [
+                    'title' => $institution->name.' Partnership Proposal',
+                    'body' => 'A proposal outlining a multi-year partnership supporting '.$institution->name.'\'s strategic priorities.',
+                ], $admin, $this->request);
+
+                // ProposalService::sendToClient() only queues SendProposalToClientJob; simulating
+                // the completed state directly here, same pattern as the donations/payments above
+                // (mark successful directly rather than waiting on a webhook/worker).
+                $proposal->forceFill([
+                    'status' => ProposalStatusEnum::SENT->value,
+                    'send_message_title' => 'Your partnership proposal',
+                    'send_message_body' => 'Please find attached our proposal for your review.',
+                    'sent_by' => $admin->uuid,
+                    'sent_at' => now(),
+                ])->save();
+
+                ProposalRecipient::create([
+                    'proposal_id' => $proposal->id,
+                    'email' => $prospect->email,
+                    'status' => ProposalRecipientStatusEnum::SENT->value,
+                    'sent_at' => now(),
+                ]);
+            }
+        }
+
+        Institution::forgetCurrent();
+    }
+
+    /**
+     * One sent Mail with real mail_recipients (queue.default forced to sync in run(), so
+     * MailService::send()'s job runs inline instead of sitting unprocessed), plus call logs and
+     * a task. Tenant-wrapped like createCrmActivity() - Mail/CommunicationCallLog/CommunicationTask
+     * all use OwnedByInstitution too.
+     *
+     * @param  list<User>  $constituents
+     */
+    private function createCommunicationsActivity(Institution $institution, Admin $admin, array $constituents): void
+    {
+        $institution->makeCurrent();
+
+        $mailService = app(MailService::class);
+        $mail = $mailService->create([
+            'title' => $institution->name.' Annual Giving Update',
+            'body' => 'Dear friend, thank you for your continued support of '.$institution->name.'. Here is an update on our progress this year and how your generosity is making a difference.',
+            'segment' => ['tertiary_institution_uuid' => $institution->tertiaryInstitution->uuid],
+        ], $admin, $this->request);
+
+        $mail = $mailService->send($mail->uuid, [], $admin, $this->request);
+
+        $recipients = app(MailRecipientRepositoryInterface::class)->listForMail($mail->id);
+        foreach ($recipients->take((int) ceil($recipients->count() / 2)) as $recipient) {
+            $mailService->trackOpen($recipient->uuid);
+        }
+        if ($recipients->isNotEmpty()) {
+            $mailService->unsubscribe($recipients->last()->uuid);
+        }
+
+        $contacts = $this->fakerShuffle($constituents);
+        $callLogService = app(CallLogService::class);
+
+        $callLogService->create([
+            'contact_user_uuid' => $contacts[0]->uuid,
+            'purpose' => 'Annual giving check-in',
+            'description' => 'Called to thank them for their continued support and discuss this year\'s priorities.',
+        ], $admin, $this->request);
+
+        $callLogService->create([
+            'contact_user_uuid' => $contacts[1]->uuid,
+            'purpose' => 'Event follow-up',
+            'description' => 'Followed up after the alumni homecoming to gauge interest in future involvement.',
+            'follow_up_tasks' => [[
+                'title' => 'Send thank-you note to '.$contacts[1]->displayName(),
+                'assigned_to' => $admin->uuid,
+                'priority' => TaskPriorityEnum::MEDIUM->value,
+                'start_date' => Carbon::now()->toDateString(),
+                'due_date' => Carbon::now()->addDays(5)->toDateString(),
+            ]],
+        ], $admin, $this->request);
+
+        $taskService = app(TaskService::class);
+        $task = $taskService->create([
+            'title' => 'Prepare '.$institution->name.' quarterly donor report',
+            'assigned_to' => $admin->uuid,
+            'priority' => TaskPriorityEnum::HIGH->value,
+            'description' => 'Compile donation and engagement metrics for the board meeting.',
+            'start_date' => Carbon::now()->toDateString(),
+            'due_date' => Carbon::now()->addDays(10)->toDateString(),
+        ], $admin, $this->request);
+        $taskService->addNote($task->uuid, 'Draft pulled from last quarter\'s template - update figures before the 15th.', $admin, $this->request);
+
+        Institution::forgetCurrent();
+    }
+
+    /**
+     * Shared/platform-wide - no institution_id on either table - so created once, name-checked
+     * first since a second run would otherwise fail on the unique definition name.
+     */
+    private function createCustomFieldDefinitions(Admin $actor): void
+    {
+        $definitions = [
+            [
+                'name' => 'Preferred Contact Method',
+                'type' => CustomFieldTypeEnum::DROPDOWN->value,
+                'applicable_modules' => [ModuleEnums::constituent_management->value],
+                'options' => 'Email ; Phone ; WhatsApp',
+            ],
+            [
+                'name' => 'Gift Designation',
+                'type' => CustomFieldTypeEnum::TEXT->value,
+                'applicable_modules' => [ModuleEnums::donation->value],
+            ],
+            [
+                'name' => 'Dietary Requirement',
+                'type' => CustomFieldTypeEnum::TEXT->value,
+                'applicable_modules' => [ModuleEnums::events->value],
+            ],
+        ];
+
+        foreach ($definitions as $definition) {
+            if (CustomFieldDefinition::query()->where('name', $definition['name'])->exists()) {
+                continue;
+            }
+
+            app(CustomFieldDefinitionService::class)->create($definition, $actor, $this->request);
+        }
+    }
+
+    /**
+     * Every 5th constituent across all institutions gets a real custom field value, via the
+     * actual service (CustomFieldValueService::updateForFieldable()) so values go through the
+     * same per-type normalization the real UI uses.
+     *
+     * @param  list<User>  $constituents
+     */
+    private function attachCustomFieldValues(array $constituents): void
+    {
+        $definition = CustomFieldDefinition::query()->where('name', 'Preferred Contact Method')->first();
+        if (! $definition instanceof CustomFieldDefinition) {
+            return;
+        }
+
+        $options = ['Email', 'Phone', 'WhatsApp'];
+        $valueService = app(CustomFieldValueService::class);
+
+        foreach ($constituents as $index => $user) {
+            if ($index % 5 !== 0) {
+                continue;
+            }
+
+            $valueService->updateForFieldable($user, ModuleEnums::constituent_management->value, [
+                ['custom_field_uuid' => $definition->uuid, 'value' => $options[array_rand($options)]],
+            ]);
+        }
+    }
+
+    /**
+     * Shared/platform-wide (confirmed: ConstituencyType has no institution_id - "shared
+     * platform-wide tag list") - created once, name-checked first for the same re-run reason as
+     * createCustomFieldDefinitions(). ConstituencyTypeService::create() asserts
+     * constituency_types.create internally, which only Institution Admin holds - must use an
+     * institution's own admin as actor, never Super Admin.
+     */
+    private function createConstituencyTypes(Admin $institutionAdmin): void
+    {
+        $names = ['Major Donor', 'Board Member', 'Foundational Partner', 'Corporate Partner'];
+
+        foreach ($names as $name) {
+            if (ConstituencyType::query()->where('name', $name)->exists()) {
+                continue;
+            }
+
+            app(ConstituencyTypeService::class)->create(['name' => $name], $institutionAdmin, $this->request);
+        }
+    }
+
+    /**
+     * 2-3 constituents per institution get 1-2 of the shared constituency types conferred, via
+     * the institution's own admin - confer() asserts constituency_types.update the same way
+     * create() asserts constituency_types.create.
+     *
+     * @param  list<User>  $constituents
+     */
+    private function conferConstituencyTypes(Admin $institutionAdmin, array $constituents): void
+    {
+        $typeUuids = ConstituencyType::query()->pluck('uuid')->all();
+        if ($typeUuids === []) {
+            return;
+        }
+
+        $constituencyTypeService = app(ConstituencyTypeService::class);
+        $sample = array_slice($this->fakerShuffle($constituents), 0, min(3, count($constituents)));
+
+        foreach ($sample as $user) {
+            $picked = array_slice($this->fakerShuffle($typeUuids), 0, rand(1, 2));
+            $constituencyTypeService->confer($user->uuid, $picked, $institutionAdmin, $this->request);
+        }
     }
 }
