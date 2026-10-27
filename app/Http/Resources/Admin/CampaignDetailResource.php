@@ -53,6 +53,7 @@ class CampaignDetailResource extends JsonResource
                 'title' => $this->nationalGivingDayOpening->title,
             ]),
             'overview' => $this->when(array_key_exists('overview', $this->resource->getAttributes()), fn () => $this->overviewPayload()),
+            'previous_campaigns' => $this->when(array_key_exists('previous_campaigns', $this->resource->getAttributes()), fn () => $this->previousCampaignsPayload()),
             'share_url' => rtrim((string) config('app.frontend_url'), '/').'/campaigns/'.$this->slug,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
@@ -75,5 +76,22 @@ class CampaignDetailResource extends JsonResource
                 'pledges_total_formatted' => Money::format($overview['pledges_total'], $this->currency ?? 'NGN'),
             ]),
         ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function previousCampaignsPayload(): array
+    {
+        return array_map(fn (array $previous): array => [
+            'uuid' => $previous['uuid'],
+            'title' => $previous['title'],
+            ...ViewerVisibility::money([
+                'goal_amount' => $previous['goal_amount'],
+                'goal_amount_formatted' => $previous['goal_amount_formatted'],
+                'raised_amount' => $previous['raised_amount'],
+                'raised_amount_formatted' => $previous['raised_amount_formatted'],
+            ]),
+        ], $this->previous_campaigns);
     }
 }

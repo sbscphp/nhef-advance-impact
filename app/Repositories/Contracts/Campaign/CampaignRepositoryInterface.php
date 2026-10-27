@@ -4,6 +4,7 @@ namespace App\Repositories\Contracts\Campaign;
 
 use App\Models\Campaign;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface CampaignRepositoryInterface
 {
@@ -56,4 +57,13 @@ interface CampaignRepositoryInterface
 
     /** Every campaign regardless of status - matches the unfiltered campaign list's own total. */
     public function countTotal(?string $type = null): int;
+
+    /**
+     * Previous campaigns for the same institution (standard campaigns only), newest first,
+     * excluding the campaign currently being viewed - backs the "Previous Campaigns" panel on a
+     * standard campaign's detail page.
+     *
+     * @return Collection<int, Campaign>
+     */
+    public function previousForInstitution(int $institutionId, int $excludeCampaignId, int $limit): Collection;
 }
