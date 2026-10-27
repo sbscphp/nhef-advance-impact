@@ -400,6 +400,36 @@ class AdminInstitutionService
         return $officer;
     }
 
+    /**
+     * Sets this institution's "System Access Allowable" grant - the same thing InviteInstitutionRequest
+     * sets at invite time, reachable afterward too (needed for any institution that predates this
+     * feature, e.g. the demo-seeded ones, and was never granted anything).
+     *
+     * @param  list<string>  $moduleKeys
+     */
+    public function updateModules(string $uuid, array $moduleKeys, Admin $actor, Request $request): Institution
+    {
+        $institution = $this->findForAdmin($uuid);
+
+        $this->institutionModuleRepository->syncForInstitution($institution, $moduleKeys);
+        $institution->load('modules');
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::INSTITUTION_MODULES_UPDATED,
+            $request,
+            $actor->uuid,
+            ['institution_uuid' => $institution->uuid, 'modules' => $moduleKeys],
+            $actor->displayName().' updated the granted modules for institution: '.$institution->name.'.',
+            Institution::class,
+            $institution->uuid,
+            ModuleEnums::constituent_management,
+            200,
+        );
+
+        return $institution;
+    }
+
     public function removeOfficer(string $uuid, string $officerUuid, Admin $actor, Request $request): void
     {
         $institution = $this->findForAdmin($uuid);

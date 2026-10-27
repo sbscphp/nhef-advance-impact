@@ -762,9 +762,16 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:constituents.read']);
             Route::get('/tertiary-options', [ConstituentInstitutionController::class, 'tertiaryOptions'])
                 ->middleware(['permission:constituents.create']);
+            // AdvanceImpact "System Access Allowable" checklist options (2026-10-27).
+            Route::get('/module-options', [ConstituentInstitutionController::class, 'moduleOptions'])
+                ->middleware(['permission:constituents.create']);
             Route::get('/{uuid}', [ConstituentInstitutionController::class, 'show'])
                 ->middleware(['permission:constituents.read']);
             Route::patch('/{uuid}', [ConstituentInstitutionController::class, 'update'])
+                ->middleware(['permission:constituents.update']);
+            // Sets the grant directly (not via the general update() above) so it has its own clear
+            // audit action and doesn't get silently skipped by update()'s per-field presence check.
+            Route::patch('/{uuid}/modules', [ConstituentInstitutionController::class, 'updateModules'])
                 ->middleware(['permission:constituents.update']);
             Route::patch('/{uuid}/revoke', [ConstituentInstitutionController::class, 'revoke'])
                 ->middleware(['permission:constituents.update']);

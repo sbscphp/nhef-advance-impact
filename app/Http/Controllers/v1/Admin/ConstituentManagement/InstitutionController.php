@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\v1\Admin\ConstituentManagement;
 
+use App\Enums\ModuleEnums;
 use App\Helpers\GeneralHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ConstituentManagement\AddInstitutionOfficerRequest;
@@ -11,6 +12,7 @@ use App\Http\Requests\Admin\ConstituentManagement\InstitutionCampaignListRequest
 use App\Http\Requests\Admin\ConstituentManagement\InstitutionListRequest;
 use App\Http\Requests\Admin\ConstituentManagement\InviteInstitutionRequest;
 use App\Http\Requests\Admin\ConstituentManagement\TertiaryInstitutionOptionListRequest;
+use App\Http\Requests\Admin\ConstituentManagement\UpdateInstitutionModulesRequest;
 use App\Http\Requests\Admin\ConstituentManagement\UpdateInstitutionOfficerRequest;
 use App\Http\Requests\Admin\ConstituentManagement\UpdateInstitutionRequest;
 use App\Http\Requests\Admin\DateRangeStatsRequest;
@@ -68,6 +70,28 @@ class InstitutionController extends Controller
             return JsonResponser::send(false, 'Tertiary institutions retrieved.', $this->paginatedPayload($paginator, TertiaryInstitutionOptionResource::class));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@tertiaryOptions');
+        }
+    }
+
+    /**
+     * The "System Access Allowable" checklist options for the Invite Institution screen (and for
+     * updating an existing institution's grant via updateModules()). `gateable: false` entries are
+     * always granted regardless of the checklist - EnsureInstitutionModuleGranted never checks
+     * them - so the frontend should show those as always-on, not an interactive checkbox.
+     */
+    public function moduleOptions()
+    {
+        try {
+            $gateable = ModuleEnums::institutionGateableModuleKeys();
+            $options = array_map(fn (string $key): array => [
+                'value' => $key,
+                'label' => ModuleEnums::from($key)->label(),
+                'gateable' => in_array($key, $gateable, true),
+            ], ModuleEnums::institutionModuleKeys());
+
+            return JsonResponser::send(false, 'Module options retrieved.', $options);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@moduleOptions');
         }
     }
 
@@ -168,6 +192,18 @@ class InstitutionController extends Controller
             return JsonResponser::send(false, 'Institution campaigns retrieved.', $this->paginatedPayload($paginator, InstitutionCampaignResource::class));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@campaigns');
+        }
+    }
+
+    public function updateModules(UpdateInstitutionModulesRequest $request, string $uuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $institution = $this->institutionService->updateModules($uuid, $request->validated('modules'), $admin, $request);
+
+            return JsonResponser::send(false, 'Institution modules updated.', InstitutionDetailResource::make($institution)->resolve());
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\InstitutionController@updateModules');
         }
     }
 
