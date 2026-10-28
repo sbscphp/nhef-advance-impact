@@ -179,6 +179,7 @@ class CampaignController extends Controller
             $campaign->setAttribute('days_remaining', $this->campaignService->daysRemaining($campaign));
             $this->applyNationalGivingDayTotals($campaign);
             $campaign->setAttribute('overview', $this->campaignService->detailOverview($campaign));
+            $campaign->setAttribute('previous_campaigns', $this->campaignService->previousCampaigns($campaign));
 
             return JsonResponser::send(false, 'Campaign retrieved.', CampaignDetailResource::make($campaign)->resolve());
         } catch (\Throwable $th) {

@@ -4,6 +4,7 @@ namespace App\Repositories\Contracts\Campaign;
 
 use App\Models\Campaign;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface CampaignRepositoryInterface
 {
@@ -64,4 +65,13 @@ interface CampaignRepositoryInterface
      * @param  list<int>  $campaignIds
      */
     public function sumRaisedAmountForCampaigns(array $campaignIds): string;
+
+    /**
+     * Previous campaigns for the same institution (standard campaigns only), newest first,
+     * excluding the campaign currently being viewed - backs the "Previous Campaigns" panel on a
+     * standard campaign's detail page.
+     *
+     * @return Collection<int, Campaign>
+     */
+    public function previousForInstitution(int $institutionId, int $excludeCampaignId, int $limit): Collection;
 }

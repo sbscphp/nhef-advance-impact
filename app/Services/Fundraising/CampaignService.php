@@ -926,6 +926,38 @@ class CampaignService
     }
 
     /**
+     * This institution's other standard campaigns, newest first - backs the "Previous Campaigns"
+     * panel on a standard campaign's detail page. Empty for a National Giving Day campaign (no
+     * single owning institution) or one with no campaign_institutions row at all (an NHEF-created
+     * standard campaign predating institution-owned campaigns).
+     *
+     * @return list<array{uuid: string, title: string, goal_amount: string, raised_amount: string, currency: string}>
+     */
+    public function previousCampaigns(Campaign $campaign, int $limit = 5): array
+    {
+        if ($campaign->type !== CampaignTypeEnum::STANDARD->value) {
+            return [];
+        }
+
+        $institutionId = $campaign->campaignInstitutions()->value('institution_id');
+        if ($institutionId === null) {
+            return [];
+        }
+
+        return $this->campaignRepository->previousForInstitution($institutionId, $campaign->id, $limit)
+            ->map(fn (Campaign $previous): array => [
+                'uuid' => $previous->uuid,
+                'title' => $previous->title,
+                'goal_amount' => (string) $previous->goal_amount,
+                'goal_amount_formatted' => Money::format($previous->goal_amount, $previous->currency),
+                'raised_amount' => (string) $previous->raised_amount,
+                'raised_amount_formatted' => Money::format($previous->raised_amount, $previous->currency),
+                'currency' => $previous->currency,
+            ])
+            ->all();
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function addInstitution(string $uuid, array $payload, Admin $actor, Request $request): CampaignInstitution

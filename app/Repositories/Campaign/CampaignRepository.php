@@ -3,11 +3,13 @@
 namespace App\Repositories\Campaign;
 
 use App\Enums\CampaignStatusEnum;
+use App\Enums\CampaignTypeEnum;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Campaign;
 use App\Models\Scopes\TenantScope;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class CampaignRepository implements CampaignRepositoryInterface
@@ -181,5 +183,16 @@ class CampaignRepository implements CampaignRepositoryInterface
                 $query->whereNull('ends_at')->orWhere('ends_at', '>=', now());
             })
             ->count();
+    }
+
+    public function previousForInstitution(int $institutionId, int $excludeCampaignId, int $limit): Collection
+    {
+        return Campaign::query()
+            ->where('type', CampaignTypeEnum::STANDARD->value)
+            ->where('id', '!=', $excludeCampaignId)
+            ->whereHas('campaignInstitutions', fn ($query) => $query->where('institution_id', $institutionId))
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
     }
 }
