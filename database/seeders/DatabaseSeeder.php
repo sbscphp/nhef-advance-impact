@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             InstitutionSeeder::class,
             AdminSeeder::class,
             CustomerSeeder::class,
+            ConstituentTypeDemoSeeder::class,
             ThemeSeeder::class,
             ApiUserSeeder::class,
             BankSeeder::class,
