@@ -9,9 +9,13 @@ use Illuminate\Support\Collection;
 interface CampaignRepositoryInterface
 {
     /**
+     * $viewerAuthenticated/$viewerInstitutionId scope the listing to a signed-in donor's own
+     * institution (plus platform-wide campaigns with no institution at all); unset for a guest,
+     * who sees everything, matching the pre-existing public behaviour.
+     *
      * @param  array<string, mixed>  $filters
      */
-    public function paginateActive(array $filters, int $perPage): LengthAwarePaginator;
+    public function paginateActive(array $filters, int $perPage, bool $viewerAuthenticated = false, ?int $viewerInstitutionId = null): LengthAwarePaginator;
 
     /**
      * @param  array<string, mixed>  $filters

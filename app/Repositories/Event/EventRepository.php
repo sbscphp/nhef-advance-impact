@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 
 class EventRepository implements EventRepositoryInterface
 {
-    public function paginatePublished(array $filters, int $perPage): LengthAwarePaginator
+    public function paginatePublished(array $filters, int $perPage, bool $viewerAuthenticated = false, ?int $viewerInstitutionId = null): LengthAwarePaginator
     {
         $query = Event::query()
             ->published()
@@ -20,7 +20,16 @@ class EventRepository implements EventRepositoryInterface
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('title', 'like', '%'.$filters['search'].'%')
-            );
+            )
+            ->when($viewerAuthenticated, function ($query) use ($viewerInstitutionId) {
+                $query->where(function ($inner) use ($viewerInstitutionId) {
+                    $inner->whereNull('events.institution_id');
+
+                    if ($viewerInstitutionId !== null) {
+                        $inner->orWhere('events.institution_id', $viewerInstitutionId);
+                    }
+                });
+            });
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
 

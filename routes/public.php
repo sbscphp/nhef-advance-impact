@@ -32,7 +32,9 @@ Route::prefix('v1')->group(function () {
 
     // Campaign browsing and payment verification are shared by the authenticated customer
     // flow and the guest donor flow (routes/guest.php); no account needed for either.
-    Route::prefix('campaigns')->group(function () {
+    // auth.attempt: resolves the viewer when a valid customer token is present (without
+    // requiring one), so a signed-in donor's own institution can scope the listing below.
+    Route::prefix('campaigns')->middleware('auth.attempt')->group(function () {
         Route::get('/', [CampaignController::class, 'index']);
         Route::get('/{uuid}', [CampaignController::class, 'show']);
         Route::get('/{uuid}/donors', [CampaignController::class, 'donors']);
@@ -43,7 +45,9 @@ Route::prefix('v1')->group(function () {
 
     // Event browsing and payment verification are shared by the authenticated customer flow
     // and the guest registration flow (routes/guest.php); no account needed for either.
-    Route::prefix('events')->group(function () {
+    // auth.attempt: resolves the viewer when a valid customer token is present (without
+    // requiring one), so a signed-in donor's own institution can scope the listing below.
+    Route::prefix('events')->middleware('auth.attempt')->group(function () {
         Route::get('/', [EventController::class, 'index']);
         Route::get('/{uuid}', [EventController::class, 'show']);
     });

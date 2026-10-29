@@ -17,7 +17,15 @@ class MentorProfile extends Model
 
     public static function constrainToTenant(Builder $query, Institution $tenant): void
     {
-        $query->whereIn('mentor_profiles.user_id', User::query()->select('users.id'));
+        if ($tenant->tertiary_institution_id === null) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereIn('mentor_profiles.user_id', User::query()
+            ->where('tertiary_institution_id', $tenant->tertiary_institution_id)
+            ->select('users.id'));
     }
 
     protected $guarded = ['id', 'uuid'];

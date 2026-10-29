@@ -8,6 +8,7 @@ use App\Http\Requests\Campaigns\CampaignDonorListRequest;
 use App\Http\Requests\Campaigns\CampaignListRequest;
 use App\Http\Resources\Fundraising\CampaignDonorResource;
 use App\Http\Resources\Fundraising\CampaignResource;
+use App\Models\User;
 use App\Responser\JsonResponser;
 use App\Services\Fundraising\CampaignService;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * Public: campaigns are browsed by both logged-in alumni and guest donors, so nothing
- * here needs an account.
+ * here needs an account. When a donor is signed in (routes/public.php's auth.attempt
+ * middleware resolves them without requiring auth), the listing scopes to their own institution.
  */
 class CampaignController extends Controller
 {
@@ -24,7 +26,8 @@ class CampaignController extends Controller
     public function index(CampaignListRequest $request)
     {
         try {
-            $paginator = $this->campaignService->paginate($request->validated());
+            $viewer = $request->user() instanceof User ? $request->user() : null;
+            $paginator = $this->campaignService->paginate($request->validated(), $viewer);
 
             return JsonResponser::send(false, 'Campaigns retrieved.', $this->paginatedPayload($paginator), 200);
         } catch (\Throwable $th) {
