@@ -84,13 +84,16 @@
             padding: 6px 7px;
             text-align: left;
             vertical-align: top;
-            word-break: break-word;
+            word-break: normal;
+            overflow-wrap: break-word;
         }
         .report-table th {
             background: #008751;
             color: #ffffff;
             font-weight: bold;
             font-size: 8px;
+            padding: 5px 5px;
+            white-space: normal;
         }
         .report-table tbody tr:nth-child(even) td {
             background: #f9fafb;
