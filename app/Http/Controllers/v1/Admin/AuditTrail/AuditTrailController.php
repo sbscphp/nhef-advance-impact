@@ -137,7 +137,7 @@ class AuditTrailController extends Controller
             headings: $headings,
             title: 'Audit trail',
             filename: $filename,
-            orientation: 'portrait',
+            orientation: 'landscape',
             periodStart: $periodStart,
             periodEnd: $periodEnd,
             generatedAt: now((string) config('app.timezone')),

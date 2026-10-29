@@ -4,11 +4,10 @@ namespace App\Services\Fundraising;
 
 use App\Enums\PaymentMethodEnum;
 use App\Exceptions\ApiException;
-use App\Helpers\GeneralHelper;
+use App\Helpers\LogoResolver;
 use App\Models\DonationPayment;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
-use App\Services\Theme\ThemeResolver;
 use App\Support\Money;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -34,10 +33,10 @@ class DonationReceiptService
 
         $donation = $payment->donation;
         $campaign = $donation->campaign;
-        $theme = app(ThemeResolver::class)->resolveForMail();
-        $logoPath = GeneralHelper::resolveMailLogoPath($theme);
-        $logoDataUri = File::exists($logoPath)
-            ? 'data:image/png;base64,'.base64_encode(File::get($logoPath))
+        // Green wordmark: this receipt's header is a plain white/light background.
+        $logo = LogoResolver::green();
+        $logoDataUri = File::exists($logo['path'])
+            ? 'data:'.$logo['mime'].';base64,'.base64_encode(File::get($logo['path']))
             : null;
 
         $html = view('pdf.donation-receipt', [

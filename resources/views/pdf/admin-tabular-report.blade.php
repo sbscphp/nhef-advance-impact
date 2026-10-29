@@ -44,7 +44,7 @@
             margin-top: 2px;
         }
         .separator {
-            border-top: 2px solid #111827;
+            border-top: 2px solid #008751;
             margin: 12px 0 10px;
         }
         .meta-wrap {
@@ -84,13 +84,16 @@
             padding: 6px 7px;
             text-align: left;
             vertical-align: top;
-            word-break: break-word;
+            word-break: normal;
+            overflow-wrap: break-word;
         }
         .report-table th {
-            background: #111827;
+            background: #008751;
             color: #ffffff;
             font-weight: bold;
             font-size: 8px;
+            padding: 5px 5px;
+            white-space: normal;
         }
         .report-table tbody tr:nth-child(even) td {
             background: #f9fafb;
@@ -107,6 +110,17 @@
     </style>
 </head>
 <body>
+    @php
+        use Carbon\Carbon;
+
+        $humanDate = function (string $value): string {
+            try {
+                return Carbon::parse($value)->format('F j, Y');
+            } catch (\Throwable) {
+                return $value;
+            }
+        };
+    @endphp
     <table class="header-table">
         <tr>
             <td>
@@ -119,7 +133,7 @@
             </td>
             <td style="text-align: right;">
                 <div class="title">{{ $title }}</div>
-                <div class="title-sub">Generated {{ $generatedAt->timezone(config('app.timezone'))->format('Y-m-d H:i') }} ({{ config('app.timezone') }})</div>
+                <div class="title-sub">Generated {{ $generatedAt->timezone(config('app.timezone'))->format('F j, Y g:i A') }} ({{ config('app.timezone') }})</div>
             </td>
         </tr>
     </table>
@@ -130,7 +144,7 @@
         <table class="meta-table">
             <tr>
                 <td class="meta-key">Period</td>
-                <td class="meta-value">{{ $periodStart }} to {{ $periodEnd }}</td>
+                <td class="meta-value">{{ $humanDate($periodStart) }} to {{ $humanDate($periodEnd) }}</td>
             </tr>
             <tr>
                 <td class="meta-key">Rows</td>

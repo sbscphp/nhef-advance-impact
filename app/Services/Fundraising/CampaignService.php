@@ -63,13 +63,36 @@ class CampaignService
     ) {}
 
     /**
+     * $viewer is the signed-in donor, or null for a guest. A guest sees every active campaign
+     * platform-wide (unchanged); a signed-in donor only sees campaigns their own institution is
+     * part of, plus platform-wide ones (no campaign_institutions row at all - e.g. an NHEF-run
+     * campaign not tied to any single university). Without this, every donor saw every
+     * institution's campaigns and every National Giving Day opening regardless of their own
+     * university's participation.
+     *
      * @param  array<string, mixed>  $filters
      */
-    public function paginate(array $filters): LengthAwarePaginator
+    public function paginate(array $filters, ?User $viewer): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $viewerInstitutionId = $viewer !== null ? $this->institutionIdFor($viewer) : null;
 
-        return $this->campaignRepository->paginateActive($filters, $perPage);
+        return $this->campaignRepository->paginateActive($filters, $perPage, $viewer !== null, $viewerInstitutionId);
+    }
+
+    /**
+     * This donor's own Institution id, resolved from their tertiary_institution_id; null if they
+     * have none or it isn't an onboarded institution (same pattern as
+     * RecognitionService::institutionIdFor()).
+     */
+    private function institutionIdFor(User $user): ?int
+    {
+        if ($user->tertiary_institution_id === null) {
+            return null;
+        }
+
+        return $this->institutionRepository
+            ->institutionIdsByTertiaryInstitutionIds([$user->tertiary_institution_id])[$user->tertiary_institution_id] ?? null;
     }
 
     public function findActiveByUuid(string $uuid): Campaign

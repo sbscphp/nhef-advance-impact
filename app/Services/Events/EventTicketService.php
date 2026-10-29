@@ -24,6 +24,7 @@ use App\Repositories\Contracts\Event\EventRegistrationRepositoryInterface;
 use App\Repositories\Contracts\Event\EventRepositoryInterface;
 use App\Repositories\Contracts\Event\EventTicketTypeRepositoryInterface;
 use App\Repositories\Contracts\Event\EventWaitlistEntryRepositoryInterface;
+use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Services\CustomFields\CustomFieldValueService;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Settings\PaymentMethodService;
@@ -50,16 +51,37 @@ class EventTicketService
         private readonly NotificationDispatchService $notificationDispatchService,
         private readonly PaymentMethodService $paymentMethodService,
         private readonly CustomFieldValueService $customFieldValueService,
+        private readonly InstitutionRepositoryInterface $institutionRepository,
     ) {}
 
     /**
+     * $viewer is the signed-in donor, or null for a guest. A guest sees every published event
+     * platform-wide (unchanged); a signed-in donor only sees events their own institution owns,
+     * plus platform-wide ones (no institution_id at all).
+     *
      * @param  array<string, mixed>  $filters
      */
-    public function paginateEvents(array $filters): LengthAwarePaginator
+    public function paginateEvents(array $filters, ?User $viewer = null): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $viewerInstitutionId = $viewer !== null ? $this->institutionIdFor($viewer) : null;
 
-        return $this->eventRepository->paginatePublished($filters, $perPage);
+        return $this->eventRepository->paginatePublished($filters, $perPage, $viewer !== null, $viewerInstitutionId);
+    }
+
+    /**
+     * This donor's own Institution id, resolved from their tertiary_institution_id; null if they
+     * have none or it isn't an onboarded institution (same pattern as
+     * RecognitionService::institutionIdFor()).
+     */
+    private function institutionIdFor(User $user): ?int
+    {
+        if ($user->tertiary_institution_id === null) {
+            return null;
+        }
+
+        return $this->institutionRepository
+            ->institutionIdsByTertiaryInstitutionIds([$user->tertiary_institution_id])[$user->tertiary_institution_id] ?? null;
     }
 
     public function findEventByUuid(string $uuid): Event

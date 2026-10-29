@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class CampaignRepository implements CampaignRepositoryInterface
 {
-    public function paginateActive(array $filters, int $perPage): LengthAwarePaginator
+    public function paginateActive(array $filters, int $perPage, bool $viewerAuthenticated = false, ?int $viewerInstitutionId = null): LengthAwarePaginator
     {
         $query = Campaign::query()
             ->active()
@@ -26,7 +26,19 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->when(
                 filled($filters['filters']['type'] ?? null),
                 fn ($query) => $query->where('type', $filters['filters']['type'])
-            );
+            )
+            ->when($viewerAuthenticated, function ($query) use ($viewerInstitutionId) {
+                $query->where(function ($inner) use ($viewerInstitutionId) {
+                    $inner->whereDoesntHave('campaignInstitutions');
+
+                    if ($viewerInstitutionId !== null) {
+                        $inner->orWhereHas(
+                            'campaignInstitutions',
+                            fn ($q) => $q->where('institution_id', $viewerInstitutionId)
+                        );
+                    }
+                });
+            });
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
 

@@ -10,6 +10,7 @@ use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
 use App\Helpers\FileUploadHelper;
 use App\Helpers\GeneralHelper;
+use App\Helpers\LogoResolver;
 use App\Jobs\SendProposalToClientJob;
 use App\Models\Admin;
 use App\Models\ProposalCollaborator;
@@ -442,9 +443,10 @@ class ProposalService
 
     private function renderPdfHtml(ProspectProposal $proposal, ?Prospect $prospect): string
     {
-        $logoPath = GeneralHelper::resolveMailLogoPath();
-        $logoDataUri = File::exists($logoPath)
-            ? 'data:image/png;base64,'.base64_encode(File::get($logoPath))
+        // Green wordmark: this proposal PDF's header is a plain white/light background.
+        $logo = LogoResolver::green();
+        $logoDataUri = File::exists($logo['path'])
+            ? 'data:'.$logo['mime'].';base64,'.base64_encode(File::get($logo['path']))
             : null;
 
         return view('pdf.proposal', [

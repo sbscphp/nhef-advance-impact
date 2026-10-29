@@ -10,9 +10,13 @@ use Illuminate\Support\Collection;
 interface EventRepositoryInterface
 {
     /**
+     * $viewerAuthenticated/$viewerInstitutionId scope the listing to a signed-in donor's own
+     * institution (plus platform-wide events with no institution_id at all); unset for a guest,
+     * who sees everything, matching the pre-existing public behaviour.
+     *
      * @param  array<string, mixed>  $filters
      */
-    public function paginatePublished(array $filters, int $perPage): LengthAwarePaginator;
+    public function paginatePublished(array $filters, int $perPage, bool $viewerAuthenticated = false, ?int $viewerInstitutionId = null): LengthAwarePaginator;
 
     /** Matches by `uuid` or `slug`, so donor-facing "get event" routes work with either. */
     public function findPublishedByUuid(string $identifier): ?Event;
