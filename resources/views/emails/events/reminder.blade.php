@@ -4,7 +4,7 @@
     $subject = 'Reminder - '.$eventTitle;
     $headline = "See you there, {$recipientName}!";
     $lead = 'This is a reminder that "'.$eventTitle.'" is coming up. Here are the details.';
-    $supportEmail = $theme->support_email ?? 'support@icoba.com';
+    $supportEmail = $theme->support_email ?? 'support@nhefnexus.com';
 @endphp
 
 @section('content')

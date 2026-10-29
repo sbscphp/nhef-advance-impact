@@ -53,7 +53,7 @@ class TermiiService implements SmsProviderInterface
     {
         $baseUrl = rtrim((string) config('services.sms.termii.base_url'), '/');
         $apiKey = (string) config('services.sms.termii.api_key');
-        $sender = (string) config('services.sms.termii.sender', config('app.name', 'ICOBA'));
+        $sender = (string) config('services.sms.termii.sender', config('app.name', 'NHEFNEXUS'));
 
         if ($baseUrl === '' || $apiKey === '') {
             return ['sent' => false, 'provider' => 'termii', 'reason' => 'termii_not_configured'];

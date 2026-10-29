@@ -4,7 +4,7 @@
     $subject = 'Welcome to NHEF Nexus, '.$institutionName;
     $headline = 'Welcome, '.$institutionName.'!';
     $lead = 'Your institution has been added to the NHEF Nexus platform by an administrator.';
-    $supportEmail = $theme->support_email ?? 'support@icoba.com';
+    $supportEmail = $theme->support_email ?? 'support@nhefnexus.com';
 @endphp
 
 @section('content')
