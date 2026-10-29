@@ -450,7 +450,7 @@ class CampaignController extends Controller
             headings: self::INSTITUTION_EXPORT_HEADINGS,
             title: 'Campaign Institutions',
             filename: Str::slug('campaign-institutions').'-'.now()->format('Y-m-d-His').'.pdf',
-            orientation: 'portrait',
+            orientation: 'landscape',
             periodStart: 'All dates',
             periodEnd: 'All dates',
             generatedAt: now((string) config('app.timezone')),

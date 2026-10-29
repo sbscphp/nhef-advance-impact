@@ -26,9 +26,11 @@ class PDFReportHelper
         $rows = $rows instanceof Collection ? $rows->toArray() : $rows;
         $orientation = strtolower($orientation) === 'portrait' ? 'portrait' : 'landscape';
         $generatedAt ??= now((string) config('app.timezone'));
-        $logoPath = public_path('assets/logo/quiva-logo-black.png');
-        $logoBase64 = File::exists($logoPath)
-            ? 'data:image/png;base64,'.base64_encode(File::get($logoPath))
+        // Green wordmark: the report header is a plain white/light background, not the brand
+        // green, so the white logo variant (built for dark backgrounds) would be unreadable here.
+        $logo = LogoResolver::green();
+        $logoBase64 = File::exists($logo['path'])
+            ? 'data:'.$logo['mime'].';base64,'.base64_encode(File::get($logo['path']))
             : null;
 
         $html = view('pdf.admin-tabular-report', [

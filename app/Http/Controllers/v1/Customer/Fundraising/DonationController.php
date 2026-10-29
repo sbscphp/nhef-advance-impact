@@ -151,7 +151,7 @@ class DonationController extends Controller
             headings: $headings,
             title: 'Donation history',
             filename: $filename,
-            orientation: 'portrait',
+            orientation: 'landscape',
             periodStart: $filters['start_date'] ?? 'All dates',
             periodEnd: $filters['end_date'] ?? 'All dates',
             generatedAt: now((string) config('app.timezone')),

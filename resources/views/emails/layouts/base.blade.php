@@ -1,18 +1,20 @@
 @php
-    use App\Helpers\GeneralHelper;
+    use App\Helpers\LogoResolver;
     use App\Services\Theme\ThemeResolver;
 
     $theme = $theme ?? app(ThemeResolver::class)->resolveForMail();
-    $logoPath = GeneralHelper::resolveMailLogoPath($theme);
+    // White wordmark: this header band is the brand green, so the light/green logo variant
+    // would be unreadable against it. See LogoResolver for the live-fetch/local-fallback logic.
+    $logo = LogoResolver::white();
     // Only trust a genuinely embeddable local file. A `logo_url` pointing at an unreachable
     // host (e.g. APP_URL=localhost in dev, or a stale/never-uploaded asset) still renders an
     // <img> tag; when that image 404s, mail clients fall back to unstyled alt text, which can
     // end up unreadable against a dark header. If there's no local file to embed, skip the
     // image entirely and render a styled text wordmark instead (see $hasLogo below).
-    $hasLogo = is_file($logoPath);
+    $hasLogo = is_file($logo['path']);
     $logoUrl = $hasLogo && isset($message) && method_exists($message, 'embed')
-        ? $message->embed($logoPath)
-        : GeneralHelper::resolveMailLogoUrl($theme);
+        ? $message->embed($logo['path'])
+        : $logo['url'];
     $brandSubtitle = $brandSubtitle ?? '';
     $footerName = $footerName ?? $theme->footerBrandName();
     $footerLineOne = $footerLineOne ?? $theme->footerLineOne();
@@ -60,9 +62,9 @@
             <td align="center">
                 <table role="presentation" width="600" class="wrapper" cellpadding="0" cellspacing="0" style="max-width:600px; width:100%; background-color:{{ $theme->surface_color }}; border-radius:16px; overflow:hidden; box-shadow:0 12px 30px rgba(18,33,104,0.08);">
                     <tr>
-                        <td style="padding:32px 32px 24px 32px; text-align:center; background: {{ $theme->header_background_color }};">
+                        <td style="padding:22px 32px 18px 32px; text-align:center; background: {{ $theme->header_background_color }};">
                             @if($hasLogo)
-                                <img src="{{ $logoUrl }}" alt="{{ $brandName }}" width="200" style="display:block; margin:0 auto; max-width: 100%; height: auto;">
+                                <img src="{{ $logoUrl }}" alt="{{ $brandName }}" width="90" height="10" style="display:block; margin:0 auto; width: 90px; max-width: 100%; height: auto;">
                             @else
                                 <span style="display:block; font-size:26px; font-weight:700; letter-spacing:0.5px; color:{{ $headerTextColor }};">{{ $brandName }}</span>
                             @endif

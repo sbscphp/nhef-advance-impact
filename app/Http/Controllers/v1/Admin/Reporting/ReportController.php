@@ -5,6 +5,7 @@ namespace App\Http\Controllers\v1\Admin\Reporting;
 use App\Enums\ReportDatasetEnum;
 use App\Helpers\GeneralHelper;
 use App\Helpers\PDFReportHelper;
+use App\Helpers\ReportValueFormatter;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Reporting\DistributionReportRequest;
 use App\Http\Requests\Admin\Reporting\GenerateReportRequest;
@@ -120,10 +121,11 @@ class ReportController extends Controller
             $result = $this->reportService->generate($admin, $validated);
 
             $fieldLabels = $this->fieldLabels($result['report']->dataset, $result['report']->fields);
+            $fieldTypes = $this->fieldTypes($result['report']->dataset, $result['report']->fields);
 
             return $validated['format'] === 'pdf'
-                ? $this->respondPdf($result['report'], $result['rows'], $fieldLabels, $result['truncated'])
-                : $this->respondCsv($result['report'], $result['rows'], $fieldLabels, $result['truncated']);
+                ? $this->respondPdf($result['report'], $result['rows'], $fieldLabels, $fieldTypes, $result['truncated'])
+                : $this->respondCsv($result['report'], $result['rows'], $fieldLabels, $fieldTypes, $result['truncated']);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Reporting\ReportController@store');
         }
@@ -165,10 +167,11 @@ class ReportController extends Controller
             $report = $this->reportService->findForAdmin($uuid);
             $export = $this->reportService->exportRows($report);
             $fieldLabels = $this->fieldLabels($report->dataset, $report->fields);
+            $fieldTypes = $this->fieldTypes($report->dataset, $report->fields);
 
             return $validated['format'] === 'pdf'
-                ? $this->respondPdf($report, $export['rows'], $fieldLabels, $export['truncated'])
-                : $this->respondCsv($report, $export['rows'], $fieldLabels, $export['truncated']);
+                ? $this->respondPdf($report, $export['rows'], $fieldLabels, $fieldTypes, $export['truncated'])
+                : $this->respondCsv($report, $export['rows'], $fieldLabels, $fieldTypes, $export['truncated']);
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Reporting\ReportController@download');
         }
@@ -198,14 +201,42 @@ class ReportController extends Controller
     }
 
     /**
+     * Mirrors {@see self::fieldLabels()} but for each field's declared type ("date", "boolean",
+     * "number", "string"), so respondCsv()/respondPdf() can render a human-readable cell instead of
+     * a raw ISO 8601 timestamp or a bare PHP bool.
+     *
+     * @return array<string, string>
+     */
+    private function fieldTypes(string $dataset, array $fieldKeys): array
+    {
+        $fieldKeys = $this->reportService->visibleFieldKeys($dataset, $fieldKeys);
+        $grouped = $this->reportService->fieldsForDataset($dataset);
+        $byKey = [];
+
+        foreach ($grouped as $group) {
+            foreach ($group as $field) {
+                $byKey[$field['key']] = $field['type'];
+            }
+        }
+
+        $types = [];
+        foreach ($fieldKeys as $key) {
+            $types[$key] = $byKey[$key] ?? 'string';
+        }
+
+        return $types;
+    }
+
+    /**
      * @param  Collection<int, array<string, mixed>>  $rows
      * @param  array<string, string>  $fieldLabels
+     * @param  array<string, string>  $fieldTypes
      */
-    private function respondCsv(GeneratedReport $report, Collection $rows, array $fieldLabels, bool $truncated): StreamedResponse
+    private function respondCsv(GeneratedReport $report, Collection $rows, array $fieldLabels, array $fieldTypes, bool $truncated): StreamedResponse
     {
         $filename = Str::slug($report->name).'-'.now()->format('Y-m-d-His').'.csv';
 
-        return response()->streamDownload(function () use ($rows, $fieldLabels): void {
+        return response()->streamDownload(function () use ($rows, $fieldLabels, $fieldTypes): void {
             $out = fopen('php://output', 'w');
             if ($out === false) {
                 return;
@@ -215,7 +246,10 @@ class ReportController extends Controller
             fputcsv($out, array_values($fieldLabels));
 
             foreach ($rows as $row) {
-                fputcsv($out, array_map(fn (string $key) => $row[$key] ?? '', array_keys($fieldLabels)));
+                fputcsv($out, array_map(
+                    fn (string $key) => ReportValueFormatter::format($row[$key] ?? null, $fieldTypes[$key] ?? 'string'),
+                    array_keys($fieldLabels)
+                ));
             }
 
             fclose($out);
@@ -228,19 +262,23 @@ class ReportController extends Controller
     /**
      * @param  Collection<int, array<string, mixed>>  $rows
      * @param  array<string, string>  $fieldLabels
+     * @param  array<string, string>  $fieldTypes
      */
-    private function respondPdf(GeneratedReport $report, Collection $rows, array $fieldLabels, bool $truncated)
+    private function respondPdf(GeneratedReport $report, Collection $rows, array $fieldLabels, array $fieldTypes, bool $truncated)
     {
         $filename = Str::slug($report->name).'-'.now()->format('Y-m-d-His').'.pdf';
         $headings = array_values($fieldLabels);
-        $tabularRows = $rows->map(fn (array $row): array => array_map(fn (string $key) => (string) ($row[$key] ?? ''), array_keys($fieldLabels)));
+        $tabularRows = $rows->map(fn (array $row): array => array_map(
+            fn (string $key) => ReportValueFormatter::format($row[$key] ?? null, $fieldTypes[$key] ?? 'string'),
+            array_keys($fieldLabels)
+        ));
 
         return $this->pdfReportHelper->download(
             rows: $tabularRows,
             headings: $headings,
             title: $report->name,
             filename: $filename,
-            orientation: 'portrait',
+            orientation: 'landscape',
             periodStart: $report->start_date?->toDateString() ?? 'All dates',
             periodEnd: $report->end_date?->toDateString() ?? 'All dates',
             generatedAt: now((string) config('app.timezone')),

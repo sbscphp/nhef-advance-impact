@@ -100,7 +100,7 @@ class ConstituencyTypeController extends Controller
             headings: $headings,
             title: 'Constituency Types',
             filename: $filename,
-            orientation: 'portrait',
+            orientation: 'landscape',
             periodStart: $filters['start_date'] ?? 'All dates',
             periodEnd: $filters['end_date'] ?? 'All dates',
             generatedAt: now((string) config('app.timezone')),

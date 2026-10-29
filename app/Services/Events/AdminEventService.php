@@ -433,7 +433,7 @@ class AdminEventService
             headings: $headings,
             title: 'Event report - '.$event->title,
             filename: Str::slug($event->title).'-report-'.now()->format('Y-m-d-His').'.pdf',
-            orientation: 'portrait',
+            orientation: 'landscape',
             periodStart: $event->starts_at->toDateString(),
             periodEnd: $event->ends_at?->toDateString() ?? $event->starts_at->toDateString(),
         );
