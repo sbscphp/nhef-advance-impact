@@ -1,10 +1,10 @@
 @extends('emails.layouts.base')
 
 @php
-    $subject = 'Welcome to NHEF Nexus, '.$institutionName;
+    $subject = 'Welcome to '.config('app.name', 'NHEF Advanced Impact').', '.$institutionName;
     $headline = 'Welcome, '.$institutionName.'!';
-    $lead = 'Your institution has been added to the NHEF Nexus platform by an administrator.';
-    $supportEmail = $theme->support_email ?? 'support@nhefnexus.com';
+    $lead = 'Your institution has been added to the '.config('app.name', 'NHEF Advanced Impact').' platform by an administrator.';
+    $supportEmail = $theme->support_email ?? 'support@nhefadvancedimpact.com';
 @endphp
 
 @section('content')

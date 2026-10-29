@@ -26,7 +26,7 @@ class OverrideUserSeeder extends Seeder
 
     private const COUNTRY_CODE = '+234';
 
-    private const NHEFNEXUS_ALUMNI_SLUG = 'nhefnexus_alumni';
+    private const NHEFADVANCEDIMPACT_ALUMNI_SLUG = 'nhefadvancedimpact_alumni';
 
     public function run(): void
     {
@@ -94,12 +94,12 @@ class OverrideUserSeeder extends Seeder
     private function alumniProfileAttributes(): array
     {
         $donorTypeUuid = DB::table('donor_types')
-            ->where('slug', self::NHEFNEXUS_ALUMNI_SLUG)
+            ->where('slug', self::NHEFADVANCEDIMPACT_ALUMNI_SLUG)
             ->value('uuid');
 
         if ($donorTypeUuid === null) {
             throw new RuntimeException(
-                'NHEFNEXUS Alumni donor type not found. Run: php artisan db:seed --class=DonorRegistrationSeeder'
+                config('app.name', 'NHEF Advanced Impact').' Alumni donor type not found. Run: php artisan db:seed --class=DonorRegistrationSeeder'
             );
         }
 

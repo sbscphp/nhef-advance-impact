@@ -25,7 +25,7 @@ class InstitutionInviteMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Welcome to NHEF Nexus, '.$this->institutionName,
+            subject: 'Welcome to '.config('app.name', 'NHEF Advanced Impact').', '.$this->institutionName,
         );
     }
 

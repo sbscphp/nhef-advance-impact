@@ -4,7 +4,7 @@
     $subject = 'Registration confirmed - '.$eventTitle;
     $headline = "You're in, {$recipientName}!";
     $lead = 'Your registration for "'.$eventTitle.'" is confirmed. Here are the details for your records.';
-    $supportEmail = $theme->support_email ?? 'support@nhefnexus.com';
+    $supportEmail = $theme->support_email ?? 'support@nhefadvancedimpact.com';
 @endphp
 
 @section('content')

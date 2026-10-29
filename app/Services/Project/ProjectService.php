@@ -13,6 +13,7 @@ use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
 use App\Helpers\FileUploadHelper;
 use App\Helpers\GeneralHelper;
+use App\Helpers\LogoResolver;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Models\Admin;
 use App\Models\Project;
@@ -2251,9 +2252,10 @@ class ProjectService
 
     private function reportLogoBase64(): ?string
     {
-        $logoPath = public_path('assets/logo/quiva-logo-black.png');
+        // Colored wordmark: this report's header is a plain white/light background.
+        $logo = LogoResolver::colored();
 
-        return File::exists($logoPath) ? 'data:image/png;base64,'.base64_encode(File::get($logoPath)) : null;
+        return File::exists($logo['path']) ? 'data:'.$logo['mime'].';base64,'.base64_encode(File::get($logo['path'])) : null;
     }
 
     /**

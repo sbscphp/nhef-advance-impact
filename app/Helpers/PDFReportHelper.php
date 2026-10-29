@@ -26,9 +26,9 @@ class PDFReportHelper
         $rows = $rows instanceof Collection ? $rows->toArray() : $rows;
         $orientation = strtolower($orientation) === 'portrait' ? 'portrait' : 'landscape';
         $generatedAt ??= now((string) config('app.timezone'));
-        // Green wordmark: the report header is a plain white/light background, not the brand
-        // green, so the white logo variant (built for dark backgrounds) would be unreadable here.
-        $logo = LogoResolver::green();
+        // Colored wordmark: the report header is a plain white/light background, not the brand
+        // navy, so the white logo variant (built for dark backgrounds) would be unreadable here.
+        $logo = LogoResolver::colored();
         $logoBase64 = File::exists($logo['path'])
             ? 'data:'.$logo['mime'].';base64,'.base64_encode(File::get($logo['path']))
             : null;

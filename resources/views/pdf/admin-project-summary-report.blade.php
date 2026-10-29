@@ -121,9 +121,9 @@
         <tr>
             <td>
                 @if(!empty($logoBase64))
-                    <img src="{{ $logoBase64 }}" alt="{{ config('app.name') }}" class="header-logo">
+                    <img src="{{ $logoBase64 }}" alt="{{ config('app.name', 'NHEF Advanced Impact') }}" class="header-logo">
                 @else
-                    <div class="brand">{{ config('app.name') }}</div>
+                    <div class="brand">{{ config('app.name', 'NHEF Advanced Impact') }}</div>
                     <div class="brand-sub">Project Summary Report</div>
                 @endif
             </td>
@@ -339,6 +339,6 @@
         @endif
     </div>
 
-    <p class="footer">{{ config('app.name') }} project summary report</p>
+    <p class="footer">{{ config('app.name', 'NHEF Advanced Impact') }} project summary report</p>
 </body>
 </html>

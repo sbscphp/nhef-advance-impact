@@ -443,8 +443,8 @@ class ProposalService
 
     private function renderPdfHtml(ProspectProposal $proposal, ?Prospect $prospect): string
     {
-        // Green wordmark: this proposal PDF's header is a plain white/light background.
-        $logo = LogoResolver::green();
+        // Colored wordmark: this proposal PDF's header is a plain white/light background.
+        $logo = LogoResolver::colored();
         $logoDataUri = File::exists($logo['path'])
             ? 'data:'.$logo['mime'].';base64,'.base64_encode(File::get($logo['path']))
             : null;

@@ -33,8 +33,8 @@ class DonationReceiptService
 
         $donation = $payment->donation;
         $campaign = $donation->campaign;
-        // Green wordmark: this receipt's header is a plain white/light background.
-        $logo = LogoResolver::green();
+        // Colored wordmark: this receipt's header is a plain white/light background.
+        $logo = LogoResolver::colored();
         $logoDataUri = File::exists($logo['path'])
             ? 'data:'.$logo['mime'].';base64,'.base64_encode(File::get($logo['path']))
             : null;

@@ -2,75 +2,34 @@
 
 namespace App\Helpers;
 
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Http;
-use Throwable;
-
 /**
- * Resolves which NHEF wordmark to embed in an email or PDF.
- *
- * green() (PDF headers) tries the live SVG first, cached locally, falling back to the bundled PNG
- * if unreachable (e.g. after a frontend redeploy changes its Vite asset hash). Dompdf renders it fine.
- *
- * white() (email header) always uses the bundled PNG, never live SVG: most webmail clients (Yopmail
- * confirmed, not just Outlook) strip embedded SVG as an XSS precaution, so it never renders.
+ * Resolves which Advance Impact wordmark to embed in an email or PDF: white() (navy/dark
+ * backgrounds, e.g. the email header) or colored() (light/white backgrounds, e.g. report, receipt
+ * and proposal PDF headers). Both are local, bundled PNGs supplied directly by the user - unlike
+ * NHEF Nexus's LogoResolver (main branch), there's no live frontend URL to fetch from: the
+ * Advance Impact frontend renders its logo inline rather than serving it as its own asset file.
  */
 class LogoResolver
 {
-    private const CACHE_TTL_MINUTES = 30;
-
-    private const GREEN_LOGO_URL = 'https://nhef-nexus-fe-client.vercel.app/assets/nhefLogoGreen-ilv-z_gy.svg';
-
     /** @return array{path: string, mime: string, url: string} */
     public static function white(): array
     {
-        $path = public_path('assets/logo/nhef-nexus-white.png');
+        return self::local('advance-impact-white.png');
+    }
 
+    /** @return array{path: string, mime: string, url: string} */
+    public static function colored(): array
+    {
+        return self::local('advance-impact-colored.png');
+    }
+
+    /** @return array{path: string, mime: string, url: string} */
+    private static function local(string $filename): array
+    {
         return [
-            'path' => $path,
+            'path' => public_path('assets/logo/'.$filename),
             'mime' => 'image/png',
-            'url' => rtrim((string) config('app.url'), '/').'/assets/logo/nhef-nexus-white.png',
+            'url' => rtrim((string) config('app.url'), '/').'/assets/logo/'.$filename,
         ];
-    }
-
-    /** @return array{path: string, mime: string, url: string} */
-    public static function green(): array
-    {
-        return self::resolve(
-            self::GREEN_LOGO_URL,
-            public_path('assets/logo/nhef-nexus-green.png'),
-            rtrim((string) config('app.url'), '/').'/assets/logo/nhef-nexus-green.png',
-            'green',
-        );
-    }
-
-    /** @return array{path: string, mime: string, url: string} */
-    private static function resolve(string $remoteUrl, string $localFallbackPath, string $localFallbackUrl, string $cacheKey): array
-    {
-        $cachedSvgPath = storage_path('app/logo-cache/'.$cacheKey.'.svg');
-
-        $isLive = Cache::remember("logo_live.{$cacheKey}", now()->addMinutes(self::CACHE_TTL_MINUTES), function () use ($remoteUrl, $cachedSvgPath) {
-            try {
-                $response = Http::timeout(3)->get($remoteUrl);
-
-                if ($response->successful() && str_contains((string) $response->header('Content-Type'), 'svg')) {
-                    File::ensureDirectoryExists(dirname($cachedSvgPath));
-                    File::put($cachedSvgPath, $response->body());
-
-                    return true;
-                }
-            } catch (Throwable) {
-                // Network error, timeout, or the frontend's asset hash moved on - fall back below.
-            }
-
-            return false;
-        });
-
-        if ($isLive && File::exists($cachedSvgPath)) {
-            return ['path' => $cachedSvgPath, 'mime' => 'image/svg+xml', 'url' => $remoteUrl];
-        }
-
-        return ['path' => $localFallbackPath, 'mime' => 'image/png', 'url' => $localFallbackUrl];
     }
 }
