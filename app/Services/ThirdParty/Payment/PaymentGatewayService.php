@@ -2,25 +2,15 @@
 
 namespace App\Services\ThirdParty\Payment;
 
-use App\Http\Controllers\v1\Webhooks\PaystackWebhookController;
 use App\Support\PaymentMode;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Mode-aware facade over the payment gateway ({@see PaymentMode}). In `stub`/`log` mode no
- * real gateway is called: initialize() fakes a checkout URL and verify() reports immediate
- * success, so the pledge/donation flow can be exercised end-to-end without live credentials.
- * The live gateway itself is resolved by {@see PaymentGatewayResolver} from `PAYMENT_GATEWAY`;
- * this class never names a concrete gateway.
- *
- * Live lifecycle: initialize() returns a hosted checkout URL or in-app payload (per that
- * gateway's checkout_mode, see {@see PaymentGatewayInterface}) plus which gateway served the
- * request, since verify() later needs that same gateway even if the configured default
- * changed. The donor pays without card details ever reaching our server; the gateway then
- * either redirects the browser to callback_url or POSTs a webhook (PaystackWebhookController /
- * StripeWebhookController) - both paths call the idempotent verify(), so whichever arrives
- * first wins. Going live also requires registering each gateway's webhook URL in its
- * dashboard (tunnel with ngrok to test locally, since neither reaches plain `localhost`).
+ * Mode-aware facade over the payment gateway ({@see PaymentMode}). In `stub`/`log` mode,
+ * initialize() fakes a checkout URL and verify() reports immediate success, with no real gateway
+ * call. The live gateway is resolved by {@see PaymentGatewayResolver} from `PAYMENT_GATEWAY`;
+ * this class never names a concrete gateway. verify() is idempotent since both the callback_url
+ * redirect and the gateway's webhook call it, whichever arrives first.
  */
 class PaymentGatewayService
 {
@@ -81,9 +71,7 @@ class PaymentGatewayService
             'paid_at' => now()->toIso8601String(),
             'channel' => 'stub',
             'card_last_four' => '0000',
-            // Fake reusable authorization so PaymentMethodService's saved-card flow can be
-            // exercised without a live gateway; signature is fixed so repeated stub payments
-            // dedupe to one saved payment method, same as a real repeat card would.
+            // Fixed signature so repeated stub payments dedupe to one saved payment method.
             'authorization' => [
                 'authorization_code' => 'AUTH_stub_'.$reference,
                 'signature' => 'SIG_stub_fixed_test_card',
@@ -99,9 +87,7 @@ class PaymentGatewayService
     }
 
     /**
-     * Charges a saved payment method off-session (recurring donation cycles). Mirrors verify()'s
-     * mode branching; stub/log mode reports the same fake success as verify()'s stub so the
-     * recurring-charge flow is exercisable end-to-end without live credentials.
+     * Charges a saved payment method off-session (recurring donation cycles). Mirrors verify()'s mode branching.
      *
      * @param  array<string, mixed>  $meta
      * @return array{status: string, amount: ?string, currency: ?string, paid_at: ?string, channel: ?string, card_last_four: ?string, authorization: array{authorization_code: ?string, signature: ?string, reusable: bool, card_type: ?string, last4: ?string, exp_month: ?string, exp_year: ?string, bin: ?string, bank: ?string}}

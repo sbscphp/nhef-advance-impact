@@ -8,15 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Donor recognition tiers (BRD REC-02). A donor's tier is the highest minimum_amount
- * threshold (among active tiers) their lifetime NGN total meets or exceeds; seeded by
- * DonorTierSeeder, now with admin CRUD ({@see DonorTierService}). `maximum_amount` is a display/
- * validation field only, not used for tier resolution, which stays governed purely by
- * minimum_amount brackets to avoid two conflicting definitions of tier membership.
- *
- * Institution-scoped (2026-10-22): a donor's tier is resolved against their own institution's
- * tiers; `institution_id` null means a platform-wide default, used as a fallback when an
- * institution has no tiers of its own configured yet.
+ * Donor recognition tiers (BRD REC-02), with admin CRUD via {@see DonorTierService}. Tier
+ * resolution is purely by minimum_amount brackets; `maximum_amount` is display/validation only.
+ * Institution-scoped; `institution_id` null means a platform-wide default, used when an
+ * institution has no tiers of its own.
  */
 class DonorTier extends Model
 {

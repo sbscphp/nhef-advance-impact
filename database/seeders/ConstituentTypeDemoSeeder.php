@@ -14,9 +14,7 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * Fixed-credential demo accounts for the two "Sign Up as" flavours CustomerSeeder doesn't cover:
- * nhef-non-alumni@yopmail.com (non_alumni) and nhef-organization@yopmail.com (organization),
- * same password ("password") and CUSTOMER role as CustomerSeeder's two alumni accounts. Named by
- * type rather than number so which login is which doesn't need to be memorized.
+ * nhef-non-alumni@yopmail.com and nhef-organization@yopmail.com (password "password").
  *
  * php artisan db:seed --class=ConstituentTypeDemoSeeder
  */

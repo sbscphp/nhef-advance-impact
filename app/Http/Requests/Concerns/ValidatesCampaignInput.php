@@ -42,9 +42,8 @@ trait ValidatesCampaignInput
 
     /**
      * The "Add Project" cards plus the countdown lead time; `projects.*.uuid` lets an edit keep
-     * an existing project. Projects no longer carry their own goal (2026-10-20) - that moved to
-     * each institution's `project_goals` (see ValidatesCampaignInstitutionInput); a project here
-     * is purely a name/description grouping.
+     * an existing project. A project here is purely a name/description grouping; its goal lives
+     * on each institution's `project_goals` instead.
      *
      * @return array<string, array<int, mixed>>
      */
@@ -69,11 +68,8 @@ trait ValidatesCampaignInput
     }
 
     /**
-     * An institution's goal on a National Giving Day campaign (2026-10-20): no longer a flat
-     * number the FE sends directly - it's broken down per project, by name (the project may be
-     * created in the same request, so there's no uuid yet to reference), and
-     * CampaignService::resolveProjectGoals() derives the institution's own goal_amount as the
-     * sum of these lines.
+     * An institution's NGD goal is broken down per project, by name (it may be created in the
+     * same request, so there's no uuid to reference); resolveProjectGoals() sums these lines.
      *
      * @param  string  $prefix  '' for a single institution's own payload, or 'institutions.*.'
      *                          when nested under a list of institutions.
@@ -84,11 +80,9 @@ trait ValidatesCampaignInput
     protected function projectGoalRules(string $prefix = '', bool $required = true): array
     {
         return [
-            // Not Laravel's `distinct` rule: with two wildcards in the key (institutions.*.
-            // project_goals.*.project_name), `distinct` checks uniqueness across *every*
-            // institution's project_goals combined, not per institution - so the same project
-            // name funded by two different institutions would wrongly fail. This closure checks
-            // uniqueness within this one project_goals array only.
+            // Not Laravel's `distinct` rule: with two wildcards in the key, `distinct` checks
+            // uniqueness across every institution combined. This closure checks uniqueness
+            // within this one project_goals array only.
             $prefix.'project_goals' => [
                 $required ? 'required' : 'sometimes',
                 'array',

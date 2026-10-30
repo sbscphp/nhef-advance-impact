@@ -25,11 +25,8 @@ class CreateDonorTierRequest extends ApiFormRequest
         $actor = $this->user();
         $isInstitutionScope = $actor instanceof Admin && AdminScopeEnum::of($actor) === AdminScopeEnum::INSTITUTION;
 
-        // Institution-scoped (2026-10-22): an institution admin's tier always belongs to their
-        // own institution (DonorTierService ignores institution_uuid for them, never trusting
-        // client input for this), so it's optional here, not required - NHEF alone must pick one.
-        // Tier names only have to be unique within the same institution, so "Silver Supporter"
-        // can exist once per institution, not once platform-wide.
+        // An institution admin's tier always belongs to their own institution, so it's optional
+        // here, not required; NHEF alone must pick one. Tier names are unique per institution.
         $institutionId = $isInstitutionScope
             ? $actor->institution_id
             : Institution::query()->where('uuid', (string) $this->input('institution_uuid'))->value('id');

@@ -7,15 +7,9 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
- * FE feedback (2026-10-26): the three fixed offices (VC, Advancement Director, Advancement
- * Database Manager) should live in the same `officers` array as any custom contact, not as
- * separate flat columns - one homogeneous list, with the three required ones identified by
- * `role` (see InstitutionRequiredOfficerRoleEnum) instead of by a dedicated field each.
- *
- * `2026_10_23_000002` (which added these columns) is already on origin/main, so it's amended
- * elsewhere than here: this migration backfills any institution that already has values in those
- * columns into `institution_officers` first, then drops the columns - safe whether or not
- * anything has actually used the invite flow yet.
+ * The three fixed offices should live in the same `officers` array as any custom contact, not
+ * as separate flat columns. Backfills any institution with values in those columns into
+ * `institution_officers` first, then drops the columns.
  */
 return new class extends Migration
 {

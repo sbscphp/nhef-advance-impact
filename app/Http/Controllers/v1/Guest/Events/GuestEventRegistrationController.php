@@ -10,10 +10,8 @@ use App\Responser\JsonResponser;
 use App\Services\Events\EventTicketService;
 
 /**
- * Guest event registration flow (BRD ENT-04/EVT-07): register without an account, using the
- * same registration/payment machinery as the authenticated flow (identity comes from
- * `full_name`/`email` instead of a token). No "my tickets" here since a guest has no login;
- * use "Verify payment" and the emailed confirmation instead.
+ * Guest event registration flow (BRD ENT-04/EVT-07): register without an account, identity
+ * from `full_name`/`email` instead of a token. No "my tickets"; use "Verify payment" instead.
  */
 class GuestEventRegistrationController extends Controller
 {

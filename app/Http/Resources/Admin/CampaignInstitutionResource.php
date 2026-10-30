@@ -31,16 +31,10 @@ class CampaignInstitutionResource extends JsonResource
                 'name' => $this->institution->name,
             ]),
             'currency' => $this->currency,
-            // This institution's own campaign's full project list (name/description), regardless
-            // of whether a $ breakdown has been set for any of them yet - see `project_goals`
-            // below for that. Without this, a row with no project_goals set (goal_amount still 0)
-            // gave no way to tell which projects the campaign even defines (2026-10-23).
-            // `goal_amount` is merged in here too (2026-10-23, FE feedback) from this institution's
-            // own project_goals when set for that project, 0 otherwise - no separate lookup
-            // needed. There is no per-project `raised_amount`: a donation is only ever linked to
-            // a campaign (and, through the donor, an institution), never to one specific project
-            // within it - donors don't pick a project when giving, so there's nothing to sum per
-            // project. `raised_amount` below is the institution's own total across every project.
+            // This institution's own campaign's full project list, with `goal_amount` merged in
+            // from its project_goals (0 if unset). No per-project `raised_amount`: a donation is
+            // only ever linked to a campaign, never one specific project, so `raised_amount`
+            // below is the institution's own total across every project.
             'projects' => $this->whenLoaded('campaign', fn () => $this->campaign->relationLoaded('projects') ? $this->campaign->projects
                 ->map(function (CampaignProject $project): array {
                     $goal = $this->relationLoaded('projectGoals')

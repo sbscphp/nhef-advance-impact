@@ -19,14 +19,11 @@ interface DonorTierRepositoryInterface
     public function activeOrderedByThreshold(?int $institutionId = null): Collection;
 
     /**
-     * Same as {@see self::activeOrderedByThreshold()} but for many institutions in one query -
-     * for batch tier resolution across a page of donors spanning several institutions.
+     * Same as {@see self::activeOrderedByThreshold()} but for many institutions in one query.
      *
      * @param  list<int>  $institutionIds
      * @return array<int, Collection<int, DonorTier>> Keyed by institution_id; an id with no
-     *                                                 tiers of its own is not present in the
-     *                                                 result, callers fall back to the default
-     *                                                 set themselves.
+     *                                                 tiers of its own is absent from the result.
      */
     public function activeOrderedByThresholdForInstitutions(array $institutionIds): array;
 
@@ -65,10 +62,9 @@ interface DonorTierRepositoryInterface
     public function exportForAdmin(array $filters): array;
 
     /**
-     * Count of distinct donors and distinct institutions whose lifetime NGN total falls in
-     * [$minimum, $maximum) ($maximum null means unbounded above, i.e. the highest tier).
-     * $tertiaryInstitutionId scopes to one institution's own donors (a tier belongs to one
-     * institution now); null keeps the old platform-wide count, for a default tier.
+     * Count of distinct donors/institutions whose lifetime NGN total falls in [$minimum,
+     * $maximum). $tertiaryInstitutionId scopes to one institution; null is the default tier's
+     * platform-wide count.
      *
      * @return array{alumni_count: int, institution_count: int}
      */

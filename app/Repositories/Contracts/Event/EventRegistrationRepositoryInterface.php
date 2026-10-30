@@ -73,9 +73,7 @@ interface EventRegistrationRepositoryInterface
 
     /**
      * Average completed registrations per already-ended event, for whichever events
-     * {@see Event}'s own tenant scope currently resolves to (all events for an
-     * NHEF-level caller, only this institution's own events for an institution admin); the
-     * "Average Attendance" figure on the dashboard's Event Intelligence panel.
+     * {@see Event}'s own tenant scope resolves to; the dashboard's "Average Attendance" figure.
      */
     public function averageAttendanceForAdmin(): string;
 

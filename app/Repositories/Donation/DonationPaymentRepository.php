@@ -138,12 +138,9 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
     }
 
     /**
-     * A standard campaign's own `goal_amount` is real and NGN-denominated, so it's summed
-     * directly. A National Giving Day campaign never has one (goal/currency are per-institution,
-     * on `campaign_institutions`, not the campaign itself), so its contribution is each distinct
-     * (campaign, donor's own tertiary institution) pair's own `campaign_institutions.goal_amount`
-     * instead, this is "the target that institution's own donors are giving toward", not the
-     * campaign's combined NHEF-wide target.
+     * A standard campaign's own `goal_amount` is summed directly. An NGD campaign has none (its
+     * goal is per-institution on `campaign_institutions`), so its contribution is each distinct
+     * (campaign, donor's institution) pair's own goal instead.
      */
     private function campaignGoalTotal(\Closure $scopedPayments): string
     {

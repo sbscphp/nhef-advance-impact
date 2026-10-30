@@ -10,10 +10,8 @@ use App\Responser\JsonResponser;
 use App\Services\Fundraising\PledgeService;
 
 /**
- * Guest donor flow (BRD ENT-04): pledge without an account, using the same pledge/payment
- * machinery as the authenticated flow (identity comes from `full_name`/`email` instead of a
- * token). No "list my pledges" here since a guest has no login; use "Verify payment" and
- * the emailed receipt instead.
+ * Guest donor flow (BRD ENT-04): pledge without an account, identity from `full_name`/`email`
+ * instead of a token. No "list my pledges" here; use "Verify payment" and the emailed receipt.
  */
 class GuestPledgeController extends Controller
 {

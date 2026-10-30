@@ -7,11 +7,8 @@ use App\Models\Institution;
 use Illuminate\Database\Seeder;
 
 /**
- * Default donor recognition tiers (BRD REC-02), institution-scoped (2026-10-22): every onboarded
- * institution gets its own copy of this same ladder (same names/thresholds/colors to start,
- * independently editable afterwards via the admin CRUD), plus one platform-wide default set
- * (institution_id null) used as a fallback for a donor whose own institution hasn't configured
- * any tiers yet.
+ * Default donor recognition tiers (BRD REC-02). Every onboarded institution gets its own copy
+ * of this ladder, plus one platform-wide default set as a fallback for institutions with none.
  */
 class DonorTierSeeder extends Seeder
 {

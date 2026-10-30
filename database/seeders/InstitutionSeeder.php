@@ -7,12 +7,8 @@ use App\Repositories\Contracts\TertiaryInstitution\TertiaryInstitutionRepository
 use Illuminate\Database\Seeder;
 
 /**
- * Lookup list for the "Institution" dropdown on the National Giving Day campaign wizard. Each
- * name here is a bare/shorter form than its canonical tertiary_institutions entry (e.g.
- * "University of Lagos" vs "University of Lagos, Lagos"), so KNOWN_MAPPINGS resolves it to the
- * correct row rather than registering it as a brand-new, separate institution - matching the
- * mapping used in the 2026_09_03_103203_add_tertiary_institution_id_to_institutions_table
- * migration this seeder's data was originally backfilled against.
+ * Lookup list for the "Institution" dropdown. KNOWN_MAPPINGS resolves each bare/shorter name
+ * to its canonical tertiary_institutions row instead of registering a new, separate one.
  *
  * php artisan db:seed --class=InstitutionSeeder
  */

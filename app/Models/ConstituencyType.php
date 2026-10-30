@@ -9,10 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
- * A free-form tag (e.g. "Foundation Partner") an institution admin manually confers on a
- * constituent; shared platform-wide, not scoped to the conferring institution. A user may hold
- * several at once. Distinct from {@see ConstituentTypeEnum} (alumni/non_alumni/
- * organization), which is a single required classification, not an admin-conferred tag.
+ * An admin-conferred tag (e.g. "Foundation Partner"), shared platform-wide. Distinct from
+ * {@see ConstituentTypeEnum}, which is a single required classification, not an admin-conferred tag.
  */
 class ConstituencyType extends Model
 {

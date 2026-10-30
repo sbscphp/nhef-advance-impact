@@ -9,10 +9,9 @@ use App\Http\Requests\Concerns\ValidatesCampaignInput;
 use Illuminate\Validation\Rule;
 
 /**
- * One shared endpoint for both campaign kinds; `type` (defaults to "standard" when omitted, so
- * every existing caller keeps working unchanged) decides which fields below apply. The dedicated
- * `POST /campaigns/national-giving-day` endpoint ({@see CreateNationalGivingDayCampaignRequest})
- * still works too, kept for backward compatibility, not merged into this class.
+ * One shared endpoint for both campaign kinds; `type` (default "standard") decides which
+ * fields below apply. The dedicated NGD endpoint ({@see CreateNationalGivingDayCampaignRequest})
+ * still works too, kept for backward compatibility.
  */
 class CreateCampaignRequest extends ApiFormRequest
 {

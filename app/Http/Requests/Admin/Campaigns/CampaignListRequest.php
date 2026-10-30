@@ -29,11 +29,8 @@ class CampaignListRequest extends ApiFormRequest
                 // Campaigns Across Partner Institutions" block-per-institution view (client
                 // feedback, 2026-10-16).
                 'filters.institution_uuid' => ['sometimes', 'nullable', 'uuid', Rule::exists('institutions', 'uuid')],
-                // For the "List of National Day of Giving" screen's drill-through (2026-10-23):
-                // that screen now lists openings, not campaigns, at the top level - once one is
-                // selected, this finds the campaign(s) created under it (one opening can have
-                // several, one per institution that created its own scoped campaign under the
-                // same shared day; see NationalGivingDayOpeningResource's campaigns_count).
+                // For the "List of National Day of Giving" drill-through: finds the campaign(s)
+                // created under one selected opening (one per institution).
                 'filters.opening_uuid' => ['sometimes', 'nullable', 'uuid', Rule::exists('national_giving_day_openings', 'uuid')],
             ]
         );

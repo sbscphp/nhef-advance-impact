@@ -10,10 +10,8 @@ class BroadcastServiceProvider extends ServiceProvider
     public function boot(): void
     {
         /*
-         * Registered directly via Broadcast::routes(), not inside routes/api.php, so this does
-         * not pick up the global "api" middleware group (RequestResponseEncryptionMiddleware
-         * expects an X-ClientKey header and a custom envelope, which would break the Pusher JS
-         * client's plain-JSON auth request). Only Sanctum auth is required here.
+         * Registered directly, not inside routes/api.php, so it skips the "api" middleware group
+         * (whose encryption envelope would break the Pusher JS client's plain-JSON auth request).
          */
         Broadcast::routes(['middleware' => ['auth:sanctum'], 'prefix' => 'api/v1']);
 

@@ -5,12 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * A logo belongs to the institution itself (the tertiary_institutions reference list, browsed in
- * full on the public signup picker and the "Join Your University Community" directory), not to
- * the handful of institutions NHEF has onboarded as a partner - so it moves off `institutions`
- * (never actually populated by any feature, no write path ever built for it) onto
- * `tertiary_institutions`. An onboarded Institution now resolves its logo through its
- * `tertiaryInstitution` relation instead of carrying its own copy.
+ * A logo belongs to the full tertiary_institutions reference list, not just the handful NHEF
+ * has onboarded as a partner, so it moves off `institutions` onto `tertiary_institutions`.
  */
 return new class extends Migration
 {

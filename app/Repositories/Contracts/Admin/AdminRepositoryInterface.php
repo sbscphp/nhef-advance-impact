@@ -34,9 +34,7 @@ interface AdminRepositoryInterface
     public function uuidsForInstitutions(array $institutionIds): array;
 
     /**
-     * Same as {@see self::uuidsForInstitutions()} but narrowed to a specific role - e.g. only
-     * "Institution Admin" accounts, not every other-role staff member the institution has created
-     * for its own team (see eRole::institutionAssignable()'s docblock).
+     * Same as {@see self::uuidsForInstitutions()}, narrowed to one role (e.g. "Institution Admin" only).
      *
      * @param  list<int>  $institutionIds
      * @return list<string>

@@ -3,10 +3,8 @@
 namespace App\Enums;
 
 /**
- * The three offices every institution's `officers` array must include on invite (2026-10-26,
- * replacing the earlier fixed vc_name/advancement_director_name/advancement_database_manager_name
- * columns) - any further entries in that same array are free-typed custom officers, not
- * validated against this list.
+ * The three offices every institution's `officers` array must include on invite. Any further
+ * entries in that array are free-typed custom officers, not validated against this list.
  */
 enum InstitutionRequiredOfficerRoleEnum: string
 {

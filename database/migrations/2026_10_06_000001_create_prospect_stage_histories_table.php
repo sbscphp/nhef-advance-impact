@@ -30,10 +30,8 @@ return new class extends Migration
     }
 
     /**
-     * Every prospect starts at Identification ({@see ProspectService::create()})
-     * and every later move is already recorded, from/to and timestamped, in audit_logs
-     * (PROSPECT_STAGE_CHANGED). Reconstruct real per-stage history from that instead of leaving
-     * every existing prospect with a blank pipeline.
+     * Every move is already recorded, from/to and timestamped, in audit_logs
+     * (PROSPECT_STAGE_CHANGED); reconstruct real per-stage history from that.
      */
     private function backfillFromAuditTrail(): void
     {

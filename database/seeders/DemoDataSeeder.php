@@ -401,10 +401,8 @@ class DemoDataSeeder extends Seeder
                 'firstname' => $firstname,
                 'lastname' => $lastname,
                 'organisation_name' => $organisationName,
-                // Not fakerName('unique.safeEmail'): Faker's uniqueness is per-process only, so it
-                // can collide with rows a previous run of this seeder already left in the
-                // database (the class docblock explicitly promises re-running it is safe). A
-                // random suffix guarantees uniqueness regardless of run count.
+                // Not fakerName('unique.safeEmail'): Faker's uniqueness is per-process only, so a
+                // random suffix guarantees uniqueness across repeated runs instead.
                 'email' => Str::lower(Str::slug($isOrg ? $organisationName : $firstname.' '.$lastname)).'.'.Str::random(6).'@example.test',
                 'phone_number' => $this->nigerianPhoneNumber(),
                 'constituent_type' => $type->value,
@@ -611,10 +609,8 @@ class DemoDataSeeder extends Seeder
 
     /**
      * One of each timeline (scheduled/ongoing/completed) per institution, so the admin Events
-     * dashboard's status buckets aren't permanently stuck at "all scheduled, nothing else" - a
-     * previous version always used a future starts_at, so `displayStatus()` (purely derived from
-     * starts_at/ends_at vs now(), see Event::scopeWhereDisplayStatus()) could never return
-     * anything but "scheduled".
+     * dashboard's status buckets aren't stuck at "all scheduled" (`displayStatus()` is purely
+     * date-derived; see Event::scopeWhereDisplayStatus()).
      *
      * @return list<Event>
      */
@@ -956,11 +952,9 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * 3 Prospects moved through the real pipeline (ProspectService::changeStage(), not a
-     * hand-set `stage` column, so ProspectStageHistory rows are real too), spread across
-     * institutions so all 5 ProspectPipelineStageEnum stages appear somewhere in the Kanban.
-     * Must run with this institution as the current tenant - Prospect uses OwnedByInstitution,
-     * which only stamps institution_id when a tenant is current.
+     * 3 Prospects moved through the real pipeline (ProspectService::changeStage()), spread
+     * across institutions so all 5 pipeline stages appear. Must run with this institution as
+     * the current tenant; Prospect uses OwnedByInstitution.
      */
     private function createCrmActivity(Institution $institution, Admin $admin): void
     {
@@ -1051,10 +1045,8 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * One sent Mail with real mail_recipients (queue.default forced to sync in run(), so
-     * MailService::send()'s job runs inline instead of sitting unprocessed), plus call logs and
-     * a task. Tenant-wrapped like createCrmActivity() - Mail/CommunicationCallLog/CommunicationTask
-     * all use OwnedByInstitution too.
+     * One sent Mail with real mail_recipients (queue.default forced to sync in run()), plus
+     * call logs and a task. Tenant-wrapped like createCrmActivity().
      *
      * @param  list<User>  $constituents
      */
@@ -1178,11 +1170,9 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * Shared/platform-wide (confirmed: ConstituencyType has no institution_id - "shared
-     * platform-wide tag list") - created once, name-checked first for the same re-run reason as
-     * createCustomFieldDefinitions(). ConstituencyTypeService::create() asserts
-     * constituency_types.create internally, which only Institution Admin holds - must use an
-     * institution's own admin as actor, never Super Admin.
+     * Shared platform-wide; created once, name-checked first. Must use an institution's own
+     * admin as actor, never Super Admin: ConstituencyTypeService::create() asserts
+     * constituency_types.create, which only Institution Admin holds.
      */
     private function createConstituencyTypes(Admin $institutionAdmin): void
     {

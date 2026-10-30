@@ -198,10 +198,8 @@ class PledgeService
     }
 
     /**
-     * The one place that actually confirms money moved. Called from either
-     * PledgeController::verifyPayment() (frontend, after the Paystack redirect) or
-     * PaystackWebhookController; whichever gets here first, the early-return below makes a
-     * second call for an already-settled payment a harmless no-op.
+     * The one place that actually confirms money moved. Called from either the frontend verify
+     * endpoint or the gateway webhook; whichever arrives first wins, the other is a no-op.
      *
      * @return array<string, mixed>
      */
@@ -221,10 +219,8 @@ class PledgeService
         $result = $this->paymentGatewayService->verify($reference, $payment->gateway, $payment->gateway_transaction_id);
 
         return DB::transaction(function () use ($reference, $result, $request): array {
-            // Re-fetch under a row lock: the gateway call above is a slow network round trip,
-            // so the webhook and this call could both have reached here for the same payment.
-            // Only the request that wins the lock actually settles it; the loser sees the
-            // now-updated status below and returns without redoing the work.
+            // Re-fetch under a row lock: the webhook and this call could both reach here for the
+            // same payment. Only the one that wins the lock settles it.
             $payment = $this->paymentRepository->findByReferenceForUpdate($reference);
 
             if (! $payment instanceof PledgePayment) {
@@ -409,9 +405,8 @@ class PledgeService
     }
 
     /**
-     * Kicks off payment for one installment: mints our own reference, asks the gateway for a
-     * checkout link, and records a *pending* PledgePayment row for verifyPayment() to find
-     * later; nothing is marked paid until the gateway confirms it.
+     * Kicks off payment for one installment; records a *pending* PledgePayment row for
+     * verifyPayment() to find later, since nothing is marked paid until the gateway confirms it.
      *
      * @return array{authorization_url: ?string, access_code: ?string, client_secret: ?string, publishable_key: ?string, reference: string, gateway: string}
      */

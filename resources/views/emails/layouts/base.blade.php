@@ -6,11 +6,8 @@
     // White wordmark: this header band is the brand green, so the light/green logo variant
     // would be unreadable against it. See LogoResolver for the live-fetch/local-fallback logic.
     $logo = LogoResolver::white();
-    // Only trust a genuinely embeddable local file. A `logo_url` pointing at an unreachable
-    // host (e.g. APP_URL=localhost in dev, or a stale/never-uploaded asset) still renders an
-    // <img> tag; when that image 404s, mail clients fall back to unstyled alt text, which can
-    // end up unreadable against a dark header. If there's no local file to embed, skip the
-    // image entirely and render a styled text wordmark instead (see $hasLogo below).
+    // Only trust a genuinely embeddable local file; a remote `logo_url` that 404s falls back to
+    // unstyled alt text, unreadable against a dark header. See $hasLogo below.
     $hasLogo = is_file($logo['path']);
     $logoUrl = $hasLogo && isset($message) && method_exists($message, 'embed')
         ? $message->embed($logo['path'])

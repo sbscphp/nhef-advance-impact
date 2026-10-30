@@ -20,15 +20,11 @@ enum eRole: string
     }
 
     /**
-     * Roles a valid institution-scoped admin account may legitimately hold. This is a "does the
-     * role fit this account type" check (used by Admin::assertRolesFitScope() to validate any
-     * admin's role set, including the one AdminRepository::createInstitutionOwner() assigns when
-     * an institution is first onboarded) - it is NOT "who may grant this role to someone", which
-     * is a separate, narrower question handled explicitly in AdminUserService::assertRoleAssignable()
-     * and RoleService::reassignUsers() (2026-10-16): an institution's own admin can never GRANT
-     * "Institution Admin" to anyone else, even though the role itself still fits their account
-     * type - only a Super Admin may hand it out. An institution instead creates scoped custom
-     * roles for its team - see RoleService::create()'s institution_id handling.
+     * Roles a valid institution-scoped admin account may hold (used by Admin::assertRolesFitScope()).
+     * This is "does the role fit the account type", not "who may grant it": an institution's own
+     * admin can never grant "Institution Admin" itself, only a Super Admin can; see
+     * AdminUserService::assertRoleAssignable(). Institutions instead create their own scoped
+     * custom roles via RoleService::create().
      *
      * @return list<string>
      */

@@ -30,11 +30,9 @@ class InstitutionDetailResource extends JsonResource
             'state' => $this->state,
             'address' => $this->address,
             'invite_message' => $this->invite_message,
-            // Every contact - the three required offices (role: vc/advancement_director/
-            // advancement_database_manager, see InstitutionRequiredOfficerRoleEnum) plus any
-            // further custom one - lives here now (2026-10-26, FE feedback), managed via
-            // POST/PATCH/DELETE .../officers. The Advancement Database Manager entry's own
-            // email/name become the institution's admin login (see AdminInstitutionService::invite()).
+            // Every contact lives here: the three required offices (see
+            // InstitutionRequiredOfficerRoleEnum) plus any custom one. The Advancement Database
+            // Manager entry's own email/name become the institution's admin login.
             'officers' => InstitutionOfficerResource::collection($this->whenLoaded('officers')),
             // AdvanceImpact "System Access Allowable" grant (ModuleEnums values), set at invite
             // time and editable afterward.

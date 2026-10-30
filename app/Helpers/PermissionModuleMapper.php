@@ -214,11 +214,8 @@ final class PermissionModuleMapper
     }
 
     /**
-     * ModuleEnums keys that ARE gated by at least one permission in the system, but which the
-     * given permission set holds none of. Used to hide cross-module data (e.g. notifications) for
-     * modules the actor's role doesn't grant, without touching modules that carry no permission at
-     * all (authentication, settings: see their ModuleEnums docblocks) - those stay visible to
-     * everyone since there's nothing to be denied.
+     * Permission-gated ModuleEnums keys the given permission set holds none of (ungated modules
+     * like authentication/settings stay visible to everyone, since there's nothing to deny).
      *
      * @param  list<string>  $permissionNames
      * @return list<string>

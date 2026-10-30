@@ -149,10 +149,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:campaigns.create']);
             Route::post('/national-giving-day', [AdminCampaignController::class, 'storeNationalGivingDay'])
                 ->middleware(['permission:campaigns.create']);
-            // Announcing the yearly opening vs creating a campaign under it: route-level check is
-            // the broad campaigns.create (same as above); the narrower
-            // campaigns.announce_national_giving_day is enforced inside
-            // CampaignService::createOpening() itself, same pattern as createNationalGivingDay().
+            // Route-level check is the broad campaigns.create; the narrower
+            // campaigns.announce_national_giving_day is enforced inside createOpening() itself.
             Route::post('/national-giving-day/openings', [AdminCampaignController::class, 'storeOpening'])
                 ->middleware(['permission:campaigns.create']);
             Route::get('/national-giving-day/openings', [AdminCampaignController::class, 'indexOpenings'])
@@ -237,12 +235,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:events.read', 'individual.records']);
         });
 
-        // Own permission set (alumni.*), split from constituents.* (2026-09-30): that shared
-        // permission used to gate both this whole individual-alumni module AND Institution
-        // Management (constituents/institutions below), so anyone who needed one automatically
-        // got the other. Super Admin needs Institution Management but must never see this module
-        // (22 Sep review: no individual alumni list under any circumstances) - alumni.* makes that
-        // a real, separate, revocable grant instead of scope logic layered on a shared permission.
+        // Own permission set (alumni.*), split from constituents.*: Super Admin needs Institution
+        // Management but must never see this module, so they need to be independently revocable.
         Route::prefix('constituents/individuals')->middleware('individual.records')->group(function () {
             Route::post('/', [ConstituentController::class, 'store'])
                 ->middleware(['permission:alumni.create']);
@@ -287,10 +281,8 @@ Route::prefix('v1/admin')->group(function () {
             Route::post('/{uuid}/pledges/{pledgeUuid}/send-reminder', [ConstituentController::class, 'sendPledgeReminder'])
                 ->middleware(['permission:alumni.update']);
 
-            // Constituency Type is a manual tag; institution-admin-only. NHEF no longer holds
-            // alumni.update at all (blocked at this route's own gate now), and
-            // ConstituencyTypeService::confer()/revoke() also assert constituency_types.update
-            // internally as a second, independent check.
+            // Institution-admin-only. ConstituencyTypeService::confer()/revoke() also assert
+            // constituency_types.update internally as a second, independent check.
             Route::post('/{uuid}/constituency-types', [ConstituentController::class, 'conferConstituencyTypes'])
                 ->middleware(['permission:alumni.update']);
             Route::delete('/{uuid}/constituency-types/{typeUuid}', [ConstituentController::class, 'revokeConstituencyType'])
@@ -310,10 +302,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:donations.read', 'individual.records']);
         });
 
-        // Own permission set (donor_tiers.*, 2026-10-22), moved off system_configuration.*: both
-        // NHEF and an institution's own admin can hold this now - DonorTierService enforces
-        // per-row institution ownership internally for Institution scope, same split
-        // roles.*/RoleService already uses for institution-scoped custom roles.
+        // Own permission set (donor_tiers.*): both NHEF and an institution's own admin can
+        // hold this; DonorTierService enforces per-row institution ownership internally.
         Route::prefix('donation-tiers')->group(function () {
             Route::post('/', [DonorTierController::class, 'store'])
                 ->middleware(['permission:donor_tiers.create']);
@@ -331,10 +321,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:donor_tiers.read', 'individual.records']);
         });
 
-        // Own permission set (constituency_types.*), deliberately separate from
-        // system_configuration.* (now unused - see donor_tiers.* above): institution-admin
-        // only, granted to Institution Admin and excluded from NHEF's blanket permission grant, so
-        // the menu this gates only shows for admins who can actually use it.
+        // Own permission set (constituency_types.*), institution-admin only, excluded from
+        // NHEF's blanket permission grant.
         Route::prefix('constituency-types')->group(function () {
             Route::post('/', [ConstituencyTypeController::class, 'store'])
                 ->middleware(['permission:constituency_types.create']);
@@ -367,11 +355,8 @@ Route::prefix('v1/admin')->group(function () {
         });
 
         // Every route below is shared by both scopes (DashboardService branches internally on
-        // AdminScopeEnum::current()), except campaign-tracking (NHEF-only, no Institution
-        // equivalent) and donation-intelligence (Institution-only, no NHEF equivalent). 2026-09-30:
-        // collapsed from separate NHEF (/dashboard/*) and Institution (/dashboard/institution/*)
-        // route families into these, since the Figma shows the same card on both dashboards for
-        // snapshot/event-stats/alumni-breakdown, just scoped and shaped differently.
+        // AdminScopeEnum::current()), except campaign-tracking (NHEF-only) and
+        // donation-intelligence (Institution-only).
         Route::prefix('dashboard')->group(function () {
             Route::get('/national-snapshot', [AdminDashboardController::class, 'nationalSnapshot'])
                 ->middleware(['permission:dashboard.read']);

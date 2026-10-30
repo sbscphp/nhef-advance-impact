@@ -27,10 +27,8 @@ interface UserRepositoryInterface
     public function all(): Collection;
 
     /**
-     * Alumni matching by name, email, or organisation. Used for the admin "Search & Select
-     * Alumni" flow (adding people to a Networking Community/Forum) and the customer-facing
-     * alumni directory used to start a direct message; pass `exclude_user_id` to omit the viewer
-     * from their own results.
+     * Alumni matching by name, email, or organisation. Pass `exclude_user_id` to omit the
+     * viewer from their own results.
      *
      * @param  array<string, mixed>  $filters
      */

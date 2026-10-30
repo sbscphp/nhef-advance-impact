@@ -188,9 +188,8 @@ class DonorTierRepository implements DonorTierRepositoryInterface
 
     /**
      * One row per donor with a successful NGN payment, their lifetime total and payment count,
-     * restricted to totals in [$minimum, $maximum). $maximum null means unbounded above.
-     * $tertiaryInstitutionId restricts to one institution's own donors - a tier belongs to one
-     * institution now, so its "Alumni List" tab should only ever show that institution's donors.
+     * restricted to totals in [$minimum, $maximum). $tertiaryInstitutionId restricts to one
+     * institution's own donors, since a tier belongs to one institution.
      *
      * @return Builder<DonationPayment>
      */

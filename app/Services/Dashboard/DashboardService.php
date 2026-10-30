@@ -21,16 +21,10 @@ use Carbon\CarbonInterface;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
- * The admin Dashboard home screen, both flavours. Where the Figma shows the same card for both
- * (Snapshot, Event stats, Alumni/Institution breakdown), one method here branches on
- * {@see AdminScopeEnum::current()} and returns whichever shape that screen needs, instead of
- * two near-duplicate services with a matching pair of near-duplicate endpoints (was
- * NationalDashboardService + InstitutionDashboardService + a third, stale, bundled
- * AdminDashboardService::overview(), 2026-09-30). Cards with no equivalent on the other side
- * (Campaign Tracking, Donation Intelligence) stay single-scope, guarded explicitly.
- *
- * Everything NHEF-facing is an institution-level aggregate: no individual donor, alumnus or
- * donation amount is exposed there. Money fields throughout go through {@see ViewerVisibility::money()}.
+ * The admin Dashboard home screen, both flavours. Where Figma shows the same card for both, one
+ * method here branches on {@see AdminScopeEnum::current()} instead of two near-duplicate
+ * services. Everything NHEF-facing is an institution-level aggregate; money fields go through
+ * {@see ViewerVisibility::money()}.
  */
 class DashboardService
 {

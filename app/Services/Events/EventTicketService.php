@@ -236,10 +236,8 @@ class EventTicketService
     }
 
     /**
-     * The one place that actually confirms money moved (or, for free tickets, the immediate
-     * settlement path in register()). Called from either
-     * EventRegistrationPaymentController::verify() or PaystackWebhookController; whichever
-     * gets here first, the early-return below makes a second call a harmless no-op.
+     * The one place that actually confirms money moved. Called from either the frontend verify
+     * endpoint or the gateway webhook; whichever arrives first wins, the other is a no-op.
      *
      * @return array<string, mixed>
      */
@@ -258,10 +256,8 @@ class EventTicketService
         $result = $this->paymentGatewayService->verify($reference, $payment->gateway, $payment->gateway_transaction_id);
 
         return DB::transaction(function () use ($reference, $result, $request): array {
-            // Re-fetch under a row lock: the gateway call above is a slow network round trip,
-            // so the webhook and this call could both have reached here for the same payment.
-            // Only the request that wins the lock actually settles it; the loser sees the
-            // now-updated status below and returns without redoing the work.
+            // Re-fetch under a row lock: the webhook and this call could both reach here for the
+            // same payment. Only the one that wins the lock settles it.
             $payment = $this->paymentRepository->findByReferenceForUpdate($reference);
 
             if (! $payment instanceof EventRegistrationPayment) {

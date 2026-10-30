@@ -14,10 +14,9 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Validation\Rule;
 
 /**
- * One shared endpoint for all three "Sign Up as" flavours (Alumni, Non-Alumni, Organisation);
- * `constituent_type` decides which of the type-specific field groups below are required. An
- * Organisation account has no personal name at all (see the "Sign Up - organisation" Figma
- * screen), so firstname/lastname are nullable in the DB and prohibited for that type.
+ * One shared endpoint for all three "Sign Up as" flavours; `constituent_type` decides which
+ * field groups below are required. An Organisation account has no personal name, so
+ * firstname/lastname are prohibited for that type.
  */
 class CustomerRegisterRequest extends ApiFormRequest
 {

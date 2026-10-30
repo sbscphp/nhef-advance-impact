@@ -79,16 +79,12 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         $everything = PermissionEnum::cases();
 
-        // AdvanceImpact Super Admin/Admin accounts (2026-10-26 cleanup): grant matches exactly
-        // what their own AdvanceImpact Figma sidebar shows - Dashboard, Constituent Management,
-        // User Management, Reporting, Audit Trail, Notification, System Configuration, My Profile
-        // Setting - nothing else. Alumni, Networking, Mentorship, Custom Field, Communications,
-        // CRM, Events, Fundraising/Campaigns, Projects and Research are all institution-level,
-        // either Institution Admin's own menu items or opt-in modules toggled per institution via
-        // the Invite Institution "System Access Allowable" checklist - never Super Admin/Admin's
-        // own CRUD, so none of them belong in this blanket "everything except X" grant and none
-        // can be silently toggled back on via Roles & Permissions. constituency_types.* is
-        // excluded for the same reason (see its own grant below).
+        // AdvanceImpact Super Admin/Admin grant matches exactly what their own Figma sidebar
+        // shows (Dashboard, Constituent/User Management, Reporting, Audit Trail, Notification,
+        // System Configuration). Everything else here (Alumni, Networking, Mentorship, Custom
+        // Field, Communications, CRM, Events, Campaigns, Projects, Research, constituency_types)
+        // is institution-level or an opt-in module, never Super Admin/Admin's own CRUD, so none
+        // of it belongs in this blanket grant and none can be toggled back on via Roles & Permissions.
         $nhefExcluded = [
             PermissionEnum::CONSTITUENCY_TYPES_CREATE,
             PermissionEnum::CONSTITUENCY_TYPES_READ,
@@ -139,14 +135,9 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::RESEARCH_DELETE,
         ];
 
-        // Super Admin-only, not shared with Admin: the Donation module itself stays off for both
-        // NHEF roles (2026-10-02: Super Admin no longer needs donations.* at all, including the
-        // aggregate-only /donation/overview it was originally kept for) - that decision is
-        // unrelated to individual-record visibility, which Super Admin now holds too (2026-10-20:
-        // previously revoked below along with donations.*, now carved back out so Super Admin can
-        // see individual-level records on every module whose base *.read permission they already
-        // hold - Constituents, System Configuration; still has no effect on Donations since Super
-        // Admin lacks *.read on it).
+        // The Donation module itself stays off for both NHEF roles. Super Admin's
+        // individual-record visibility is unrelated and now carved back out separately below, on
+        // every module whose base *.read they already hold.
         $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [
             ...$nhefExcluded,
             PermissionEnum::DONATIONS_CREATE,
@@ -161,16 +152,13 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::ADMINS_DELETE,
         ]));
 
-        // One-time corrections (2026-09-30): `grant()`/givePermissionTo() only adds, never strips,
-        // so permissions removed from the lists above/below have to be explicitly revoked from
+        // One-time corrections: `grant()`/givePermissionTo() only adds, never strips, so
+        // permissions removed from the lists above/below have to be explicitly revoked from
         // whatever a prior seeder run already granted in the DB.
-        // - system_configuration.* was briefly granted to Institution Admin so they could reach
-        //   Constituency Type Configuration, which shared that permission bucket with Donation
-        //   Tier Configuration (NHEF-only) - Constituency Type Configuration now has its own
-        //   constituency_types.* permission set below, this old grant is revoked.
-        // - NHEF (Super Admin, Admin) previously held every permission just excluded above via the
-        //   old "everything except X" list, before alumni/networking/mentorship/custom_fields/
-        //   communications/crm/events were added to the exclusion list - revoked here too.
+        // - system_configuration.* was briefly granted to Institution Admin for Constituency
+        //   Type Configuration, which now has its own constituency_types.* set; revoked.
+        // - NHEF previously held every permission just excluded above via the old blanket
+        //   grant, before alumni/networking/mentorship/etc. were added to the exclusion list.
         $institutionAdminRole = Role::query()
             ->where('name', RoleEnum::INSTITUTION_ADMIN->value)
             ->where('guard_name', self::GUARD)
@@ -180,10 +168,8 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::SYSTEM_CONFIGURATION_READ->value,
             PermissionEnum::SYSTEM_CONFIGURATION_UPDATE->value,
             PermissionEnum::SYSTEM_CONFIGURATION_DELETE->value,
-            // Institution Admin's own alumni.* grant below replaces this; the
-            // constituents/institutions routes also carry a `landlord` middleware that already
-            // blocks Institution Admin outright, so constituents.* was never doing anything for
-            // them besides unlocking their own alumni list.
+            // Institution Admin's own alumni.* grant below replaces this; a `landlord`
+            // middleware already blocks them from the constituents/institutions routes anyway.
             PermissionEnum::CONSTITUENTS_CREATE->value,
             PermissionEnum::CONSTITUENTS_READ->value,
             PermissionEnum::CONSTITUENTS_UPDATE->value,
@@ -211,29 +197,18 @@ class RolesAndPermissionsSeeder extends Seeder
             ]);
 
         // Fail closed: only tenant-scoped modules, never delete. Left off: custom fields.
-        // roles.* IS now granted (2026-10-16): an institution admin may create/manage custom
-        // roles for their own team. `RoleService` scopes this to rows where `institution_id`
-        // matches the actor's own institution - the shared "Institution Admin" template
-        // (institution_id null) stays visible for reference but is never editable/deletable by
-        // them, Super-Admin-only, same as every other global/system role. A custom role's
-        // permissions are also capped to a subset of the creating admin's own, enforced in
-        // RoleService::create()/update(), so nobody can hand out a permission they don't hold.
-        // dashboard.read IS granted, but the NHEF-only dashboard cards (National Snapshot,
-        // Active Campaign Tracking) branch on AdminScopeEnum internally (DashboardService), so this
-        // only unlocks the institution-scoped shape of the shared endpoints, never the NHEF-wide
-        // one. Likewise campaigns.create IS granted (BSA: institutions can create their own scoped
-        // campaigns), and CampaignService::addInstitution() still asserts AdminScopeEnum::NHEF
-        // internally (adding an institution to an existing campaign is an NHEF-only action,
-        // unrelated to creation); createNationalGivingDay() forces the institutions/assigned-
-        // officer/bank-account payload to all belong to the caller's own institution, so this never
-        // unlocks another institution's campaign. campaigns.create_standard and
-        // campaigns.create_national_giving_day are both granted too (2026-09-30): which campaign
-        // KIND an admin may create is permission-based, checked inside
-        // CampaignService::create()/createNationalGivingDay() instead of scope logic, so the
-        // frontend can read these two directly. constituency_types.* (its own permission set, NOT
-        // system_configuration.*, see the correction above) is granted too, checked inside
-        // ConstituencyTypeService the same way. alumni.* (replacing constituents.*, see the
-        // correction above) is this institution's own individual-constituent module.
+        // roles.* IS granted: an institution admin may manage custom roles, scoped by
+        // RoleService to rows where `institution_id` matches their own (the shared "Institution
+        // Admin" template stays visible but Super-Admin-only to edit); a custom role's
+        // permissions are also capped to a subset of the creator's own.
+        // dashboard.read IS granted; the NHEF-only cards branch on AdminScopeEnum internally
+        // (DashboardService), so this only unlocks the institution-scoped shape.
+        // campaigns.create IS granted (institutions create their own scoped campaigns); adding an
+        // institution to an *existing* campaign still asserts AdminScopeEnum::NHEF internally.
+        // campaigns.create_standard/create_national_giving_day are granted too: which campaign
+        // KIND an admin may create is permission-based (checked in CampaignService), not scope-based.
+        // constituency_types.* and alumni.* (replacing constituents.*) are this institution's own
+        // individual-constituent modules, granted the same way.
         $this->grant(RoleEnum::INSTITUTION_ADMIN, [
             PermissionEnum::DASHBOARD_READ,
             PermissionEnum::ALUMNI_CREATE,
