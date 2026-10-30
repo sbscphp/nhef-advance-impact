@@ -3,8 +3,10 @@
 namespace App\Services\Fundraising;
 
 use App\Enums\AuditActionEnum;
+use App\Enums\CampaignTypeEnum;
 use App\Enums\DonationFrequencyEnum;
 use App\Enums\DonationStatusEnum;
+use App\Enums\eRole;
 use App\Enums\ModuleEnums;
 use App\Enums\PaymentStatusEnum;
 use App\Enums\UserTypeEnum;
@@ -16,10 +18,13 @@ use App\Models\Donation;
 use App\Models\DonationPayment;
 use App\Models\User;
 use App\Notifications\GenericDatabaseNotification;
+use App\Repositories\Contracts\Admin\AdminRepositoryInterface;
 use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
+use App\Repositories\Contracts\CampaignInstitution\CampaignInstitutionRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
+use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Services\CustomFields\CustomFieldValueService;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Settings\PaymentMethodService;
@@ -45,6 +50,9 @@ class DonationService
         private readonly PaymentMethodService $paymentMethodService,
         private readonly DonorTierRepositoryInterface $donorTierRepository,
         private readonly CustomFieldValueService $customFieldValueService,
+        private readonly AdminRepositoryInterface $adminRepository,
+        private readonly CampaignInstitutionRepositoryInterface $campaignInstitutionRepository,
+        private readonly InstitutionRepositoryInterface $institutionRepository,
     ) {}
 
     /**
@@ -535,6 +543,7 @@ class DonationService
             }
 
             $this->notifyPaymentSucceeded($donation, $campaign, $payment, $reference);
+            $this->notifyInstitutionOfDonation($donation, $campaign, $payment);
 
             return [
                 'payment' => $payment,
@@ -721,7 +730,70 @@ class DonationService
             mailSubject: 'Donation received - '.$campaign->title,
         );
 
-        $this->notificationDispatchService->notifyUsersByUuids([$donation->user->uuid], $notification);
+        try {
+            $this->notificationDispatchService->notifyUsersByUuids([$donation->user->uuid], $notification);
+        } catch (\Throwable $th) {
+            // A mail-channel failure must not roll back the payment-settlement transaction this
+            // runs inside; the database notification already written by the same call stays committed.
+            Log::warning('Donor payment-succeeded notification failed.', [
+                'donation_uuid' => $donation->uuid,
+                'error' => $th->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Lets an institution's Institution Admin(s) know a donation came in "through" them - a
+     * standard campaign's one owning institution, or for a shared National Giving Day campaign
+     * (which can belong to many institutions at once), the donor's own institution specifically,
+     * not every participant. Only the "Institution Admin" role is notified, not every other-role
+     * staff account the institution has created for its own team. No-op if no institution resolves
+     * (guest/unaffiliated donor on an NGD campaign) or it has no active Institution Admin to tell.
+     */
+    private function notifyInstitutionOfDonation(Donation $donation, Campaign $campaign, DonationPayment $payment): void
+    {
+        $institutionId = $this->resolveDonationInstitutionId($donation, $campaign);
+
+        if ($institutionId === null) {
+            return;
+        }
+
+        $adminUuids = $this->adminRepository->uuidsForInstitutionsWithRole([$institutionId], eRole::INSTITUTION_ADMIN->value);
+
+        try {
+            $this->notificationDispatchService->notifyAdminsByUuids($adminUuids, new GenericDatabaseNotification(
+                module: ModuleEnums::fundraising->value,
+                event: 'donation_received',
+                title: 'New donation received',
+                message: $donation->donorName().' donated '.Money::format($payment->amount, $payment->currency).' towards "'.$campaign->title.'".',
+                meta: ['donation_uuid' => $donation->uuid, 'campaign_uuid' => $campaign->uuid],
+                sendMail: true,
+                mailSubject: 'New donation received - '.$campaign->title,
+            ));
+        } catch (\Throwable $th) {
+            // Same reasoning as notifyPaymentSucceeded(): a mail-channel failure here must not
+            // roll back the payment-settlement transaction this runs inside.
+            Log::warning('Institution donation-received notification failed.', [
+                'donation_uuid' => $donation->uuid,
+                'institution_id' => $institutionId,
+                'error' => $th->getMessage(),
+            ]);
+        }
+    }
+
+    private function resolveDonationInstitutionId(Donation $donation, Campaign $campaign): ?int
+    {
+        if ($campaign->type === CampaignTypeEnum::STANDARD->value) {
+            return $this->campaignInstitutionRepository->allForCampaign($campaign->id)->first()?->institution_id;
+        }
+
+        if ($donation->user === null || $donation->user->tertiary_institution_id === null) {
+            return null;
+        }
+
+        return $this->institutionRepository
+            ->institutionIdsByTertiaryInstitutionIds([$donation->user->tertiary_institution_id])[$donation->user->tertiary_institution_id]
+            ?? null;
     }
 
     private function sendGuestReceipt(Donation $donation, Campaign $campaign, DonationPayment $payment, string $reference): void
