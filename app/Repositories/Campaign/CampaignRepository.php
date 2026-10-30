@@ -161,10 +161,8 @@ class CampaignRepository implements CampaignRepositoryInterface
     }
 
     /**
-     * Every campaign regardless of status - matches the unfiltered campaign list's own total, so
-     * the Fundraising overview card can show a number that actually ties out with the list below
-     * it (client feedback, 2026-10-16: "Active Campaigns" alone never tallied with the list, since
-     * that card only ever counted active-status campaigns while the list includes every status).
+     * Every campaign regardless of status, so the overview card ties out with the unfiltered
+     * list below it rather than only counting active-status campaigns.
      */
     public function countTotal(?string $type = null): int
     {

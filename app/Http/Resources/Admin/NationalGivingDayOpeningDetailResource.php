@@ -10,16 +10,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * Backs the admin "View National Giving Day" screen - the Opening-level equivalent of
- * CampaignDetailResource. An Opening can have several Campaigns under it (one per institution
- * that set up its own scoped campaign for the shared day), so every money/count figure here is
- * an aggregate across all of them, not a single campaign's own numbers; see
- * CampaignService::openingDetailOverview(). The Institutions tab itself is a separate paginated
- * endpoint, same pattern as a single campaign's own Institutions tab.
- *
- * Expects `donors_count`, `days_remaining` and `overview` already set on the model (see
- * CampaignController@showOpening) and `campaigns.campaignInstitutions.institution`/
- * `campaigns.projects` eager-loaded (see CampaignService::findOpeningForAdmin()).
+ * Backs the admin "View National Giving Day" screen, the Opening-level equivalent of
+ * CampaignDetailResource; every money/count figure is an aggregate across its Campaigns, see
+ * CampaignService::openingDetailOverview(). Expects `donors_count`, `days_remaining` and
+ * `overview` already set on the model, and `campaigns.campaignInstitutions.institution`/
+ * `campaigns.projects` eager-loaded.
  *
  * @mixin NationalGivingDayOpening
  */
@@ -41,10 +36,8 @@ class NationalGivingDayOpeningDetailResource extends JsonResource
             'cover_image_url' => $this->cover_image_url,
             'cover_media_type' => $this->cover_media_type,
             'currency' => $currency,
-            // No goal_amount/progress_percentage here (2026-10-23, FE feedback): unlike a single
-            // campaign, an opening has no one generic target to show - each institution sets its
-            // own project goals independently, often before every institution under this opening
-            // has even created its campaign yet, so there's nothing true to sum in advance.
+            // No goal_amount/progress_percentage: an opening has no one generic target, each
+            // institution sets its own project goals independently.
             ...ViewerVisibility::money([
                 'raised_amount' => (string) $overview['raised_amount'],
                 'raised_amount_formatted' => Money::format($overview['raised_amount'], $currency),

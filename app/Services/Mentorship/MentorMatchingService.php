@@ -56,10 +56,8 @@ class MentorMatchingService
     }
 
     /**
-     * Top mentor candidates for a mentee, ranked by the same tag-overlap score as the
-     * auto-matching algorithm, expressed as a 0-100 match percentage for the admin Matching
-     * Engine's "Recommended for X" list. Unlike {@see bestCandidate()}, a mentor with zero
-     * overlapping tags can still appear here (at 0%) so admins always see the full candidate pool.
+     * Top mentor candidates, as a 0-100 match percentage. Unlike {@see bestCandidate()}, a
+     * mentor with zero overlap can still appear here, so admins see the full candidate pool.
      *
      * @return list<array{mentor: MentorProfile, score: int}>
      */

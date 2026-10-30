@@ -88,10 +88,9 @@ final class ListingFilterRules
     }
 
     /**
-     * Applies the "Order Arrangement" sort filter. `$sortMap` maps each logical sortable key
-     * (e.g. 'name', 'value') to a closure applying the actual ordering, since the underlying
-     * column often lives on a related table (e.g. a Pledge's "name" is its campaign's title).
-     * Falls back to `$defaultColumn`/`$defaultDirection` when sort_by is absent or unmapped.
+     * `$sortMap` maps each logical sortable key to a closure applying the real ordering, since
+     * the underlying column often lives on a related table. Falls back to `$defaultColumn` when
+     * sort_by is absent or unmapped.
      *
      * @param  array<string, mixed>  $validated
      * @param  array<string, \Closure(Builder|Relation, string): void>  $sortMap

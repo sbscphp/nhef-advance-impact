@@ -63,12 +63,8 @@ class CampaignService
     ) {}
 
     /**
-     * $viewer is the signed-in donor, or null for a guest. A guest sees every active campaign
-     * platform-wide (unchanged); a signed-in donor only sees campaigns their own institution is
-     * part of, plus platform-wide ones (no campaign_institutions row at all - e.g. an NHEF-run
-     * campaign not tied to any single university). Without this, every donor saw every
-     * institution's campaigns and every National Giving Day opening regardless of their own
-     * university's participation.
+     * $viewer is the signed-in donor, or null for a guest. A guest sees every active campaign;
+     * a signed-in donor only sees their own institution's campaigns plus platform-wide ones.
      *
      * @param  array<string, mixed>  $filters
      */
@@ -148,12 +144,9 @@ class CampaignService
     }
 
     /**
-     * The campaign's overall target is the sum of its institutions' goals (2026-10-20: each
-     * institution's own goal is itself derived from its per-project breakdown - see
-     * resolveProjectGoals() - projects no longer carry a goal of their own). `$campaign->campaignInstitutions`
-     * must be eager-loaded by the caller. Raised amount still aggregates actual institution-level
-     * payments and pledges (summing across currencies isn't meaningful, so NGN institutions
-     * only); Phase 1 only tracks money at the institution level, not per project.
+     * The overall target is the sum of its institutions' goals; `$campaign->campaignInstitutions`
+     * must be eager-loaded by the caller. Raised amount aggregates institution-level payments and
+     * pledges (NGN only, since summing across currencies isn't meaningful).
      *
      * @return array{goal_amount: string, raised_amount: string, currency: string}
      */
@@ -370,16 +363,10 @@ class CampaignService
     }
 
     /**
-     * Backs the "View National Giving Day" header totals and Overview cards - the Opening-level
-     * equivalent of nationalGivingDayTotals()/detailOverview(), aggregated across every Campaign
-     * created under this opening (one per institution that set up its own under the same shared
-     * day) rather than a single campaign's own numbers. No `goal_amount` here (2026-10-23, FE
-     * feedback): unlike a single campaign, an opening has no one generic target - each
-     * institution sets its own project goals independently, often before every institution under
-     * this opening has even created its campaign yet.
-     *
-     * `$opening->campaigns.campaignInstitutions.institution` and `$opening->campaigns.projects`
-     * must be eager-loaded by the caller - see findOpeningForAdmin().
+     * The Opening-level equivalent of nationalGivingDayTotals()/detailOverview(), aggregated
+     * across every Campaign created under it. No `goal_amount`: an opening has no one generic
+     * target, each institution sets its own independently. Caller must eager-load
+     * `$opening->campaigns.campaignInstitutions.institution` and `$opening->campaigns.projects`.
      *
      * @return array{raised_amount: string, currency: string, donations_count: int, pledges_count: int, pledges_total: string, campaigns_count: int, institutions_count: int}
      */
@@ -488,11 +475,8 @@ class CampaignService
             'goal_amount' => null,
             'raised_amount' => 0,
             'allow_one_time' => true,
-            // A National Giving Day campaign runs for a fixed window (a day or two, see
-            // starts_at/ends_at), not an ongoing fund - a recurring/subscription donation would
-            // keep charging a donor long after the campaign has ended, so it's never offered here.
-            // DonationService/PledgeService already gate on this flag; this is the only place it
-            // needs to be set correctly.
+            // NGD runs for a fixed window, not an ongoing fund, so recurring donations are
+            // never offered here; DonationService/PledgeService gate on this flag.
             'allow_recurring' => false,
             'allow_anonymous' => true,
             'status' => CampaignStatusEnum::ACTIVE->value,
@@ -656,11 +640,9 @@ class CampaignService
     }
 
     /**
-     * Each project_goals entry names its project (not uuid - the project may be brand new in
-     * this same request); matched case-insensitively against the campaign's existing projects,
-     * creating one on the fly if no match exists, per the FE's own spec for this. The
-     * institution's own goal_amount is the sum of these, never a separately client-sent number -
-     * see CreateNationalGivingDayCampaignRequest's project_goals rules.
+     * Each project_goals entry names its project (not uuid, since it may be brand new this
+     * request); matched case-insensitively, creating one on the fly if no match exists. The
+     * institution's own goal_amount is the sum of these, never a separately client-sent number.
      *
      * @param  list<array<string, mixed>>  $projectGoals
      * @return array{rows: list<array{campaign_project_id: int, goal_amount: string}>, total: string}
@@ -876,12 +858,9 @@ class CampaignService
     }
 
     /**
-     * Sets `raised_amount`/`pledges_count`/`pledges_total` (and, when `$campaign` is given, its
-     * `campaign` relation - with `projects` already loaded via findForAdmin() - so
-     * CampaignInstitutionResource can show the campaign's own project list without a further
-     * query) on each Institutions-tab row. Pass `$campaign` when every row belongs to the same one
-     * campaign (the usual case); omit it for an Opening-level listing where rows span several
-     * campaigns, so each row's own `campaign_id`/already-eager-loaded `campaign` is used instead.
+     * Sets `raised_amount`/`pledges_count`/`pledges_total` on each Institutions-tab row. Pass
+     * `$campaign` when every row belongs to the same one; omit it for an Opening-level listing
+     * spanning several campaigns, where each row's own eager-loaded `campaign` is used instead.
      *
      * @param  iterable<CampaignInstitution>  $rows
      */
@@ -949,10 +928,8 @@ class CampaignService
     }
 
     /**
-     * This institution's other standard campaigns, newest first - backs the "Previous Campaigns"
-     * panel on a standard campaign's detail page. Empty for a National Giving Day campaign (no
-     * single owning institution) or one with no campaign_institutions row at all (an NHEF-created
-     * standard campaign predating institution-owned campaigns).
+     * This institution's other standard campaigns, newest first, for the "Previous Campaigns"
+     * panel. Empty for a National Giving Day campaign or one with no owning institution at all.
      *
      * @return list<array{uuid: string, title: string, goal_amount: string, raised_amount: string, currency: string}>
      */
@@ -1367,10 +1344,8 @@ class CampaignService
     private const GEOGRAPHY_TOP_COUNTRIES = 5;
 
     /**
-     * Country-percentage breakdown of one campaign's distinct donors, backing the "Geography
-     * Distribution" chart; countries beyond the top 5 collapse into "Others" so the chart stays
-     * readable. Donors with no resolvable country (neither residence nor operation) are grouped
-     * under "Unknown" rather than dropped, since most real donors currently have neither set.
+     * Country breakdown for the "Geography Distribution" chart; countries beyond the top 5
+     * collapse into "Others". Donors with no resolvable country are grouped under "Unknown".
      *
      * @param  array<string, mixed>  $filters
      * @return array{period: ?string, start_date: ?string, end_date: ?string, breakdown: list<array{country: string, donors: int, percentage: float}>}

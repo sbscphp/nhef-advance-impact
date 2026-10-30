@@ -58,12 +58,8 @@ class EventRepository implements EventRepositoryInterface
 
     /**
      * "Scheduled"/"ongoing"/"completed" are derived relative to now() (see
-     * {@see Event::scopeWhereDisplayStatus()}), so a `starts_at` date window from the caller would
-     * fight that derivation: e.g. a currently-ongoing event's starts_at is necessarily in the past,
-     * so a forward-looking window would wrongly exclude it from the "ongoing" filter, and a
-     * backward-looking one would wrongly exclude every "scheduled" (future) event. The date window
-     * still applies to literal, non-derived statuses (draft/cancelled/deactivated/archived) and to
-     * an unfiltered listing, where it legitimately narrows "events starting in this period".
+     * {@see Event::scopeWhereDisplayStatus()}), so a `starts_at` date window would fight that
+     * derivation. The window still applies to literal statuses and an unfiltered listing.
      */
     private const NOW_RELATIVE_DISPLAY_STATUSES = ['scheduled', 'ongoing', 'completed'];
 

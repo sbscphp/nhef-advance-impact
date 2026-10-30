@@ -122,10 +122,8 @@ class AdminConstituentService
     }
 
     /**
-     * Attaches `donations_count` and `total_donations` (lifetime, NGN successful payments), plus
-     * `tier`/`tier_color` resolved against each donor's OWN institution's tier ladder
-     * (institution-scoped tiers, 2026-10-22) - read back by {@see ConstituentAdminResource}, all
-     * in grouped queries rather than one per row.
+     * Attaches `donations_count`/`total_donations` and `tier`/`tier_color` (resolved against
+     * each donor's own institution's tier ladder), all in grouped queries rather than per row.
      *
      * @param  iterable<User>  $users
      */

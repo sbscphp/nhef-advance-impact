@@ -18,11 +18,9 @@ class InviteInstitutionRequest extends ApiFormRequest
             'email' => ['required', 'email', 'max:255', 'unique:institutions,email'],
             'phone_number' => ['sometimes', 'nullable', 'string', 'max:30'],
             'invite_message' => ['sometimes', 'nullable', 'string', 'max:2000'],
-            // One array for every contact (2026-10-26, FE feedback) - the three required offices
-            // (see InstitutionRequiredOfficerRoleEnum) identified by `role`, same as any further
-            // custom officer. The Advancement Database Manager entry becomes the institution's
-            // own admin login (see AdminInstitutionService::invite()); the rest are contact info
-            // only. Checked for the three required roles in withValidator() below.
+            // One array for every contact: the three required offices (see
+            // InstitutionRequiredOfficerRoleEnum) plus any custom officer. The Advancement
+            // Database Manager entry becomes the institution's admin login.
             'officers' => ['required', 'array', 'min:3'],
             'officers.*.role' => ['required', 'string', 'max:255'],
             'officers.*.name' => ['required', 'string', 'max:255'],

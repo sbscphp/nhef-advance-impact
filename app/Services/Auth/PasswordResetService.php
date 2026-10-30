@@ -263,9 +263,7 @@ class PasswordResetService
             $updates['onboarded_at'] = $subject->onboarded_at ?? now();
         }
         // A User setting their password while still `invite_sent` is completing onboarding via
-        // an admin-issued invite (see AdminConstituentService::invite()), not an ordinary
-        // forgot-password reset; self-registered users never carry this status, so their
-        // regular reset flow is unaffected.
+        // an admin-issued invite, not an ordinary forgot-password reset.
         if ($subject instanceof User && $subject->status === ConstituentStatusEnum::INVITE_SENT->value) {
             $updates['status'] = ConstituentStatusEnum::ACTIVE->value;
             $updates['onboarded_at'] = now();

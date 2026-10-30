@@ -9,10 +9,8 @@ use Illuminate\Support\Str;
 return new class extends Migration
 {
     /**
-     * Known raw values already in `users.university` at the time this migration was written,
-     * mapped to their canonical tertiary_institutions.name. Anything not listed here (including
-     * anything added after this migration was written) falls back to an exact name match, or
-     * gets registered as a new, unverified tertiary_institutions row so no data is silently lost.
+     * Known raw `users.university` values mapped to their canonical tertiary_institutions.name.
+     * Anything unlisted falls back to an exact match, or gets registered as a new row.
      *
      * @var array<string, string>
      */

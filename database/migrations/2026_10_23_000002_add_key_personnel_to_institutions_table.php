@@ -5,11 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Client requirement (2026-10-23, verbal): inviting an institution now also captures its three
- * key offices - Vice Chancellor, Advancement Director, Advancement Database Manager - each with a
- * name, email and phone number, for NHEF's own records. Contact info only, no login of their own
- * except the Advancement Database Manager, who becomes the institution's own admin account (see
- * AdminInstitutionService::invite()).
+ * Inviting an institution now also captures its three key offices. Contact info only, except
+ * the Advancement Database Manager, who becomes the institution's own admin account.
  */
 return new class extends Migration
 {

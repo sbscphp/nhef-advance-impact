@@ -13,11 +13,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Stripe calls this URL directly (server-to-server) when a payment succeeds; the reliable
- * counterpart to the browser-redirect verify flow (see {@see PaymentGatewayService}). Not wired
- * up by code: register `{app_url}/api/v1/webhooks/stripe` in the Stripe Dashboard under
- * Developers -> Webhooks (listening for `payment_intent.succeeded`), copy the signing secret
- * into STRIPE_WEBHOOK_SECRET (one-time, per environment; tunnel with ngrok to test locally).
+ * Stripe calls this server-to-server when a payment succeeds; the reliable counterpart to the
+ * browser-redirect verify flow. Register `{app_url}/api/v1/webhooks/stripe` in the Stripe
+ * Dashboard and copy the signing secret into STRIPE_WEBHOOK_SECRET (one-time, per environment).
  */
 class StripeWebhookController extends Controller
 {
@@ -30,9 +28,8 @@ class StripeWebhookController extends Controller
 
     /**
      * Confirms `payment_intent.succeeded` and settles the matching pledge, donation, or
-     * event-ticket payment (by the `PLG_`/`DON_`/`TIX_` reference prefix, stamped onto
-     * `metadata.reference` by StripeService::initialize()). Signature-verified only when
-     * `PAYMENT_MODE=live`; ignored otherwise since no real gateway sends these.
+     * event-ticket payment by its `PLG_`/`DON_`/`TIX_` reference prefix. Signature-verified
+     * only when `PAYMENT_MODE=live`.
      */
     public function handle(Request $request)
     {

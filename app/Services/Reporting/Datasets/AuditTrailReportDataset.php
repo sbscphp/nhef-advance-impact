@@ -15,10 +15,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Same viewer scoping as the live Audit Trail list ({@see \App\Services\Audit\AuditTrailQueryService}):
- * unlike every other dataset, one row here can belong to any module, so module-restriction and
- * individual-level filtering have to be applied inside the dataset itself, not left to
- * ReportDatasetEnum::availableToViewer()'s whole-dataset on/off gate.
+ * Same viewer scoping as the live Audit Trail list ({@see \App\Services\Audit\AuditTrailQueryService}).
+ * One row here can belong to any module, so filtering happens inside the dataset itself, not via
+ * ReportDatasetEnum::availableToViewer()'s whole-dataset gate.
  */
 class AuditTrailReportDataset implements ReportDatasetInterface
 {

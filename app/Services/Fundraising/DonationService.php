@@ -320,10 +320,8 @@ class DonationService
     }
 
     /**
-     * The one place that actually confirms money moved. Called from either
-     * DonationPaymentController::verify() (frontend, after the Paystack redirect) or
-     * PaystackWebhookController; whichever gets here first, the early-return below makes a
-     * second call for an already-settled payment a harmless no-op.
+     * The one place that actually confirms money moved. Called from either the frontend verify
+     * endpoint or the gateway webhook; whichever arrives first wins, the other is a no-op.
      *
      * @return array<string, mixed>
      */
@@ -343,10 +341,8 @@ class DonationService
         $result = $this->paymentGatewayService->verify($reference, $payment->gateway, $payment->gateway_transaction_id);
 
         return DB::transaction(function () use ($reference, $result, $request): array {
-            // Re-fetch under a row lock: the gateway call above is a slow network round trip,
-            // so the webhook and this call could both have reached here for the same payment.
-            // Only the request that wins the lock actually settles it; the loser sees the
-            // now-updated status below and returns without redoing the work.
+            // Re-fetch under a row lock: the webhook and this call could both reach here for the
+            // same payment. Only the one that wins the lock settles it.
             $payment = $this->paymentRepository->findByReferenceForUpdate($reference);
 
             if (! $payment instanceof DonationPayment) {
@@ -364,10 +360,8 @@ class DonationService
     }
 
     /**
-     * Charges one due cycle of a recurring donation off-session, against the donor's default
-     * saved payment method. No card on file (or no default set) is a normal outcome for a
-     * lapsed donor, not a system error: the payment is recorded as failed and the donor is
-     * notified, same as any other declined charge.
+     * Charges one due cycle off-session against the donor's default saved payment method. No
+     * card on file is a normal outcome, not a system error; it's recorded as a failed charge.
      */
     public function chargeRecurringDonation(Donation $donation, Request $request): array
     {
@@ -733,8 +727,7 @@ class DonationService
         try {
             $this->notificationDispatchService->notifyUsersByUuids([$donation->user->uuid], $notification);
         } catch (\Throwable $th) {
-            // A mail-channel failure must not roll back the payment-settlement transaction this
-            // runs inside; the database notification already written by the same call stays committed.
+            // A mail failure here must not roll back the payment-settlement transaction it runs inside.
             Log::warning('Donor payment-succeeded notification failed.', [
                 'donation_uuid' => $donation->uuid,
                 'error' => $th->getMessage(),
@@ -743,12 +736,8 @@ class DonationService
     }
 
     /**
-     * Lets an institution's Institution Admin(s) know a donation came in "through" them - a
-     * standard campaign's one owning institution, or for a shared National Giving Day campaign
-     * (which can belong to many institutions at once), the donor's own institution specifically,
-     * not every participant. Only the "Institution Admin" role is notified, not every other-role
-     * staff account the institution has created for its own team. No-op if no institution resolves
-     * (guest/unaffiliated donor on an NGD campaign) or it has no active Institution Admin to tell.
+     * Notifies only the "Institution Admin" role. For NGD campaigns (which span many
+     * institutions), uses the donor's own institution, not every participant.
      */
     private function notifyInstitutionOfDonation(Donation $donation, Campaign $campaign, DonationPayment $payment): void
     {
@@ -771,8 +760,7 @@ class DonationService
                 mailSubject: 'New donation received - '.$campaign->title,
             ));
         } catch (\Throwable $th) {
-            // Same reasoning as notifyPaymentSucceeded(): a mail-channel failure here must not
-            // roll back the payment-settlement transaction this runs inside.
+            // Same reasoning as notifyPaymentSucceeded(): isolate mail failures from the transaction.
             Log::warning('Institution donation-received notification failed.', [
                 'donation_uuid' => $donation->uuid,
                 'institution_id' => $institutionId,
@@ -818,10 +806,8 @@ class DonationService
     }
 
     /**
-     * A recurring charge attempt has no one watching a screen for it (unlike the manual verify
-     * flow, where the donor sees the failure live), so the donor needs an explicit heads-up
-     * that a cycle was missed. Guests can't have recurring donations (no saved card to charge),
-     * so this only ever applies to registered donors.
+     * A recurring charge attempt has no one watching a screen for it, so the donor needs an
+     * explicit heads-up that a cycle was missed. Only ever applies to registered donors.
      */
     private function notifyRecurringChargeFailed(Donation $donation, DonationPayment $payment): void
     {

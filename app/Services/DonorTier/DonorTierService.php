@@ -30,10 +30,8 @@ class DonorTierService
     ) {}
 
     /**
-     * Institution-scoped (2026-10-22): every tier belongs to exactly one institution. An
-     * institution admin's own tier is always stamped with their own institution (their
-     * `institution_uuid` input, if any, is ignored - never trust the client for this); NHEF
-     * picks which institution via `institution_uuid`, since NHEF has no institution of its own.
+     * An institution admin's tier is always stamped with their own institution (client input
+     * ignored); NHEF picks which institution via `institution_uuid` instead, having none of its own.
      *
      * @param  array<string, mixed>  $payload
      */

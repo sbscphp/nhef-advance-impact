@@ -30,10 +30,9 @@ Route::prefix('v1')->group(function () {
     Route::post('webhooks/paystack', [PaystackWebhookController::class, 'handle']);
     Route::post('webhooks/stripe', [StripeWebhookController::class, 'handle']);
 
-    // Campaign browsing and payment verification are shared by the authenticated customer
-    // flow and the guest donor flow (routes/guest.php); no account needed for either.
-    // auth.attempt: resolves the viewer when a valid customer token is present (without
-    // requiring one), so a signed-in donor's own institution can scope the listing below.
+    // Shared by the authenticated customer flow and the guest donor flow; no account needed.
+    // auth.attempt resolves the viewer when present, so a signed-in donor's own institution
+    // can scope the listing below.
     Route::prefix('campaigns')->middleware('auth.attempt')->group(function () {
         Route::get('/', [CampaignController::class, 'index']);
         Route::get('/{uuid}', [CampaignController::class, 'show']);
@@ -43,10 +42,8 @@ Route::prefix('v1')->group(function () {
     Route::post('pledges/payments/{reference}/verify', [PaymentController::class, 'verify']);
     Route::post('donations/payments/{reference}/verify', [DonationPaymentController::class, 'verify']);
 
-    // Event browsing and payment verification are shared by the authenticated customer flow
-    // and the guest registration flow (routes/guest.php); no account needed for either.
-    // auth.attempt: resolves the viewer when a valid customer token is present (without
-    // requiring one), so a signed-in donor's own institution can scope the listing below.
+    // Shared by the authenticated customer flow and the guest registration flow; no account
+    // needed. auth.attempt resolves the viewer when present, same as campaigns above.
     Route::prefix('events')->middleware('auth.attempt')->group(function () {
         Route::get('/', [EventController::class, 'index']);
         Route::get('/{uuid}', [EventController::class, 'show']);

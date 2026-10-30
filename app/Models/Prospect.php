@@ -80,11 +80,8 @@ class Prospect extends Model
     }
 
     /**
-     * Drives the pipeline stepper: one row per {@see ProspectPipelineStageEnum}, flagged
-     * completed/current relative to this prospect's current stage, each carrying when it was
-     * entered, when it was left (null if it's the current, still-open stage), and how many days
-     * were spent in it. A stage not yet reached has all three as null. If a stage was visited more
-     * than once (moved back and forward), the most recent visit is what's shown.
+     * Drives the pipeline stepper: one row per {@see ProspectPipelineStageEnum}. If a stage was
+     * revisited, the most recent visit is what's shown.
      *
      * @return list<array{stage: string, label: string, completed: bool, current: bool, entered_at: ?string, completed_at: ?string, days_in_stage: ?int}>
      */

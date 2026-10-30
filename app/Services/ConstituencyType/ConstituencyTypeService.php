@@ -177,10 +177,8 @@ class ConstituencyTypeService
     }
 
     /**
-     * Confers one or more constituency types on a constituent. Institution-admin-only: this is a
-     * manual tag an institution's own admin confers on their own constituent, never NHEF. Gated
-     * by `constituents.update` at the route level (shared by both scopes), so this permission
-     * check is the actual enforcement, not just a backstop.
+     * Confers one or more constituency types on a constituent. Institution-admin-only; this
+     * permission check is the actual enforcement, not just a backstop.
      *
      * @param  list<string>  $typeUuids
      */
@@ -252,12 +250,9 @@ class ConstituencyTypeService
     }
 
     /**
-     * The master type list is shared platform-wide and readable by both scopes (gated by
-     * constituency_types.read at the route level), but every mutation - create/edit/deactivate/
-     * delete a type, or confer/revoke one on a constituent - requires its own constituency_types.*
-     * permission, which only Institution Admin holds (see RolesAndPermissionsSeeder). Permission-
-     * based rather than scope-based so the frontend can read this straight from `permissions`,
-     * same treatment as CampaignService::create()/createNationalGivingDay().
+     * The master type list is shared platform-wide and readable by both scopes, but every
+     * mutation requires its own constituency_types.* permission, which only Institution Admin
+     * holds. Permission-based rather than scope-based so the frontend reads it from `permissions`.
      */
     private function assertPermission(Admin $actor, ePermission $permission): void
     {

@@ -7,22 +7,16 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Paystack REST integration (https://paystack.com/docs/api/transaction/). Settles NGN and
- * USD; GBP/EUR pledges need a different gateway behind {@see PaymentGatewayInterface}.
- *
- * `/transaction/initialize` always returns both `authorization_url` and `access_code`; which
- * one we hand the frontend is controlled by `services.paystack.checkout_mode` (env
- * `PAYSTACK_CHECKOUT_MODE`, default `embedded`): embedded hands `access_code`/`publishable_key`
- * to Paystack Inline's `resumeTransaction()` (in-app popup); hosted redirects the browser to
- * `authorization_url`, a Paystack-hosted page, same shape as Stripe's `hosted` mode.
+ * Paystack REST integration (https://paystack.com/docs/api/transaction/). Settles NGN and USD;
+ * GBP/EUR pledges need a different gateway behind {@see PaymentGatewayInterface}.
+ * `services.paystack.checkout_mode` picks whether `access_code` (embedded, Paystack Inline
+ * popup) or `authorization_url` (hosted redirect) is handed to the frontend.
  */
 class PaystackService implements PaymentGatewayInterface
 {
     /**
-     * Step 1 of 3 (see {@see PaymentGatewayInterface}). Paystack's docs: POST
-     * /transaction/initialize. `callback_url` only controls where Paystack redirects the
-     * donor's *browser* after hosted checkout, a UX nicety that can be lost (closed tab,
-     * network blip); the frontend's verify call and the webhook are the reliable confirmation.
+     * Step 1 of 3 (see {@see PaymentGatewayInterface}). `callback_url` is only a UX nicety that
+     * can be lost (closed tab); the frontend's verify call and the webhook are the real confirmation.
      */
     public function initialize(string $reference, string $amount, string $currency, string $email, array $meta = []): array
     {
@@ -62,10 +56,9 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
-     * Step 3 of 3. Paystack's docs: GET /transaction/verify/:reference. Called from whichever
-     * of two places fires first: the customer-facing "Verify payment" endpoint (after the
-     * browser redirect) or PaystackWebhookController; both funnel into the idempotent
-     * PledgeService::verifyPayment(), so a second call is a harmless no-op.
+     * Step 3 of 3. Called from whichever fires first: the "Verify payment" endpoint or
+     * PaystackWebhookController; both funnel into the idempotent verifyPayment(), so a
+     * second call is a no-op.
      */
     public function verify(string $reference, ?string $gatewayTransactionId = null): array
     {
@@ -81,11 +74,8 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
-     * Off-session variant of verify(), for recurring donation cycles (see
-     * DonationService::chargeRecurringDonation()). Paystack's docs: POST
-     * /transaction/charge_authorization. `$savedMethodToken` is the saved
-     * `PaymentMethod::authorization_code`; a decline is reported via the response body's
-     * `status`, same as verify(), not a distinct error path.
+     * Off-session variant of verify(), for recurring donation cycles. A decline is reported via
+     * the response body's `status`, same as verify(), not a distinct error path.
      *
      * @param  array<string, mixed>  $meta
      */
@@ -125,7 +115,6 @@ class PaystackService implements PaymentGatewayInterface
             'paid_at' => $data['paid_at'] ?? null,
             'channel' => $data['channel'] ?? null,
             'card_last_four' => $authorization['last4'] ?? null,
-            // Only present (reusable: true) when Paystack allows this card to be charged again;
             // `signature`, not `authorization_code` (minted fresh per transaction), is the
             // real same-card identifier and what PaymentMethodService dedupes on.
             'authorization' => [
@@ -143,10 +132,8 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
-     * Paystack's docs: GET /bank. Populates the local `banks` table with the canonical,
-     * CBN-recognized list of Nigerian banks (see the `banks:sync` command). Filtered to
-     * `type: nuban` and `active: true`, excluding the mobile money/other non-bank entries
-     * Paystack also lists here.
+     * Populates the local `banks` table with the CBN-recognized list of Nigerian banks (see
+     * `banks:sync`). Filtered to `type: nuban` and `active: true`.
      *
      * @return list<array{name: string, code: string}>
      */
@@ -172,10 +159,8 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
-     * Paystack's docs: GET /bank/resolve (https://paystack.com/docs/api/verification/#resolve-account).
-     * Confirms an account number actually belongs to the named bank and returns the account
-     * holder's registered name, so the admin can't remit to a mistyped account. Stripe has no
-     * equivalent lookup for NG NUBAN accounts.
+     * Confirms an account number belongs to the named bank and returns the account holder's
+     * registered name, so the admin can't remit to a mistyped account.
      *
      * @return array{account_number: string, account_name: string}
      */
@@ -220,10 +205,8 @@ class PaystackService implements PaymentGatewayInterface
     }
 
     /**
-     * `retry()` only catches a genuine connection failure (timeout, DNS, refused) - a real
-     * response from Paystack, even a 4xx/5xx or `status: false`, is returned as-is and still
-     * surfaces as the normal error path below, so a transient network blip no longer fails a
-     * donor's payment outright. Mirrors StripeService::client()'s `max_network_retries`.
+     * `retry()` only catches a genuine connection failure (timeout, DNS, refused); a real
+     * response, even a 4xx/5xx, is returned as-is. Mirrors StripeService's `max_network_retries`.
      */
     private function client()
     {

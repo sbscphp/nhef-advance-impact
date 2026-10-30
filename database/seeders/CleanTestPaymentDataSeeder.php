@@ -7,9 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Wipes all donation/pledge/event-registration test data and the payment/saved-card records
- * created alongside them, and resets the counters those payments incremented. Not called from
- * DatabaseSeeder; run explicitly, and only against a test-phase database, never production.
+ * Wipes all donation/pledge/event-registration test data and resets the counters those payments
+ * incremented. Not called from DatabaseSeeder; run explicitly, never against production.
  *
  * php artisan db:seed --class=CleanTestPaymentDataSeeder
  */

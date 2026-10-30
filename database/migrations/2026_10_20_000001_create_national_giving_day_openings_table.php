@@ -5,10 +5,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * The "yearly opening" an NHEF Super Admin announces once: a single shared day (or window), with
- * no money and no institutions attached yet. Institutions then create their own National Giving
- * Day campaigns under one of these (see campaigns.national_giving_day_opening_id), inheriting its
- * starts_at/ends_at rather than picking their own.
+ * The "yearly opening" a Super Admin announces once: a shared day, no money or institutions yet.
+ * Institutions create their own campaigns under one of these, inheriting its starts_at/ends_at.
  */
 return new class extends Migration
 {

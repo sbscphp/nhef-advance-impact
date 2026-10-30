@@ -78,16 +78,14 @@ enum ReportDatasetEnum: string
     }
 
     /**
-     * The ModuleEnums key this dataset's rows live under, for permission-scoping reports to
-     * whatever modules the viewer's own sidebar actually has. Covers every case (unlike
+     * The ModuleEnums key this dataset lives under, for permission-scoping reports (unlike
      * {@see self::customFieldModule()}, which only answers the custom-field question).
      */
     public function module(): string
     {
         return match ($this) {
-            // Alumni report rows come from the same /constituents/individuals list gated by
-            // alumni.read (Institution Admin holds alumni.read but NOT constituents.read, so this
-            // must NOT share Institution's module key below).
+            // Institution Admin holds alumni.read but NOT constituents.read, so ALUMNI must not
+            // share Institution's module key below.
             self::ALUMNI => ModuleEnums::alumni->value,
             self::INSTITUTION => ModuleEnums::constituent_management->value,
             self::DONATION, self::PLEDGE => ModuleEnums::donation->value,
@@ -108,10 +106,8 @@ enum ReportDatasetEnum: string
     }
 
     /**
-     * Rows are individual people (alumni, donors, attendees, mentors), so viewers limited to
-     * summaries cannot use them. AUDIT_TRAIL is deliberately excluded: unlike these, it mixes
-     * individual- and admin-level rows in one table, so AuditTrailReportDataset filters those
-     * rows out itself rather than hiding the whole dataset (same as the live Audit Trail list).
+     * Rows are individual people, so viewers limited to summaries cannot use them. AUDIT_TRAIL is
+     * excluded: AuditTrailReportDataset filters its individual-level rows out itself instead.
      */
     private function individualLevel(): bool
     {
@@ -140,11 +136,7 @@ enum ReportDatasetEnum: string
         return self::viewerHasModuleAccess($this->module());
     }
 
-    /**
-     * Mirrors the same module-access gate used for Notifications and the Audit Trail: a dataset
-     * only shows up for an admin who holds at least one permission in that module. Anyone not an
-     * admin (customers, console jobs) is unrestricted, same as {@see ViewerVisibility}.
-     */
+    /** Same module-access gate as Notifications/Audit Trail; non-admins are unrestricted, same as {@see ViewerVisibility}. */
     private static function viewerHasModuleAccess(string $module): bool
     {
         $actor = request()->user();

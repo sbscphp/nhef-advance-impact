@@ -8,13 +8,8 @@ use Illuminate\Support\Facades\Http;
 use Throwable;
 
 /**
- * Resolves which NHEF wordmark to embed in an email or PDF.
- *
- * green() (PDF headers) tries the live SVG first, cached locally, falling back to the bundled PNG
- * if unreachable (e.g. after a frontend redeploy changes its Vite asset hash). Dompdf renders it fine.
- *
- * white() (email header) always uses the bundled PNG, never live SVG: most webmail clients (Yopmail
- * confirmed, not just Outlook) strip embedded SVG as an XSS precaution, so it never renders.
+ * Resolves which NHEF wordmark to embed. green() tries the live SVG, falling back to a bundled PNG
+ * if unreachable. white() always uses the PNG since most webmail clients strip embedded SVG.
  */
 class LogoResolver
 {

@@ -183,10 +183,8 @@ interface DonationPaymentRepositoryInterface
     public function dailyTotalsForCampaign(int $campaignId, CarbonInterface $start, CarbonInterface $end): Collection;
 
     /**
-     * Distinct donor count per country for one campaign's successful payments, ordered highest
-     * first; feeds its "Geography Distribution" chart. A donor counts under whichever of
-     * `country_of_residence_id`/`country_of_operation_id` they have set (the latter covers
-     * organisation donors, who have no residence).
+     * Distinct donor count per country, ordered highest first, for the "Geography Distribution"
+     * chart. A donor counts under whichever of residence/operation country they have set.
      *
      * @return Collection<int, object{country: string, donors: int}>
      */

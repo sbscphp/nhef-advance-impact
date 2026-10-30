@@ -201,10 +201,9 @@ class RoleService
     }
 
     /**
-     * The "assign a role" picker: NHEF is offered its own system roles (never "Institution
-     * Admin" - NHEF staff are never assigned that role); an institution is offered only the
-     * custom roles it has created for its own team - never the shared "Institution Admin" role
-     * itself, which only a Super Admin may hand out.
+     * The "assign a role" picker: NHEF is offered its own system roles, never "Institution
+     * Admin"; an institution is offered only its own custom roles, never the shared
+     * "Institution Admin" role itself, which only a Super Admin may hand out.
      *
      * @return Collection<int, Role>
      */
@@ -436,9 +435,7 @@ class RoleService
         }
 
         // Same split as AdminUserService::assertRoleAssignable(): allowsRole() alone would let an
-        // institution reassign its own admins onto the shared "Institution Admin" role (it "fits"
-        // their account type), which is exactly the self-escalation this whole feature closes -
-        // checked explicitly first, ahead of the general scope check.
+        // institution reassign its own admins onto "Institution Admin", the self-escalation this closes.
         if (AdminScopeEnum::current() === AdminScopeEnum::INSTITUTION && $target->name === eRole::INSTITUTION_ADMIN->value) {
             throw new ApiException('The Institution Admin role can only be assigned by a Super Admin. Choose a custom role to reassign to instead.', 403);
         }
@@ -466,9 +463,8 @@ class RoleService
     }
 
     /**
-     * NHEF sees every role, including every institution's custom ones (oversight). An
-     * institution sees only roles it created itself, plus the shared "Institution Admin"
-     * template (read-only reference - never returned to a management call, see
+     * NHEF sees every role (oversight). An institution sees only roles it created, plus
+     * "Institution Admin" as a read-only reference (never returned to a management call, see
      * {@see self::assertCanManage()}).
      */
     private function applyViewScope(Builder $query, Admin $actor): void
@@ -494,10 +490,8 @@ class RoleService
     }
 
     /**
-     * Stricter than {@see self::assertCanView()}: an institution may only create, update,
-     * (de)activate or delete roles it created itself. The shared "Institution Admin" role (and
-     * every other system role) stays Super-Admin-only, full stop - preserved exactly as-is since
-     * it's shared across every institution, not owned by any one of them.
+     * Stricter than {@see self::assertCanView()}: an institution may only manage roles it
+     * created itself. Every system role, "Institution Admin" included, stays Super-Admin-only.
      */
     private function assertCanManage(Role $role, Admin $actor): void
     {

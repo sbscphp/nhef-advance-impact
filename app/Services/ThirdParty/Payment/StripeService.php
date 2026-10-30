@@ -12,17 +12,11 @@ use Stripe\StripeClient;
 use Stripe\Webhook;
 
 /**
- * Stripe integration. `services.stripe.checkout_mode` (env `STRIPE_CHECKOUT_MODE`, default
- * `embedded`) picks the donor flow: embedded uses PaymentIntent + Stripe Elements (donor pays
- * inline via `client_secret`/`publishable_key`, no redirect); hosted uses a Checkout Session
- * (donor redirected via `authorization_url`, same shape as Paystack's flow).
- *
- * Either way, `initialize()` hands back the gateway's own object id (PaymentIntent id for
- * embedded, Checkout Session id for hosted) as `gateway_transaction_id`, which the caller
- * persists; `verify()` then retrieve()s that id directly, a strongly-consistent read. This
- * deliberately does not fall back to Stripe's PaymentIntent Search API (metadata['reference']),
- * which is only eventually consistent and was the cause of intermittent "Unable to verify
- * payment with the gateway" failures.
+ * Stripe integration. `services.stripe.checkout_mode` picks embedded (PaymentIntent + Elements,
+ * no redirect) or hosted (Checkout Session, browser redirect). `verify()` retrieve()s the id
+ * `initialize()` returned directly, a strongly-consistent read; it deliberately does not fall
+ * back to Stripe's PaymentIntent Search API, which is only eventually consistent and caused
+ * intermittent "Unable to verify payment" failures.
  */
 class StripeService implements PaymentGatewayInterface
 {
@@ -173,11 +167,8 @@ class StripeService implements PaymentGatewayInterface
     }
 
     /**
-     * Off-session variant of verify(), for recurring donation cycles (see
-     * DonationService::chargeRecurringDonation()). The saved PaymentMethod is already attached
-     * to a Stripe Customer (from the original `setup_future_usage: off_session` charge in
-     * initializeEmbedded()), so this retrieves it to read that Customer id back rather than
-     * persisting a separate `gateway_customer_id` column anywhere.
+     * Off-session variant of verify(), for recurring donation cycles. Retrieves the saved
+     * PaymentMethod to read its Customer id back, rather than persisting a separate column for it.
      *
      * @param  array<string, mixed>  $meta
      */
@@ -295,9 +286,8 @@ class StripeService implements PaymentGatewayInterface
     }
 
     /**
-     * `max_network_retries` also makes the SDK auto-attach an idempotency key to any un-keyed
-     * POST (so `customers->create` is safely retryable too, not just `paymentIntents->create`),
-     * so a transient blip is absorbed by the SDK's backoff instead of failing the donor outright.
+     * `max_network_retries` auto-attaches an idempotency key to any un-keyed POST, so a
+     * transient blip is absorbed by the SDK's backoff instead of failing the donor outright.
      */
     private function client(): StripeClient
     {

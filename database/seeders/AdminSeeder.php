@@ -9,14 +9,9 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Test admin users, all with password "password":
- * nhef-admin-1, nhef-admin-2 and nhef-admin-3 (Super Admin), nhef-fme and nhef-fme-2 (Ministry
- * of Education), all @yopmail.com, plus nhef-institution-admin@yopmail.com and
- * nhef-institution-admin-2@yopmail.com (Institution Admin of University of Lagos).
- *
- * The "-2"/"-3" accounts are backup logins for live client demos (2026-10-21), in case the
- * primary one hits the login lockout or is mid-use in another tab - same role/institution as
- * their primary counterpart, just a second set of credentials.
+ * Test admin users, all password "password": nhef-admin-1/2/3 (Super Admin), nhef-fme/fme-2
+ * (Ministry of Education), nhef-institution-admin/-admin-2 (Institution Admin, University of
+ * Lagos). The "-2"/"-3" accounts are backup logins for live client demos.
  *
  * php artisan db:seed --class=AdminSeeder
  */

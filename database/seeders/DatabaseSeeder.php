@@ -20,13 +20,10 @@ class DatabaseSeeder extends Seeder
             ApiUserSeeder::class,
             BankSeeder::class,
             DonorTierSeeder::class,
-            // FmeDemoDataSeeder replaces CampaignSeeder/NationalGivingDayCampaignSeeder/
-            // DonationSeeder/PledgeSeeder/EventSeeder/MentorshipSeeder/NetworkingSeeder in the
-            // default run: those create unlinked (no institution_id/created_by), zero-value
-            // (no registrations, so seats_taken/quantity_sold stay 0), or placeholder-named
-            // ("Mentor One", "Olivia Grant") records that read as broken data in the admin
-            // tables. They're left as standalone classes (still runnable via
-            // `db:seed --class=X`) for anyone who wants a minimal dataset instead.
+            // FmeDemoDataSeeder replaces the standalone Campaign/Donation/Pledge/Event/
+            // Mentorship/Networking seeders in the default run, whose unlinked/zero-value/
+            // placeholder-named records read as broken data in the admin tables. Those stay
+            // runnable standalone (`db:seed --class=X`) for a minimal dataset.
             FmeDemoDataSeeder::class,
         ]);
     }

@@ -12,10 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Paystack calls this URL directly (server-to-server) when a charge succeeds; the reliable
- * counterpart to the browser-redirect verify flow (see {@see PaymentGatewayService}). Not wired
- * up by code: register `{app_url}/api/v1/webhooks/paystack` in the Paystack Dashboard under
- * Settings -> API Keys & Webhooks (one-time, per environment; tunnel with ngrok to test locally).
+ * Paystack calls this server-to-server when a charge succeeds; the reliable counterpart to
+ * the browser-redirect verify flow. Register `{app_url}/api/v1/webhooks/paystack` in the
+ * Paystack Dashboard (one-time, per environment; tunnel with ngrok to test locally).
  */
 class PaystackWebhookController extends Controller
 {

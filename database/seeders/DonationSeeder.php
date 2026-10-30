@@ -19,10 +19,8 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * Depends on CampaignSeeder, InstitutionSeeder, and NationalGivingDayCampaignSeeder. National
- * Giving Day donations are attributed to an institution by the donor's `tertiary_institution_id`
- * matching the institution's own linked tertiary institution (see
- * CampaignService::nationalGivingDayTotals()).
+ * Depends on CampaignSeeder, InstitutionSeeder, and NationalGivingDayCampaignSeeder. NGD
+ * donations are attributed by the donor's `tertiary_institution_id` matching the institution's own.
  *
  * php artisan db:seed --class=DonationSeeder
  */

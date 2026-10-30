@@ -10,10 +10,8 @@ use App\Responser\JsonResponser;
 use App\Services\Fundraising\DonationService;
 
 /**
- * Guest donor flow (BRD ENT-04): donate without an account, using the same donation/payment
- * machinery as the authenticated flow (identity comes from `full_name`/`email` instead of a
- * token). No "list my donations" here since a guest has no login; use "Verify payment" and
- * the emailed receipt instead.
+ * Guest donor flow (BRD ENT-04): donate without an account, identity from `full_name`/`email`
+ * instead of a token. No "list my donations" here; use "Verify payment" and the emailed receipt.
  */
 class GuestDonationController extends Controller
 {
