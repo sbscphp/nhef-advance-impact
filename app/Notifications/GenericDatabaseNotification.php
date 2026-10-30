@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Services\Theme\ThemeResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -52,15 +53,18 @@ class GenericDatabaseNotification extends Notification implements ShouldQueue
     {
         $subject = $this->mailSubject ?? $this->title;
 
-        $mail = (new MailMessage)
+        return (new MailMessage)
             ->subject($subject)
-            ->line($this->message);
-
-        if ($this->actionUrl !== null && $this->actionUrl !== '') {
-            $mail->action('Open', $this->actionUrl);
-        }
-
-        return $mail;
+            ->view('emails.notifications.generic', [
+                'theme' => app(ThemeResolver::class)->resolveForMail(),
+                'headline' => $this->title,
+                // Not named `message`: Laravel's Mailer already injects a `$message` variable
+                // (the Illuminate\Mail\Message wrapper, used by the layout's ->embed() call) into
+                // every mail view, which would silently clobber a same-named viewData entry.
+                'bodyText' => $this->message,
+                'actionUrl' => $this->actionUrl,
+                'actionText' => 'Open',
+            ]);
     }
 
     /**

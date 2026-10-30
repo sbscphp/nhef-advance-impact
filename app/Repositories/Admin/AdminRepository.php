@@ -43,6 +43,22 @@ class AdminRepository implements AdminRepositoryInterface
             ->all();
     }
 
+    public function uuidsForInstitutionsWithRole(array $institutionIds, string $role): array
+    {
+        if ($institutionIds === []) {
+            return [];
+        }
+
+        return Admin::query()
+            ->withoutGlobalScope(TenantScope::class)
+            ->whereIn('institution_id', $institutionIds)
+            ->role($role)
+            ->where('is_active', true)
+            ->where('can_login', true)
+            ->pluck('uuid')
+            ->all();
+    }
+
     public function emailExists(string $email): bool
     {
         return Admin::query()->withoutGlobalScope(TenantScope::class)->withTrashed()->where('email', $email)->exists();
