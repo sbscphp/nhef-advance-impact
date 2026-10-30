@@ -10,7 +10,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Two customer users: nhef-customer-1|2@yopmail.com (password: "password").
+ * Two customer users: customer-1|2@yopmail.com (password: "password").
  * Customer 1 has 2FA off; customer 2 has 2FA on.
  *
  * php artisan db:seed --class=CustomerSeeder
@@ -49,7 +49,7 @@ class CustomerSeeder extends Seeder
         ];
 
         foreach ($accounts as $row) {
-            $email = "nhef-customer-{$row['suffix']}@yopmail.com";
+            $email = "customer-{$row['suffix']}@yopmail.com";
             $tertiaryInstitutionId = $institutionRepository->findOrCreateByName($row['university'])->id;
 
             $customer = User::firstOrCreate(

@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * A mentor, a mentee, and a completed match with a review, for local development and
- * Postman testing. Mentor/mentee users: nhef-mentor-1@yopmail.com, nhef-mentee-1@yopmail.com
+ * Postman testing. Mentor/mentee users: mentor-1@yopmail.com, mentee-1@yopmail.com
  * (password: "password").
  *
  * php artisan db:seed --class=MentorshipSeeder
@@ -32,7 +32,7 @@ class MentorshipSeeder extends Seeder
 
     public function run(): void
     {
-        $mentorUser = $this->createCustomer('nhef-mentor-1@yopmail.com', 'Mentor', 'One', [
+        $mentorUser = $this->createCustomer('mentor-1@yopmail.com', 'Mentor', 'One', [
             'matric_no' => 'NHEF/2010/001',
             'university' => 'University of Lagos',
             'department' => 'Computer Science',
@@ -42,7 +42,7 @@ class MentorshipSeeder extends Seeder
             'organisation_name' => 'Stellar Tech',
             'position' => 'Engineering Manager',
         ]);
-        $menteeUser = $this->createCustomer('nhef-mentee-1@yopmail.com', 'Mentee', 'One', [
+        $menteeUser = $this->createCustomer('mentee-1@yopmail.com', 'Mentee', 'One', [
             'matric_no' => 'NHEF/2020/045',
             'university' => 'University of Ibadan',
             'department' => 'Computer Science',
@@ -69,7 +69,7 @@ class MentorshipSeeder extends Seeder
                 'frequency_of_interaction' => MentorshipFrequencyEnum::BI_WEEKLY->value,
                 'program_commitment' => MentorshipCommitmentEnum::SIX_MONTHS->value,
                 'socials' => [
-                    ['platform' => SocialPlatformEnum::LINKEDIN->value, 'value' => 'https://linkedin.com/in/nhef-mentor-1'],
+                    ['platform' => SocialPlatformEnum::LINKEDIN->value, 'value' => 'https://linkedin.com/in/mentor-1'],
                 ],
                 'eligibility_confirmed_at' => now()->subMonth(),
                 'review_status' => MentorReviewStatusEnum::APPROVED->value,
@@ -88,7 +88,7 @@ class MentorshipSeeder extends Seeder
                 'available_days' => ['Tuesday', 'Thursday'],
                 'frequency_of_interaction' => MentorshipFrequencyEnum::BI_WEEKLY->value,
                 'socials' => [
-                    ['platform' => SocialPlatformEnum::LINKEDIN->value, 'value' => 'https://linkedin.com/in/nhef-mentee-1'],
+                    ['platform' => SocialPlatformEnum::LINKEDIN->value, 'value' => 'https://linkedin.com/in/mentee-1'],
                 ],
                 'consent_confirmed_at' => now()->subMonths(6),
             ]

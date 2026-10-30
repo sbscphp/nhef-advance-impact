@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * Fixed-credential demo accounts for the two "Sign Up as" flavours CustomerSeeder doesn't cover:
- * nhef-non-alumni@yopmail.com and nhef-organization@yopmail.com (password "password").
+ * non-alumni@yopmail.com and organization@yopmail.com (password "password").
  *
  * php artisan db:seed --class=ConstituentTypeDemoSeeder
  */
@@ -38,7 +38,7 @@ class ConstituentTypeDemoSeeder extends Seeder
         $tertiaryInstitutionId = $institutionRepository->findOrCreateByName('University of Lagos, Lagos')->id;
 
         $user = User::firstOrCreate(
-            ['email' => 'nhef-non-alumni@yopmail.com'],
+            ['email' => 'non-alumni@yopmail.com'],
             [
                 'firstname' => 'Ngozi',
                 'lastname' => 'Eze',
@@ -72,7 +72,7 @@ class ConstituentTypeDemoSeeder extends Seeder
         $tertiaryInstitutionId = $institutionRepository->findOrCreateByName('University of Lagos, Lagos')->id;
 
         $user = User::firstOrCreate(
-            ['email' => 'nhef-organization@yopmail.com'],
+            ['email' => 'organization@yopmail.com'],
             [
                 'organisation_name' => 'Lagos Impact Foundation',
                 'phone_number' => '198765434',

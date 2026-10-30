@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * Test admin users, all with password "password":
- * nhef-admin-1, nhef-admin-2 and nhef-admin-3 (Super Admin), all @yopmail.com, plus
- * nhef-institution-admin@yopmail.com and nhef-institution-admin-2@yopmail.com (Institution Admin
+ * admin-1, admin-2 and admin-3 (Super Admin), all @yopmail.com, plus
+ * institution-admin@yopmail.com and institution-admin-2@yopmail.com (Institution Admin
  * of University of Lagos).
  *
  * The "-2"/"-3" accounts are backup logins for live client demos (2026-10-21), in case the
@@ -29,11 +29,11 @@ class AdminSeeder extends Seeder
         $this->call([RolesAndPermissionsSeeder::class, InstitutionSeeder::class]);
 
         $accounts = [
-            ['email' => 'nhef-admin-1@yopmail.com', 'name' => 'Super Admin', 'role' => eRole::SUPER_ADMIN, '2fa' => true],
-            ['email' => 'nhef-admin-2@yopmail.com', 'name' => 'Super Admin 2', 'role' => eRole::SUPER_ADMIN, '2fa' => false],
-            ['email' => 'nhef-admin-3@yopmail.com', 'name' => 'Super Admin 3', 'role' => eRole::SUPER_ADMIN, '2fa' => false],
-            ['email' => 'nhef-institution-admin@yopmail.com', 'name' => 'University of Lagos Admin', 'role' => eRole::INSTITUTION_ADMIN, '2fa' => false, 'institution' => 'University of Lagos'],
-            ['email' => 'nhef-institution-admin-2@yopmail.com', 'name' => 'University of Lagos Admin 2', 'role' => eRole::INSTITUTION_ADMIN, '2fa' => false, 'institution' => 'University of Lagos'],
+            ['email' => 'admin-1@yopmail.com', 'name' => 'Super Admin', 'role' => eRole::SUPER_ADMIN, '2fa' => true],
+            ['email' => 'admin-2@yopmail.com', 'name' => 'Super Admin 2', 'role' => eRole::SUPER_ADMIN, '2fa' => false],
+            ['email' => 'admin-3@yopmail.com', 'name' => 'Super Admin 3', 'role' => eRole::SUPER_ADMIN, '2fa' => false],
+            ['email' => 'institution-admin@yopmail.com', 'name' => 'University of Lagos Admin', 'role' => eRole::INSTITUTION_ADMIN, '2fa' => false, 'institution' => 'University of Lagos'],
+            ['email' => 'institution-admin-2@yopmail.com', 'name' => 'University of Lagos Admin 2', 'role' => eRole::INSTITUTION_ADMIN, '2fa' => false, 'institution' => 'University of Lagos'],
         ];
 
         foreach ($accounts as $row) {

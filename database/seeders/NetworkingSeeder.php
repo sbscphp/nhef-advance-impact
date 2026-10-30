@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Hash;
 /**
  * A Forum channel, a Community channel, and a direct conversation between two seeded alumni,
  * for local development and Postman testing. Customer users:
- * nhef-networking-1@yopmail.com, nhef-networking-2@yopmail.com (password: "password").
+ * networking-1@yopmail.com, networking-2@yopmail.com (password: "password").
  *
  * php artisan db:seed --class=NetworkingSeeder
  */
@@ -27,7 +27,7 @@ class NetworkingSeeder extends Seeder
     public function run(): void
     {
         $admin = Admin::firstOrCreate(
-            ['email' => 'nhef-admin-1@yopmail.com'],
+            ['email' => 'admin-1@yopmail.com'],
             [
                 'name' => 'Super Admin',
                 'email_verified_at' => now(),
@@ -38,8 +38,8 @@ class NetworkingSeeder extends Seeder
             ]
         );
 
-        $userOne = $this->createCustomer('nhef-networking-1@yopmail.com', 'Olivia', 'Grant');
-        $userTwo = $this->createCustomer('nhef-networking-2@yopmail.com', 'Katherine', 'Moss');
+        $userOne = $this->createCustomer('networking-1@yopmail.com', 'Olivia', 'Grant');
+        $userTwo = $this->createCustomer('networking-2@yopmail.com', 'Katherine', 'Moss');
 
         $forum = NetworkingChannel::firstOrCreate(
             ['type' => NetworkingChannelTypeEnum::FORUM->value, 'name' => 'NHEF Forum'],
