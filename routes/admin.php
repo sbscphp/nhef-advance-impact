@@ -293,6 +293,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:donations.read', 'individual.records']);
             Route::get('/', [AdminDonationController::class, 'index'])
                 ->middleware(['permission:donations.read', 'individual.records']);
+            Route::post('/', [AdminDonationController::class, 'store'])
+                ->middleware(['permission:donations.create']);
             Route::get('/{uuid}', [AdminDonationController::class, 'show'])
                 ->middleware(['permission:donations.read', 'individual.records']);
         });

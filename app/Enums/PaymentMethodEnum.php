@@ -2,12 +2,15 @@
 
 namespace App\Enums;
 
-/** Payment options (BRD FEM-06): bank transfer, cards, digital wallet. */
+/** Payment options (BRD FEM-06): online gateway methods plus the manual-entry options an admin can record a gift under. */
 enum PaymentMethodEnum: string
 {
     case CARD = 'card';
     case BANK_TRANSFER = 'bank_transfer';
-    case WALLET = 'wallet';
+    case WIRE_TRANSFER = 'wire_transfer';
+    case CASH = 'cash';
+    case CHECK = 'check';
+    case MOBILE_WALLET = 'mobile_wallet';
 
     /** @return list<string> */
     public static function values(): array
@@ -20,7 +23,10 @@ enum PaymentMethodEnum: string
         return match ($this) {
             self::CARD => 'Card',
             self::BANK_TRANSFER => 'Bank Transfer',
-            self::WALLET => 'Wallet',
+            self::WIRE_TRANSFER => 'Wire Transfer',
+            self::CASH => 'Cash',
+            self::CHECK => 'Check',
+            self::MOBILE_WALLET => 'Mobile Wallet',
         };
     }
 }

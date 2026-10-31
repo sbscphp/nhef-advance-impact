@@ -36,6 +36,10 @@ class DonationPaymentAdminResource extends JsonResource
             'receipt_url' => $this->status === 'successful'
                 ? URL::signedRoute('receipts.download', ['uuid' => $this->uuid])
                 : null,
+            'recorded_by' => $this->gateway === 'manual' ? [
+                'admin_uuid' => data_get($this->meta, 'recorded_by'),
+                'admin_name' => data_get($this->meta, 'recorded_by_name'),
+            ] : null,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

@@ -7,15 +7,19 @@ use App\Helpers\PDFReportHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\DateRangeStatsRequest;
 use App\Http\Requests\Admin\Donation\DonationPaymentListRequest;
+use App\Http\Requests\Admin\Donation\RecordDonationRequest;
 use App\Http\Requests\Concerns\ListingFilterRules;
 use App\Http\Requests\Recognition\LeaderboardListRequest;
 use App\Http\Resources\Admin\Donation\DonationPaymentAdminResource;
+use App\Http\Resources\Fundraising\DonationResource;
 use App\Http\Resources\Recognition\LeaderboardEntryResource;
+use App\Models\Admin;
 use App\Models\DonationPayment;
 use App\Responser\JsonResponser;
 use App\Services\Fundraising\DonationService;
 use App\Services\Recognition\RecognitionService;
 use App\Support\Money;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -162,6 +166,18 @@ class DonationController extends Controller
         }
     }
 
+    public function store(RecordDonationRequest $request)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $result = $this->donationService->recordManualDonation($admin, $request->validated(), $request);
+
+            return JsonResponser::send(false, 'Donation recorded.', DonationResource::make($result['donation'])->resolve(), 201);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\Donation\DonationController@store');
+        }
+    }
+
     /**
      * @param  class-string<JsonResource>  $resourceClass
      * @return array<string, mixed>
@@ -174,5 +190,15 @@ class DonationController extends Controller
         $payload['data'] = $resource->resolve();
 
         return $payload;
+    }
+
+    private function requireAdmin(Request $request): Admin
+    {
+        $admin = $request->user();
+        if (! $admin instanceof Admin) {
+            abort(403, 'Forbidden.');
+        }
+
+        return $admin;
     }
 }
