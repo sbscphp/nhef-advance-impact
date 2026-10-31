@@ -34,6 +34,8 @@ class ConstituentListRequest extends ApiFormRequest
                 'filters.constituent_type' => ['sometimes', 'nullable', 'array'],
                 'filters.constituent_type.*' => [Rule::in(ConstituentTypeEnum::values())],
                 'filters.tertiary_institution_uuid' => ['sometimes', 'nullable', 'uuid', Rule::exists('tertiary_institutions', 'uuid')],
+                'filters.department' => ['sometimes', 'nullable', 'string', 'max:255'],
+                'filters.graduation_year' => ['sometimes', 'nullable', 'integer', 'min:1960', 'max:'.now()->year],
                 'export' => ['sometimes', 'nullable', 'string', Rule::in(['csv', 'pdf'])],
             ]
         );
@@ -44,6 +46,9 @@ class ConstituentListRequest extends ApiFormRequest
         return array_merge(parent::messages(), ListingFilterRules::listingMessages(), [
             'filters.status.in' => 'Status filter is invalid.',
             'filters.tertiary_institution_uuid.exists' => 'Institution filter must be a valid institution.',
+            'filters.graduation_year.integer' => 'Graduation year must be a valid year.',
+            'filters.graduation_year.min' => 'Graduation year is too far in the past.',
+            'filters.graduation_year.max' => 'Graduation year cannot be in the future.',
             'export.in' => "Export format must be either 'csv' or 'pdf'.",
         ]);
     }

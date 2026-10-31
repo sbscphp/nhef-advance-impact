@@ -130,6 +130,14 @@ class UserRepository implements UserRepositoryInterface
             ->when(
                 filled($filters['filters']['tertiary_institution_uuid'] ?? null),
                 fn ($query) => $query->whereHas('tertiaryInstitution', fn ($q) => $q->where('uuid', $filters['filters']['tertiary_institution_uuid']))
+            )
+            ->when(
+                filled($filters['filters']['department'] ?? null),
+                fn ($query) => $query->where('department', $filters['filters']['department'])
+            )
+            ->when(
+                filled($filters['filters']['graduation_year'] ?? null),
+                fn ($query) => $query->where('year_of_graduation', $filters['filters']['graduation_year'])
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'created_at');
