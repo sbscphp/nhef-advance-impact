@@ -11,6 +11,7 @@ use App\Exceptions\ApiException;
 use App\Helpers\GeneralHelper;
 use App\Jobs\SendConstituentInviteEmailJob;
 use App\Models\Admin;
+use App\Models\Country;
 use App\Models\DonationPayment;
 use App\Models\DonorTier;
 use App\Models\Institution;
@@ -61,11 +62,23 @@ class AdminConstituentService
         $user = $this->userRepository->create([
             'tertiary_institution_id' => $tenant?->tertiary_institution_id,
             'constituent_type' => $payload['constituent_type'] ?? ConstituentTypeEnum::ALUMNI->value,
-            'firstname' => $payload['first_name'],
-            'lastname' => $payload['last_name'],
+            // Empty for an Organisation account; its name is organisation_name below instead.
+            'firstname' => $payload['first_name'] ?? null,
+            'lastname' => $payload['last_name'] ?? null,
             'email' => $payload['email'],
             'phone_number' => $payload['phone_number'] ?? null,
             'invite_message' => $payload['invite_message'] ?? null,
+            'organisation_name' => $payload['organisation_name'] ?? null,
+            'organisation_type' => $payload['organisation_type'] ?? null,
+            'organisation_description' => $payload['organisation_description'] ?? null,
+            'rc_number' => $payload['rc_number'] ?? null,
+            'date_of_incorporation' => $payload['date_of_incorporation'] ?? null,
+            'website' => $payload['website'] ?? null,
+            'country_of_operation_id' => Country::findIdByUuid($payload['country_of_operation_uuid'] ?? null),
+            'organisation_size' => $payload['organisation_size'] ?? null,
+            'sector_of_operation' => $payload['sector_of_operation'] ?? null,
+            'engagement_preference' => $payload['engagement_preference'] ?? null,
+            'address' => $payload['address'] ?? null,
             // Random placeholder; the constituent sets a real password via the emailed invite link.
             'password' => bin2hex(random_bytes(16)),
             'email_verified_at' => now(),
@@ -202,7 +215,7 @@ class AdminConstituentService
     public function showForAdmin(string $uuid): User
     {
         $user = $this->findForAdmin($uuid);
-        $user->loadMissing(['tertiaryInstitution', 'constituencyTypes']);
+        $user->loadMissing(['tertiaryInstitution', 'constituencyTypes', 'countryOfResidence', 'countryOfOperation']);
         $this->attachDonationStats([$user]);
 
         return $user;
