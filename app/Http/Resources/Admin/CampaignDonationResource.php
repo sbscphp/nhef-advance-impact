@@ -30,6 +30,10 @@ class CampaignDonationResource extends JsonResource
             'method' => $this->method,
             'method_label' => $this->method !== null ? PaymentMethodEnum::from($this->method)->label() : null,
             'status' => $this->status,
+            'recorded_by' => $this->gateway === 'manual' ? [
+                'admin_uuid' => data_get($this->meta, 'recorded_by'),
+                'admin_name' => data_get($this->meta, 'recorded_by_name'),
+            ] : null,
         ];
     }
 }

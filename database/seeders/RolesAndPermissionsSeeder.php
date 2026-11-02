@@ -214,6 +214,8 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::ALUMNI_CREATE,
             PermissionEnum::ALUMNI_READ,
             PermissionEnum::ALUMNI_UPDATE,
+            PermissionEnum::ALUMNI_DELETE,
+            PermissionEnum::DONATIONS_CREATE,
             PermissionEnum::DONATIONS_READ,
             PermissionEnum::CAMPAIGNS_CREATE,
             PermissionEnum::CAMPAIGNS_CREATE_STANDARD,

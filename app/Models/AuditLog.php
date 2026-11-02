@@ -35,7 +35,7 @@ class AuditLog extends Model
 
     public function customerUser(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id', 'uuid');
+        return $this->belongsTo(User::class, 'user_id', 'uuid')->withTrashed();
     }
 
     public function adminUser(): BelongsTo

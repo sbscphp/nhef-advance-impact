@@ -189,6 +189,18 @@ class ConstituentController extends Controller
         }
     }
 
+    public function destroy(Request $request, string $uuid)
+    {
+        try {
+            $admin = $this->requireAdmin($request);
+            $this->constituentService->deleteConstituent($uuid, $admin, $request);
+
+            return JsonResponser::send(false, 'Constituent deleted.', null);
+        } catch (\Throwable $th) {
+            return GeneralHelper::handleControllerThrowable($th, 'Admin\ConstituentManagement\ConstituentController@destroy');
+        }
+    }
+
     public function reactivate(Request $request, string $uuid)
     {
         try {

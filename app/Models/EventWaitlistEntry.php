@@ -38,7 +38,7 @@ class EventWaitlistEntry extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     /** True for a guest waitlist entry; no user_id. */

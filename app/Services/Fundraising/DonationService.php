@@ -13,6 +13,7 @@ use App\Enums\UserTypeEnum;
 use App\Exceptions\ApiException;
 use App\Helpers\GeneralHelper;
 use App\Mail\PaymentReceiptMail;
+use App\Models\Admin;
 use App\Models\Campaign;
 use App\Models\Donation;
 use App\Models\DonationPayment;
@@ -25,12 +26,14 @@ use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\Donation\DonationRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
+use App\Repositories\Contracts\User\UserRepositoryInterface;
 use App\Services\CustomFields\CustomFieldValueService;
 use App\Services\Notifications\NotificationDispatchService;
 use App\Services\Settings\PaymentMethodService;
 use App\Services\Theme\ThemeResolver;
 use App\Services\ThirdParty\Payment\PaymentGatewayService;
 use App\Support\Money;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -53,6 +56,7 @@ class DonationService
         private readonly AdminRepositoryInterface $adminRepository,
         private readonly CampaignInstitutionRepositoryInterface $campaignInstitutionRepository,
         private readonly InstitutionRepositoryInterface $institutionRepository,
+        private readonly UserRepositoryInterface $userRepository,
     ) {}
 
     /**
@@ -132,6 +136,97 @@ class DonationService
                 'client_secret' => $initialization['client_secret'],
                 'publishable_key' => $initialization['publishable_key'],
                 'reference' => $initialization['reference'],
+            ];
+        });
+    }
+
+    /**
+     * An admin recording a gift already received outside the online checkout (cash, check,
+     * bank/wire transfer, etc.): the payment is recorded as successful immediately, one-time
+     * only, with the same notifications as an online donation. Both lookups below already go
+     * through Campaign/User's own TenantScope (BelongsToTenant), so an institution admin can
+     * only resolve a campaign or donor belonging to their own institution; no separate check needed.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    public function recordManualDonation(Admin $admin, array $validated, Request $request): array
+    {
+        $donor = $this->userRepository->findByUuid($validated['donor_uuid']);
+
+        if (! $donor instanceof User) {
+            throw new ApiException('Donor not found.', 404);
+        }
+
+        $campaign = $this->campaignRepository->findActiveByUuid($validated['campaign_uuid']);
+
+        if (! $campaign instanceof Campaign) {
+            throw new ApiException('Campaign not found.', 404);
+        }
+
+        return DB::transaction(function () use ($admin, $donor, $campaign, $validated, $request): array {
+            $paidAt = Carbon::parse($validated['paid_at']);
+
+            $donation = $this->donationRepository->create([
+                'campaign_id' => $campaign->id,
+                'user_id' => $donor->id,
+                'guest_name' => null,
+                'guest_email' => null,
+                'frequency' => DonationFrequencyEnum::ONE_TIME->value,
+                'currency' => $validated['currency'],
+                'amount' => $validated['amount'],
+                'total_received' => $validated['amount'],
+                'status' => DonationStatusEnum::COMPLETED->value,
+                'is_anonymous' => false,
+                'next_charge_at' => null,
+                'completed_at' => $paidAt,
+            ]);
+
+            $reference = 'DON_'.strtoupper(Str::random(20));
+
+            $payment = $this->paymentRepository->create([
+                'donation_id' => $donation->id,
+                'user_id' => $donor->id,
+                'amount' => $validated['amount'],
+                'currency' => $validated['currency'],
+                'method' => $validated['payment_method'],
+                'gateway' => 'manual',
+                'gateway_reference' => $reference,
+                'status' => PaymentStatusEnum::SUCCESSFUL->value,
+                'paid_at' => $paidAt,
+                'meta' => array_filter([
+                    'recorded_by' => $admin->uuid,
+                    'recorded_by_name' => $admin->name,
+                    'manual_reference' => $validated['reference'] ?? null,
+                ]),
+            ]);
+
+            $campaign = $this->campaignRepository->incrementRaisedAmount($campaign, (string) $validated['amount']);
+
+            GeneralHelper::storeAuditLog(
+                UserTypeEnum::ADMIN,
+                AuditActionEnum::DONATION_CREATED,
+                $request,
+                $admin->uuid,
+                [
+                    'donation_uuid' => $donation->uuid,
+                    'campaign_uuid' => $campaign->uuid,
+                    'donor_uuid' => $donor->uuid,
+                    'amount' => (string) $validated['amount'],
+                    'payment_method' => $validated['payment_method'],
+                ],
+                $admin->name.' recorded a donation from '.$donor->displayName().' to '.$campaign->title.'.',
+                Donation::class,
+                $donation->uuid,
+                ModuleEnums::fundraising,
+                201,
+            );
+
+            $this->notifyPaymentSucceeded($donation, $campaign, $payment, $reference);
+            $this->notifyInstitutionOfDonation($donation, $campaign, $payment);
+
+            return [
+                'donation' => $this->donationRepository->loadFresh($donation, ['user', 'campaign', 'payments']),
             ];
         });
     }
