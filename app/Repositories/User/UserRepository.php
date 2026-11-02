@@ -85,7 +85,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function emailExists(string $email): bool
     {
-        return User::query()->withoutGlobalScope(TenantScope::class)->where('email', $email)->exists();
+        return User::query()->withoutGlobalScope(TenantScope::class)->withTrashed()->where('email', $email)->exists();
     }
 
     public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator

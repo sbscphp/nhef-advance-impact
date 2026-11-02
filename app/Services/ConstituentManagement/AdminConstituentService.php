@@ -296,6 +296,31 @@ class AdminConstituentService
         return $user;
     }
 
+    /** Soft deletes; donation/pledge/event history keeps showing their name via each model's own withTrashed() relation. */
+    public function deleteConstituent(string $uuid, Admin $actor, Request $request): void
+    {
+        $user = $this->findForAdmin($uuid);
+
+        $userUuid = $user->uuid;
+        $userName = $user->displayName();
+        $user->tokens()->delete();
+        $this->userRepository->update($user, ['is_active' => false, 'can_login' => false]);
+        $this->userRepository->delete($user);
+
+        GeneralHelper::storeAuditLog(
+            UserTypeEnum::ADMIN,
+            AuditActionEnum::CONSTITUENT_DELETED,
+            $request,
+            $actor->uuid,
+            ['user_uuid' => $userUuid, 'name' => $userName],
+            $actor->displayName().' deleted a constituent: '.$userName.'.',
+            User::class,
+            $userUuid,
+            ModuleEnums::constituent_management,
+            200,
+        );
+    }
+
     public function reactivateAccess(string $uuid, Admin $actor, Request $request): User
     {
         $user = $this->findForAdmin($uuid);

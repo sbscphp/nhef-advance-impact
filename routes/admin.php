@@ -245,6 +245,8 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:alumni.read']);
             Route::patch('/{uuid}', [ConstituentController::class, 'update'])
                 ->middleware(['permission:alumni.update']);
+            Route::delete('/{uuid}', [ConstituentController::class, 'destroy'])
+                ->middleware(['permission:alumni.delete']);
             Route::patch('/{uuid}/revoke', [ConstituentController::class, 'revoke'])
                 ->middleware(['permission:alumni.update']);
             Route::patch('/{uuid}/reactivate', [ConstituentController::class, 'reactivate'])
