@@ -4,6 +4,9 @@ set -e
 echo "Switching to sync-advance-impact..."
 git checkout sync-advance-impact
 
+echo "Pulling latest from advance-impact's main..."
+git pull advance-impact main --no-edit
+
 echo "Merging latest main into sync-advance-impact..."
 git merge main --no-edit
 
