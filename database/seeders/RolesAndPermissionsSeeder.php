@@ -135,7 +135,7 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::RESEARCH_DELETE,
         ];
 
-        // The Donation module itself stays off for both NHEF roles. Super Admin's
+        // The Donation module itself stays off for both AdvanceImpact roles. Super Admin's
         // individual-record visibility is unrelated and now carved back out separately below, on
         // every module whose base *.read they already hold.
         $this->grant(RoleEnum::SUPER_ADMIN, $this->except($everything, [
@@ -201,7 +201,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // RoleService to rows where `institution_id` matches their own (the shared "Institution
         // Admin" template stays visible but Super-Admin-only to edit); a custom role's
         // permissions are also capped to a subset of the creator's own.
-        // dashboard.read IS granted; the NHEF-only cards branch on AdminScopeEnum internally
+        // dashboard.read IS granted; the AdvanceImpact-only cards branch on AdminScopeEnum internally
         // (DashboardService), so this only unlocks the institution-scoped shape.
         // campaigns.create IS granted (institutions create their own scoped campaigns); adding an
         // institution to an *existing* campaign still asserts AdminScopeEnum::NHEF internally.

@@ -177,7 +177,7 @@ class AdminEventManagementTest extends TestCase
             'starts_at' => now()->addWeek()->toDateTimeString(),
             'banner_image' => 'https://example.com/banner.jpg',
             'event_type' => EventTypeEnum::PHYSICAL->value,
-            'venue_name' => 'NHEF Hub',
+            'venue_name' => 'AdvanceImpact Hub',
             'venue_address' => '45 Herbert Macaulay Way, Yaba, Lagos',
             'waitlist_enabled' => true,
             'is_paid' => false,

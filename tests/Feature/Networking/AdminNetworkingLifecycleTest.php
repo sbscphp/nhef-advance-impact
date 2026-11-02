@@ -29,7 +29,7 @@ class AdminNetworkingLifecycleTest extends TestCase
             $admin,
             [
                 'type' => NetworkingChannelTypeEnum::COMMUNITY->value,
-                'name' => 'NHEF Test Community',
+                'name' => 'AdvanceImpact Test Community',
                 'description' => 'A space for testing.',
                 'member_uuids' => [$memberOne->uuid],
             ],
@@ -37,7 +37,7 @@ class AdminNetworkingLifecycleTest extends TestCase
             $request,
         );
 
-        $this->assertSame('NHEF Test Community', $channel->name);
+        $this->assertSame('AdvanceImpact Test Community', $channel->name);
         $this->assertTrue($channel->createdByAdmin->is($admin));
         $this->assertDatabaseHas('networking_channel_members', [
             'channel_id' => $channel->id,
@@ -87,7 +87,7 @@ class AdminNetworkingLifecycleTest extends TestCase
             $admin,
             [
                 'type' => NetworkingChannelTypeEnum::FORUM->value,
-                'name' => 'NHEF Test Forum',
+                'name' => 'AdvanceImpact Test Forum',
                 'member_uuids' => [$member->uuid],
             ],
             null,

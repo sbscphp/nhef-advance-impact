@@ -142,10 +142,10 @@ class AdminProspectLifecycleTest extends TestCase
             'end_date' => '2026-01-20',
             'time' => '10:00',
             'invite_type' => 'physical',
-            'venue' => 'NHEF Campus, Lagos',
+            'venue' => 'AdvanceImpact Campus, Lagos',
         ], $admin, Request::create('/'));
 
-        $this->assertSame('NHEF Campus, Lagos', $physical->venue);
+        $this->assertSame('AdvanceImpact Campus, Lagos', $physical->venue);
         $this->assertNull($physical->virtual_link);
     }
 

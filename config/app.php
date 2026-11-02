@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'NHEF Advance Impact'),
+    'name' => env('APP_NAME', 'AdvanceImpact'),
 
     /*
     |--------------------------------------------------------------------------

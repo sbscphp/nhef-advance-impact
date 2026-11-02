@@ -20,7 +20,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', function () {
         return response()->json([
             'status' => 'ok',
-            'app' => config('app.name', 'nhef-advance-impact'),
+            'app' => config('app.name'),
             'timestamp' => now()->toISOString(),
         ]);
     });

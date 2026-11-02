@@ -37,7 +37,7 @@ class EventSeeder extends Seeder
             [
                 'title' => 'Summer Coding Bootcamp',
                 'description' => 'A hands-on bootcamp for alumni and students looking to break into software engineering.',
-                'venue_name' => 'NHEF Innovation Hub',
+                'venue_name' => 'AdvanceImpact Innovation Hub',
                 'venue_address' => '45 Herbert Macaulay Way, Yaba, Lagos',
                 'starts_at' => now()->addMonths(2)->setTime(10, 0),
                 'ends_at' => now()->addMonths(2)->addDays(4)->setTime(17, 0),
@@ -49,7 +49,7 @@ class EventSeeder extends Seeder
             [
                 'title' => 'Art & Craft Workshop',
                 'description' => 'A relaxed, creative afternoon workshop open to alumni, partners, and their families.',
-                'venue_name' => 'NHEF Community Centre',
+                'venue_name' => 'AdvanceImpact Community Centre',
                 'venue_address' => '10 Admiralty Way, Lekki Phase 1, Lagos',
                 'starts_at' => now()->addMonths(3)->setTime(14, 0),
                 'ends_at' => now()->addMonths(3)->setTime(18, 0),

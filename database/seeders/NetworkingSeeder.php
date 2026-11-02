@@ -42,7 +42,7 @@ class NetworkingSeeder extends Seeder
         $userTwo = $this->createCustomer('networking-2@yopmail.com', 'Katherine', 'Moss');
 
         $forum = NetworkingChannel::firstOrCreate(
-            ['type' => NetworkingChannelTypeEnum::FORUM->value, 'name' => 'NHEF Forum'],
+            ['type' => NetworkingChannelTypeEnum::FORUM->value, 'name' => 'AdvanceImpact Forum'],
             [
                 'description' => 'Empowering alumni through tech.',
                 'created_by_admin_id' => $admin->id,
@@ -50,9 +50,9 @@ class NetworkingSeeder extends Seeder
         );
 
         $community = NetworkingChannel::firstOrCreate(
-            ['type' => NetworkingChannelTypeEnum::COMMUNITY->value, 'name' => 'NHEF Community'],
+            ['type' => NetworkingChannelTypeEnum::COMMUNITY->value, 'name' => 'AdvanceImpact Community'],
             [
-                'description' => 'A space for NHEF alumni to connect.',
+                'description' => 'A space for AdvanceImpact alumni to connect.',
                 'created_by_admin_id' => $admin->id,
             ]
         );

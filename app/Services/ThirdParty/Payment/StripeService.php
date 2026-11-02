@@ -81,7 +81,7 @@ class StripeService implements PaymentGatewayInterface
                         'currency' => strtolower($currency),
                         'unit_amount' => $this->toSubunit($amount),
                         'product_data' => [
-                            'name' => (string) config('app.name', 'NHEF Advance Impact'),
+                            'name' => (string) config('app.name'),
                         ],
                     ],
                     'quantity' => 1,

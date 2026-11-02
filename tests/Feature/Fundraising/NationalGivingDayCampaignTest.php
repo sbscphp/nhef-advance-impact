@@ -219,8 +219,8 @@ class NationalGivingDayCampaignTest extends TestCase
     private function makeNationalGivingDayCampaign(Admin $admin): Campaign
     {
         return Campaign::create([
-            'title' => 'NHEF National Giving Day '.uniqid(),
-            'slug' => 'nhef-national-giving-day-'.uniqid(),
+            'title' => 'AdvanceImpact National Giving Day '.uniqid(),
+            'slug' => 'national-giving-day-'.uniqid(),
             'description' => 'Test national giving day campaign.',
             'type' => CampaignTypeEnum::NATIONAL_GIVING_DAY->value,
             'currency' => null,

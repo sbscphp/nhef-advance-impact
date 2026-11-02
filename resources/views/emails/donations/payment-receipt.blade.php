@@ -4,7 +4,7 @@
     $subject = 'Payment received - '.$campaignTitle;
     $headline = "Thank you, {$recipientName}!";
     $lead = 'We\'ve received your payment towards "'.$campaignTitle.'". Here\'s your receipt for your records.';
-    $supportEmail = $theme->support_email ?? 'support@nhefadvancedimpact.com';
+    $supportEmail = $theme->support_email ?? 'support@advanceimpact.com';
 @endphp
 
 @section('content')

@@ -1,6 +1,6 @@
-# NHEF Advance Impact
+# AdvanceImpact
 
-Laravel API backend for the NHEF Advance Impact platform. This repository currently focuses on **authentication and account management** for admins and customers, with optional API transport encryption, OTP (email/SMS), roles/permissions, audit trails, and notifications.
+Laravel API backend for the AdvanceImpact platform. This repository currently focuses on **authentication and account management** for admins and customers, with optional API transport encryption, OTP (email/SMS), roles/permissions, audit trails, and notifications.
 
 API base path: `/api` (Laravel default). Versioned routes live under `/api/v1/...`.
 
@@ -63,7 +63,7 @@ php artisan serve
 ```
 
 Health check: `GET /up`  
-Root: `GET /` → `{ "name": "NHEF Advance Impact", "status": "ok" }` (name follows `APP_NAME`).
+Root: `GET /` → `{ "name": "AdvanceImpact", "status": "ok" }` (name follows `APP_NAME`).
 
 ---
 
@@ -131,10 +131,10 @@ After `php artisan db:seed` (password for all: `password`):
 
 | Email | Type | 2FA |
 |-------|------|-----|
-| `nhef-admin-1@yopmail.com` | Super Admin | On |
-| `nhef-admin-2@yopmail.com` | Admin | Off |
-| `nhef-customer-1@yopmail.com` | Customer | Off |
-| `nhef-customer-2@yopmail.com` | Customer | On |
+| `admin-1@yopmail.com` | Super Admin | On |
+| `admin-2@yopmail.com` | Admin | Off |
+| `customer-1@yopmail.com` | Customer | Off |
+| `customer-2@yopmail.com` | Customer | On |
 
 Also seeded: roles/permissions, countries, theme, and an `ApiUser` from `API_USER_SEEDER_*` (default email `api-seed@example.com` if unset).
 

@@ -531,7 +531,7 @@ class CampaignService
                 meta: ['campaign_uuid' => $campaign->uuid],
             ));
         } else {
-            // NHEF creating one on behalf of several institutions - each one should know they're
+            // ADVANCEIMPACT creating one on behalf of several institutions - each one should know they're
             // now part of it.
             $institutionAdminUuids = $this->adminRepository->uuidsForInstitutions(array_column($institutionRows, 'institution_id'));
             $this->notificationDispatchService->notifyAdminsByUuids($institutionAdminUuids, new GenericDatabaseNotification(

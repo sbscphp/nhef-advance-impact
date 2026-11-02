@@ -306,7 +306,7 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:donations.read', 'individual.records']);
         });
 
-        // Own permission set (donor_tiers.*): both NHEF and an institution's own admin can
+        // Own permission set (donor_tiers.*): both AdvanceImpact and an institution's own admin can
         // hold this; DonorTierService enforces per-row institution ownership internally.
         Route::prefix('donation-tiers')->group(function () {
             Route::post('/', [DonorTierController::class, 'store'])
@@ -326,7 +326,7 @@ Route::prefix('v1/admin')->group(function () {
         });
 
         // Own permission set (constituency_types.*), institution-admin only, excluded from
-        // NHEF's blanket permission grant.
+        // ADVANCEIMPACT's blanket permission grant.
         Route::prefix('constituency-types')->group(function () {
             Route::post('/', [ConstituencyTypeController::class, 'store'])
                 ->middleware(['permission:constituency_types.create']);
@@ -359,7 +359,7 @@ Route::prefix('v1/admin')->group(function () {
         });
 
         // Every route below is shared by both scopes (DashboardService branches internally on
-        // AdminScopeEnum::current()), except campaign-tracking (NHEF-only) and
+        // AdminScopeEnum::current()), except campaign-tracking (AdvanceImpact-only) and
         // donation-intelligence (Institution-only).
         Route::prefix('dashboard')->group(function () {
             Route::get('/national-snapshot', [AdminDashboardController::class, 'nationalSnapshot'])
@@ -783,7 +783,7 @@ Route::prefix('v1/admin')->group(function () {
             Route::delete('/{uuid}/officers/{officerUuid}', [ConstituentInstitutionController::class, 'removeOfficer'])
                 ->middleware(['permission:constituents.update']);
             // Same gate as the institution detail page itself, not admins.read - this is "View
-            // Institution" drilling into its admins, not the separate NHEF-wide User Management
+            // Institution" drilling into its admins, not the separate AdvanceImpact-wide User Management
             // screen (client feedback, 2026-10-16: no screen anywhere showed this before).
             Route::get('/{uuid}/admins', [ConstituentInstitutionController::class, 'admins'])
                 ->middleware(['permission:constituents.read']);
