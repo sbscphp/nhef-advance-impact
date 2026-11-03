@@ -22,6 +22,7 @@ use App\Http\Controllers\v1\Admin\Events\EventController as AdminEventController
 use App\Http\Controllers\v1\Admin\Fundraising\BankController;
 use App\Http\Controllers\v1\Admin\Fundraising\CampaignController as AdminCampaignController;
 use App\Http\Controllers\v1\Admin\Fundraising\InstitutionController;
+use App\Http\Controllers\v1\Admin\Fundraising\PledgeController;
 use App\Http\Controllers\v1\Admin\Mentorship\MatchingController as AdminMentorshipMatchingController;
 use App\Http\Controllers\v1\Admin\Mentorship\MenteeController as AdminMentorshipMenteeController;
 use App\Http\Controllers\v1\Admin\Mentorship\MentorController as AdminMentorshipMentorController;
@@ -299,6 +300,11 @@ Route::prefix('v1/admin')->group(function () {
                 ->middleware(['permission:donations.create']);
             Route::get('/{uuid}', [AdminDonationController::class, 'show'])
                 ->middleware(['permission:donations.read', 'individual.records']);
+        });
+
+        Route::prefix('pledges')->group(function () {
+            Route::get('/', [PledgeController::class, 'index'])
+                ->middleware(['permission:campaigns.read', 'individual.records']);
         });
 
         // Own permission set (donor_tiers.*): both NHEF and an institution's own admin can

@@ -91,6 +91,38 @@ class PledgeRepository implements PledgeRepositoryInterface
         return $query->paginate($perPage);
     }
 
+    public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator
+    {
+        $query = Pledge::query()
+            ->select('pledges.*')
+            ->with(['user.tertiaryInstitution', 'campaign'])
+            ->when(
+                filled($filters['status'] ?? null),
+                fn ($query) => $query->where('pledges.status', $filters['status'])
+            )
+            ->when(filled($filters['search'] ?? null), function ($query) use ($filters): void {
+                $search = $filters['search'];
+                $query->where(function ($inner) use ($search): void {
+                    $inner->where('pledges.guest_name', 'like', '%'.$search.'%')
+                        ->orWhere('pledges.guest_email', 'like', '%'.$search.'%')
+                        ->orWhereHas('user', fn ($u) => $u->where('firstname', 'like', '%'.$search.'%')->orWhere('lastname', 'like', '%'.$search.'%')->orWhere('email', 'like', '%'.$search.'%'))
+                        ->orWhereHas('campaign', fn ($c) => $c->where('title', 'like', '%'.$search.'%'));
+                });
+            });
+
+        ListingFilterRules::applyResolvedDateRange($query, $filters, 'pledges.created_at');
+
+        ListingFilterRules::applySort($query, $filters, [
+            'name' => fn ($query, string $direction) => $query
+                ->leftJoin('users', 'users.id', '=', 'pledges.user_id')
+                ->orderBy('users.firstname', $direction)
+                ->orderBy('users.lastname', $direction),
+            'value' => fn ($query, string $direction) => $query->orderBy('pledges.total_amount', $direction),
+        ], 'pledges.created_at');
+
+        return $query->paginate($perPage);
+    }
+
     public function update(Pledge $pledge, array $data): Pledge
     {
         $pledge->forceFill($data)->save();

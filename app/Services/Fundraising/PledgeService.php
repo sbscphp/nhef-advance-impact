@@ -350,6 +350,16 @@ class PledgeService
         return $this->pledgeRepository->paginateForUser($user->id, $filters, $perPage);
     }
 
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForAdmin(array $filters): LengthAwarePaginator
+    {
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+
+        return $this->pledgeRepository->paginateForAdmin($filters, $perPage);
+    }
+
     public function findForUser(User $user, string $uuid): Pledge
     {
         $pledge = $this->pledgeRepository->findByUuidForUser($user->id, $uuid);
