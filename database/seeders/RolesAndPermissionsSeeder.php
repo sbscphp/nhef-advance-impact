@@ -216,6 +216,7 @@ class RolesAndPermissionsSeeder extends Seeder
             PermissionEnum::CAMPAIGNS_CREATE_STANDARD,
             PermissionEnum::CAMPAIGNS_CREATE_NATIONAL_GIVING_DAY,
             PermissionEnum::CAMPAIGNS_READ,
+            PermissionEnum::PLEDGES_READ,
             PermissionEnum::ADMINS_CREATE,
             PermissionEnum::ADMINS_READ,
             PermissionEnum::ADMINS_UPDATE,

@@ -304,7 +304,7 @@ Route::prefix('v1/admin')->group(function () {
 
         Route::prefix('pledges')->group(function () {
             Route::get('/', [PledgeController::class, 'index'])
-                ->middleware(['permission:campaigns.read', 'individual.records']);
+                ->middleware(['permission:pledges.read', 'individual.records']);
         });
 
         // Own permission set (donor_tiers.*): both NHEF and an institution's own admin can

@@ -109,6 +109,11 @@ enum ePermission: string
     // Read-only; there is no create/update/delete for the audit trail itself.
     case AUDIT_TRAIL_READ = 'audit_trail.read';
 
+    // Read-only; pledges are created by donors/guests, never by an admin. Split out from
+    // campaigns.read (which the institution-wide pledges listing used before) so it can be
+    // granted/revoked independently of campaign management.
+    case PLEDGES_READ = 'pledges.read';
+
     // Data-visibility toggles rather than CRUD: institution-level money, and individual donor/alumni records.
     case VISIBILITY_MONETARY = 'visibility.monetary';
     case VISIBILITY_INDIVIDUAL_RECORDS = 'visibility.individual_records';
