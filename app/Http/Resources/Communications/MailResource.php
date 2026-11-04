@@ -27,6 +27,7 @@ class MailResource extends JsonResource
                 'graduation_year_from' => $this->segment_criteria['graduation_year_from'] ?? null,
                 'graduation_year_to' => $this->segment_criteria['graduation_year_to'] ?? null,
             ],
+            'recipient_emails' => $this->segment_criteria['recipient_emails'] ?? [],
             'picked_recipients' => $this->whenLoaded('pickedRecipients', fn () => $this->pickedRecipients->map(fn ($user) => [
                 'uuid' => $user->uuid,
                 'name' => $user->displayName(),

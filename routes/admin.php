@@ -31,6 +31,7 @@ use App\Http\Controllers\v1\Admin\Networking\ChannelController as AdminNetworkin
 use App\Http\Controllers\v1\Admin\Notification\NotificationController;
 use App\Http\Controllers\v1\Admin\Reporting\ReportController;
 use App\Http\Controllers\v1\Admin\Settings\SettingsController;
+use App\Http\Controllers\v1\Admin\Settings\WelcomeMessageController;
 use App\Http\Controllers\v1\Admin\SystemConfiguration\ConstituencyTypeController;
 use App\Http\Controllers\v1\Admin\SystemConfiguration\DonorTierController;
 use App\Http\Controllers\v1\Admin\UserManagement\UserManagementController;
@@ -72,6 +73,11 @@ Route::prefix('v1/admin')->group(function () {
         Route::match(['patch', 'post'], '/2fa', [SettingsController::class, 'toggleTwoFactor']);
         Route::match(['patch', 'post'], '/password', [SettingsController::class, 'changePassword']);
         Route::match(['patch', 'post'], '/notifications', [SettingsController::class, 'updateNotificationPreferences']);
+
+        Route::get('/welcome-message', [WelcomeMessageController::class, 'show'])
+            ->middleware(['permission:dashboard.read']);
+        Route::patch('/welcome-message', [WelcomeMessageController::class, 'update'])
+            ->middleware(['permission:dashboard.update']);
     });
 
     Route::middleware(['auth:sanctum'])->group(function () {

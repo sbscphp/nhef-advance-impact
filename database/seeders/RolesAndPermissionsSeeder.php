@@ -197,7 +197,8 @@ class RolesAndPermissionsSeeder extends Seeder
         // Admin" template stays visible but Super-Admin-only to edit); a custom role's
         // permissions are also capped to a subset of the creator's own.
         // dashboard.read IS granted; the NHEF-only cards branch on AdminScopeEnum internally
-        // (DashboardService), so this only unlocks the institution-scoped shape.
+        // (DashboardService), so this only unlocks the institution-scoped shape. dashboard.update
+        // (2026-11-05) lets them edit their own institution's dashboard welcome message.
         // campaigns.create IS granted (institutions create their own scoped campaigns); adding an
         // institution to an *existing* campaign still asserts AdminScopeEnum::NHEF internally.
         // campaigns.create_standard/create_national_giving_day are granted too: which campaign
@@ -206,6 +207,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // individual-constituent modules, granted the same way.
         $this->grant(RoleEnum::INSTITUTION_ADMIN, [
             PermissionEnum::DASHBOARD_READ,
+            PermissionEnum::DASHBOARD_UPDATE,
             PermissionEnum::ALUMNI_CREATE,
             PermissionEnum::ALUMNI_READ,
             PermissionEnum::ALUMNI_UPDATE,

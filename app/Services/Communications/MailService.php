@@ -131,9 +131,11 @@ class MailService
         $mail = $this->find($uuid);
         $this->assertIsDraft($mail);
 
-        $bannerUrl = array_key_exists('banner', $payload)
-            ? FileUploadHelper::smartSingleFileUpload($payload['banner'], 'communications/mail-banners')
-            : $mail->banner_url;
+        $bannerUrl = match (true) {
+            (bool) ($payload['remove_banner'] ?? false) => null,
+            array_key_exists('banner', $payload) => FileUploadHelper::smartSingleFileUpload($payload['banner'], 'communications/mail-banners'),
+            default => $mail->banner_url,
+        };
 
         $data = array_filter([
             'title' => $payload['title'] ?? null,
@@ -146,8 +148,16 @@ class MailService
             $data['send_at'] = $payload['send_at'];
         }
 
-        if (array_key_exists('segment', $payload) || array_key_exists('recipient_user_ids', $payload)) {
-            $data['segment_criteria'] = $this->buildAudienceCriteria($payload, $mail->segment_criteria ?? []);
+        // `$request->has()`, not `array_key_exists()` on the validated payload: Laravel's
+        // `validated()` silently drops a key whose value is an empty array (e.g. `"segment": {}`
+        // to explicitly clear it), even though the key was genuinely present on the wire. Only
+        // `$request->has()` reads the raw input and still sees it.
+        $audienceKeysPresent = $request->has('segment')
+            || $request->has('recipient_user_ids')
+            || $request->has('recipient_emails');
+
+        if ($audienceKeysPresent) {
+            $data['segment_criteria'] = $this->buildAudienceCriteria($payload, $mail->segment_criteria ?? [], $request);
         }
 
         $mail = $this->mailRepository->update($mail, $data);
@@ -394,26 +404,49 @@ class MailService
     }
 
     /**
-     * Builds the union of segment matches and individually-picked recipients, deduped by email,
-     * excluding anyone on the global unsubscribe list.
+     * Builds the union of segment matches, individually-picked recipients, "Other Recipient"
+     * emails and saved email lists, deduped by email, excluding anyone on the global unsubscribe
+     * list. "Other Recipient"/saved-list emails aren't assumed to be outside the system - an
+     * admin can type or save a constituent's own email there just as easily as a genuine
+     * non-constituent one, so every pasted email is matched back against real users the same way
+     * a picked `recipient_user_ids` entry is, rather than being hardcoded as unlinked. Only an
+     * email that truly matches nobody stays unlinked (`user_id: null`).
      *
      * @return Collection<int, array{user_id: int|null, email: string}>
      */
     private function resolveRecipients(MailCampaign $mail): Collection
     {
         $criteria = $mail->segment_criteria ?? [];
+
         $segmentMembers = $this->userRepository->resolveSegmentMembers($criteria);
+
         $pickedUuids = $criteria['recipient_user_ids'] ?? [];
         $pickedMembers = $pickedUuids !== [] ? $this->userRepository->findManyByUuids($pickedUuids) : collect();
 
-        $merged = $segmentMembers->concat($pickedMembers)->unique('email');
+        $constituents = $segmentMembers->concat($pickedMembers)
+            ->map(fn ($user) => ['user_id' => $user->id, 'email' => $user->email]);
+
+        $otherEmails = collect($criteria['recipient_emails'] ?? [])->unique()->values();
+
+        // Scoped to the current tenant the same way every other lookup here is - an "Other
+        // Recipient" email that happens to match a constituent in a different institution is
+        // left unlinked, same as if it matched nobody at all.
+        $matchedUsers = $otherEmails->isNotEmpty()
+            ? $this->userRepository->findManyByEmails($otherEmails->all())->keyBy('email')
+            : collect();
+
+        $otherEntries = $otherEmails->map(fn (string $email) => [
+            'user_id' => $matchedUsers->get($email)?->id,
+            'email' => $email,
+        ]);
+
+        $merged = $constituents->concat($otherEntries)->unique('email');
 
         $emails = $merged->pluck('email')->all();
         $unsubscribed = $emails !== [] ? $this->unsubscribeRepository->unsubscribedEmails($emails) : [];
 
         return $merged
-            ->reject(fn ($user) => in_array($user->email, $unsubscribed, true))
-            ->map(fn ($user) => ['user_id' => $user->id, 'email' => $user->email])
+            ->reject(fn (array $entry) => in_array($entry['email'], $unsubscribed, true))
             ->values();
     }
 
@@ -449,20 +482,36 @@ class MailService
     }
 
     /**
+     * `segment`, when present in the payload at all, fully replaces the stored segment criteria
+     * rather than merging key-by-key over the old values - so an omitted key unambiguously means
+     * "clear it", instead of silently falling back to whatever was saved before. The other
+     * audience fields (recipient_user_ids/recipient_emails) each follow the same rule
+     * independently: present in the payload replaces, absent keeps the existing value.
+     *
+     * Presence of each audience key is read from `$request->has()`, not `array_key_exists()` on
+     * `$payload`, because `FormRequest::validated()` silently drops a key whose value is an empty
+     * array (e.g. `"segment": {}` or `"recipient_user_ids": []`, both valid ways to explicitly
+     * clear that field) even though it was genuinely sent. `$request` is only absent on create(),
+     * where there's no `$existing` to clear against in the first place.
+     *
      * @param  array<string, mixed>  $payload
      * @param  array<string, mixed>  $existing
      * @return array<string, mixed>
      */
-    private function buildAudienceCriteria(array $payload, array $existing = []): array
+    private function buildAudienceCriteria(array $payload, array $existing = [], ?Request $request = null): array
     {
-        $segment = $payload['segment'] ?? [];
+        $segmentGiven = $request instanceof Request ? $request->has('segment') : array_key_exists('segment', $payload);
+        $segment = $segmentGiven ? (array) ($payload['segment'] ?? []) : $existing;
+
+        $has = fn (string $key) => $request instanceof Request ? $request->has($key) : array_key_exists($key, $payload);
 
         return array_filter([
-            'tertiary_institution_uuid' => $segment['tertiary_institution_uuid'] ?? $existing['tertiary_institution_uuid'] ?? null,
-            'department' => $segment['department'] ?? $existing['department'] ?? null,
-            'graduation_year_from' => $segment['graduation_year_from'] ?? $existing['graduation_year_from'] ?? null,
-            'graduation_year_to' => $segment['graduation_year_to'] ?? $existing['graduation_year_to'] ?? null,
-            'recipient_user_ids' => $payload['recipient_user_ids'] ?? $existing['recipient_user_ids'] ?? [],
+            'tertiary_institution_uuid' => $segment['tertiary_institution_uuid'] ?? null,
+            'department' => $segment['department'] ?? null,
+            'graduation_year_from' => $segment['graduation_year_from'] ?? null,
+            'graduation_year_to' => $segment['graduation_year_to'] ?? null,
+            'recipient_user_ids' => $has('recipient_user_ids') ? ($payload['recipient_user_ids'] ?? []) : ($existing['recipient_user_ids'] ?? []),
+            'recipient_emails' => $has('recipient_emails') ? ($payload['recipient_emails'] ?? []) : ($existing['recipient_emails'] ?? []),
         ], fn ($value) => $value !== null && $value !== []);
     }
 
