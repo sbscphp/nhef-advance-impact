@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\Communications;
 
 use App\Enums\CommunicationCallPriorityEnum;
+use App\Enums\CommunicationLogTypeEnum;
 use App\Enums\TaskPriorityEnum;
 use App\Enums\TaskRecurrenceIntervalUnitEnum;
 use App\Http\Requests\ApiFormRequest;
@@ -17,9 +18,19 @@ class LogCallRequest extends ApiFormRequest
     {
         return [
             'contact_user_uuid' => ['required', 'uuid', 'exists:users,uuid'],
-            'purpose' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
+            'log_type' => ['required', Rule::in(CommunicationLogTypeEnum::values())],
+            'occurred_at' => ['sometimes', 'nullable', 'date'],
+            'summary' => ['required', 'string'],
             'priority' => ['sometimes', 'nullable', Rule::in(CommunicationCallPriorityEnum::values())],
+            'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'next_action' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'other_participants' => ['sometimes', 'nullable', 'string', 'max:255'],
+
+            // Type-specific; each is only meaningful (and only accepted) for its own log_type.
+            'phone_number' => ['sometimes', 'nullable', 'string', 'max:30', 'prohibited_unless:log_type,phone'],
+            'email_subject' => ['sometimes', 'nullable', 'string', 'max:255', 'prohibited_unless:log_type,email'],
+            'email_address' => ['sometimes', 'nullable', 'email', 'max:255', 'prohibited_unless:log_type,email'],
+            'location' => ['sometimes', 'nullable', 'string', 'max:255', 'prohibited_unless:log_type,visit'],
 
             // Any number of follow-up tasks can be added in the same call log.
             'follow_up_tasks' => ['sometimes', 'nullable', 'array'],

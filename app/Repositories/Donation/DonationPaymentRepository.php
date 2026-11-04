@@ -291,6 +291,10 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
                 filled($filters['status'] ?? null),
                 fn ($query) => $query->where('donation_payments.status', $filters['status'])
             )
+            ->when(
+                filled($filters['currency'] ?? null),
+                fn ($query) => $query->where('donation_payments.currency', $filters['currency'])
+            )
             ->when(filled($filters['search'] ?? null), function ($query) use ($filters): void {
                 $search = $filters['search'];
                 $query->where(function ($inner) use ($search): void {

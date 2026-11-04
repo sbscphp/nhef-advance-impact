@@ -30,14 +30,25 @@ class CallLogService
     public function create(array $payload, Admin $actor, Request $request): CommunicationCallLog
     {
         $contact = $this->resolveContact($payload['contact_user_uuid']);
+        $logType = $payload['log_type'];
 
         $call = $this->callLogRepository->create([
             'contact_user_id' => $contact->id,
             'logged_by' => $actor->uuid,
-            'purpose' => $payload['purpose'],
-            'description' => $payload['description'],
+            'log_type' => $logType,
+            // purpose/description predate the three log types and are no longer surfaced on the
+            // API (summary replaced them); derived here only to satisfy the existing NOT NULL columns.
+            'purpose' => ucfirst($logType).' log with '.$contact->displayName(),
+            'description' => $payload['summary'],
             'priority' => $payload['priority'] ?? CommunicationCallPriorityEnum::MEDIUM->value,
-            'call_date' => now(),
+            'duration_minutes' => $payload['duration_minutes'] ?? null,
+            'next_action' => $payload['next_action'] ?? null,
+            'other_participants' => $payload['other_participants'] ?? null,
+            'phone_number' => $payload['phone_number'] ?? null,
+            'email_subject' => $payload['email_subject'] ?? null,
+            'email_address' => $payload['email_address'] ?? null,
+            'location' => $payload['location'] ?? null,
+            'call_date' => $payload['occurred_at'] ?? now(),
         ]);
 
         $call->setRelation('contact', $contact);

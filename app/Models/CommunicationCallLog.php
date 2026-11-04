@@ -19,6 +19,7 @@ class CommunicationCallLog extends Model
     {
         return [
             'call_date' => 'datetime',
+            'duration_minutes' => 'integer',
         ];
     }
 
