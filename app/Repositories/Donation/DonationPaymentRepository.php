@@ -548,18 +548,107 @@ class DonationPaymentRepository implements DonationPaymentRepositoryInterface
             ->get();
     }
 
-    public function topDonorsForCampaign(int $campaignId, int $limit): Collection
+    public function fullRankingForCampaign(int $campaignId): Collection
     {
-        return DonationPayment::query()
+        return $this->campaignDonorAggregateQuery($campaignId)
+            ->orderByDesc('total')
+            ->get();
+    }
+
+    public function paginateDonorsForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator
+    {
+        $search = filled($filters['search'] ?? null) ? (string) $filters['search'] : null;
+        $query = $this->campaignDonorAggregateQuery($campaignId, $search);
+
+        ListingFilterRules::applySort($query, $filters, [
+            'rank' => fn ($q, string $dir) => $q->orderBy('total', $dir === 'asc' ? 'desc' : 'asc'),
+            'total' => fn ($q, string $dir) => $q->orderBy('total', $dir),
+            'donor_name' => fn ($q, string $dir) => $q
+                ->leftJoin('users', 'users.id', '=', 'donation_payments.user_id')
+                ->groupBy('users.id')
+                ->orderBy('users.firstname', $dir)
+                ->orderBy('users.lastname', $dir),
+        ], 'total', 'desc');
+
+        return $query->paginate($perPage);
+    }
+
+    private function campaignDonorAggregateQuery(int $campaignId, ?string $search = null): Builder
+    {
+        $query = DonationPayment::query()
             ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
             ->where('donations.campaign_id', $campaignId)
             ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
             ->where('donations.is_anonymous', false)
             ->whereNotNull('donation_payments.user_id')
             ->groupBy('donation_payments.user_id')
-            ->selectRaw('donation_payments.user_id, sum(donation_payments.amount) as total')
-            ->orderByDesc('total')
-            ->limit($limit)
+            ->selectRaw('donation_payments.user_id, sum(donation_payments.amount) as total');
+
+        if ($search !== null) {
+            $query->whereHas('user', fn ($u) => $u
+                ->where('firstname', 'like', '%'.$search.'%')
+                ->orWhere('lastname', 'like', '%'.$search.'%')
+                ->orWhere('email', 'like', '%'.$search.'%'));
+        }
+
+        return $query;
+    }
+
+    public function campaignTotalsForUser(int $userId, ?string $search, ?string $from, ?string $to): Collection
+    {
+        return DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->join('campaigns', 'campaigns.id', '=', 'donations.campaign_id')
+            ->where('donation_payments.user_id', $userId)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donation_payments.currency', 'NGN')
+            ->when($search !== null, fn ($q) => $q->where('campaigns.title', 'like', '%'.$search.'%'))
+            ->when($from !== null, fn ($q) => $q->whereDate('donation_payments.paid_at', '>=', $from))
+            ->when($to !== null, fn ($q) => $q->whereDate('donation_payments.paid_at', '<=', $to))
+            ->groupBy('donations.campaign_id')
+            ->selectRaw('donations.campaign_id, sum(donation_payments.amount) as total')
             ->get();
+    }
+
+    public function nonAnonymousDonorsCountByCampaigns(array $campaignIds): array
+    {
+        if ($campaignIds === []) {
+            return [];
+        }
+
+        $rows = DonationPayment::query()
+            ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
+            ->whereIn('donations.campaign_id', $campaignIds)
+            ->where('donation_payments.status', PaymentStatusEnum::SUCCESSFUL->value)
+            ->where('donations.is_anonymous', false)
+            ->whereNotNull('donation_payments.user_id')
+            ->groupBy('donations.campaign_id')
+            ->selectRaw('donations.campaign_id, count(distinct donation_payments.user_id) as donors_count')
+            ->get();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(int) $row->campaign_id] = (int) $row->donors_count;
+        }
+
+        return $counts;
+    }
+
+    public function positionForUserInCampaign(int $userId, int $campaignId): ?int
+    {
+        $ownTotal = (string) $this->campaignDonorAggregateQuery($campaignId)
+            ->where('donation_payments.user_id', $userId)
+            ->value('total');
+
+        if ($ownTotal === '' || (float) $ownTotal <= 0) {
+            return null;
+        }
+
+        $higherCount = $this->campaignDonorAggregateQuery($campaignId)
+            ->havingRaw('SUM(donation_payments.amount) > ?', [$ownTotal])
+            ->get()
+            ->count();
+
+        return $higherCount + 1;
     }
 }

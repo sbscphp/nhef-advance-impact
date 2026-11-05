@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Campaigns\AddCampaignInstitutionRequest;
 use App\Http\Requests\Admin\Campaigns\CampaignDonationListRequest;
 use App\Http\Requests\Admin\Campaigns\CampaignInstitutionListRequest;
+use App\Http\Requests\Admin\Campaigns\CampaignLeaderboardListRequest;
 use App\Http\Requests\Admin\Campaigns\CampaignListRequest;
 use App\Http\Requests\Admin\Campaigns\CampaignOverviewRequest;
 use App\Http\Requests\Admin\Campaigns\CampaignPledgeListRequest;
@@ -24,6 +25,7 @@ use App\Http\Resources\Admin\CampaignAdminResource;
 use App\Http\Resources\Admin\CampaignDetailResource;
 use App\Http\Resources\Admin\CampaignDonationResource;
 use App\Http\Resources\Admin\CampaignInstitutionResource;
+use App\Http\Resources\Admin\CampaignLeaderboardEntryResource;
 use App\Http\Resources\Admin\CampaignPledgeResource;
 use App\Http\Resources\Admin\NationalGivingDayOpeningDetailResource;
 use App\Http\Resources\Admin\NationalGivingDayOpeningResource;
@@ -388,12 +390,12 @@ class CampaignController extends Controller
         }
     }
 
-    public function leaderboard(Request $request, string $uuid)
+    public function leaderboard(CampaignLeaderboardListRequest $request, string $uuid)
     {
         try {
-            $leaderboard = $this->campaignService->leaderboard($uuid, ['limit' => $request->query('limit')]);
+            $paginator = $this->campaignService->leaderboard($uuid, $request->validated());
 
-            return JsonResponser::send(false, 'Campaign leaderboard retrieved.', $leaderboard);
+            return JsonResponser::send(false, 'Campaign leaderboard retrieved.', $this->paginatedPayload($paginator, CampaignLeaderboardEntryResource::class));
         } catch (\Throwable $th) {
             return GeneralHelper::handleControllerThrowable($th, 'Admin\Fundraising\CampaignController@leaderboard');
         }

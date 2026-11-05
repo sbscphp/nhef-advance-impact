@@ -70,4 +70,10 @@ interface CampaignRepositoryInterface
      * @return Collection<int, Campaign>
      */
     public function previousForInstitution(int $institutionId, int $excludeCampaignId, int $limit): Collection;
+
+    /**
+     * @param  list<int>  $ids
+     * @return Collection<int, Campaign>
+     */
+    public function findManyByIds(array $ids): Collection;
 }

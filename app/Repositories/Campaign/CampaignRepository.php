@@ -193,4 +193,13 @@ class CampaignRepository implements CampaignRepositoryInterface
             ->limit($limit)
             ->get();
     }
+
+    public function findManyByIds(array $ids): Collection
+    {
+        if ($ids === []) {
+            return new Collection;
+        }
+
+        return Campaign::query()->whereIn('id', $ids)->get();
+    }
 }
