@@ -1280,6 +1280,11 @@ class CampaignService
             // 2026-10-16: "active_campaigns" alone never tallied with the list below it, since it
             // only ever counts active-status campaigns while the list includes every status.
             'total_campaigns' => $this->campaignRepository->countTotal($type),
+            // Alternate count (2026-11-05): standard campaigns + every NGD *opening*, instead of
+            // the one real NGD-type campaign row that happens to exist under one of them. An
+            // opening with zero institutions participating still counts here, unlike
+            // `total_campaigns` above - for if the product decision ends up wanting that instead.
+            'total_campaigns_with_openings' => $this->campaignRepository->countTotal('standard') + $this->openingRepository->countTotal(),
             'active_campaigns' => $this->campaignRepository->countActive(),
             'ongoing_campaigns' => $this->campaignRepository->countOngoing($type),
             ...ViewerVisibility::money([
