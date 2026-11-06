@@ -26,7 +26,9 @@ enum ReportDatasetEnum: string
     public function label(): string
     {
         return match ($this) {
-            self::ALUMNI => 'Alumni',
+            // Covers every constituent_type (alumni, non-alumni, organisation) - "Alumni" is the
+            // key for backward compatibility with existing saved reports, not the scope.
+            self::ALUMNI => 'Constituents',
             self::DONATION => 'Donations',
             self::CAMPAIGN => 'Fundraising Campaigns',
             self::EVENT => 'Events',
@@ -36,7 +38,7 @@ enum ReportDatasetEnum: string
             self::MENTOR => 'Mentors',
             self::MENTEE => 'Mentees',
             self::NETWORKING => 'Networking',
-            self::ADMIN_USER => 'Admin Users',
+            self::ADMIN_USER => 'User Management',
             self::INSTITUTION => 'Institutions',
             self::AUDIT_TRAIL => 'Audit Trail',
         };
@@ -45,7 +47,7 @@ enum ReportDatasetEnum: string
     public function description(): string
     {
         return match ($this) {
-            self::ALUMNI => 'Graduate and former students across partnering institutions.',
+            self::ALUMNI => 'Alumni, non-alumni, and organisation constituents across partnering institutions - group by "Constituent Type" to break down by type.',
             self::DONATION => 'Every contribution received across campaigns and channels.',
             self::CAMPAIGN => 'Fundraising campaigns and their performance metrics.',
             self::EVENT => 'Event registrations across the system.',

@@ -14,7 +14,7 @@ class AdminUserReportDataset implements ReportDatasetInterface
 
     public function label(): string
     {
-        return 'Admin Users';
+        return 'User Management';
     }
 
     public function nativeFields(): array
@@ -25,6 +25,7 @@ class AdminUserReportDataset implements ReportDatasetInterface
                 ['key' => 'email', 'label' => 'Email', 'type' => 'string'],
                 ['key' => 'job_title', 'label' => 'Job Title', 'type' => 'string'],
                 ['key' => 'roles', 'label' => 'Roles', 'type' => 'string'],
+                ['key' => 'institution_name', 'label' => 'Institution', 'type' => 'string'],
             ],
             'Access' => [
                 ['key' => 'is_active', 'label' => 'Active', 'type' => 'boolean'],
@@ -41,7 +42,7 @@ class AdminUserReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return Admin::query()
-            ->with('roles')
+            ->with(['roles', 'institution'])
             ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
             ->when(filled($search), function ($query) use ($search): void {
@@ -62,6 +63,7 @@ class AdminUserReportDataset implements ReportDatasetInterface
             'email' => $record->email,
             'job_title' => $record->job_title,
             'roles' => $record->roles->pluck('name')->implode(', '),
+            'institution_name' => $record->institution?->name,
             'is_active' => (bool) $record->is_active,
             'is_locked' => (bool) $record->is_locked,
             'last_login_at' => $record->last_login_at?->toIso8601String(),

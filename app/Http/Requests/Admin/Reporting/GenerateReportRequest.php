@@ -25,6 +25,7 @@ class GenerateReportRequest extends ApiFormRequest
             'fields' => ['required', 'array', 'min:1'],
             'fields.*' => ['string'],
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'institution_uuid' => ['sometimes', 'nullable', 'string', 'exists:institutions,uuid'],
             'format' => ['required', Rule::in(['csv', 'pdf'])],
         ]);
     }

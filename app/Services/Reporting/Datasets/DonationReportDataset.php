@@ -24,6 +24,7 @@ class DonationReportDataset implements ReportDatasetInterface
             'Donor' => [
                 ['key' => 'donor_name', 'label' => 'Donor Name', 'type' => 'string'],
                 ['key' => 'donor_email', 'label' => 'Donor Email', 'type' => 'string'],
+                ['key' => 'donor_institution', 'label' => 'Institution', 'type' => 'string'],
             ],
             'Donation' => [
                 ['key' => 'campaign_title', 'label' => 'Campaign', 'type' => 'string'],
@@ -44,7 +45,7 @@ class DonationReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return DonationPayment::query()
-            ->with(['donation.campaign', 'donation.user'])
+            ->with(['donation.campaign', 'donation.user.tertiaryInstitution'])
             ->when($start !== null, fn ($query) => $query->where('donation_payments.created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('donation_payments.created_at', '<=', $end))
             ->when(filled($search), function ($query) use ($search): void {
@@ -66,6 +67,7 @@ class DonationReportDataset implements ReportDatasetInterface
         $all = [
             'donor_name' => $donation?->donorName(),
             'donor_email' => $donation?->donorEmail(),
+            'donor_institution' => $donation?->user?->tertiaryInstitution?->name,
             'campaign_title' => $donation?->campaign?->title,
             'amount' => (string) $record->amount,
             'currency' => $record->currency,

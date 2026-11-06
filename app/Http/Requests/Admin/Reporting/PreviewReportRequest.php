@@ -24,6 +24,7 @@ class PreviewReportRequest extends ApiFormRequest
             'fields' => ['required', 'array', 'min:1'],
             'fields.*' => ['string'],
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'institution_uuid' => ['sometimes', 'nullable', 'string', 'exists:institutions,uuid'],
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);

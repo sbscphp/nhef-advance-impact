@@ -40,9 +40,7 @@ class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecor
                 ['key' => 'email', 'label' => 'Email', 'type' => 'string'],
             ],
             'Constituents' => [
-                ['key' => 'alumni_count', 'label' => 'Alumni', 'type' => 'number'],
-                ['key' => 'non_alumni_count', 'label' => 'Non-Alumni', 'type' => 'number'],
-                ['key' => 'organisation_count', 'label' => 'Organisation', 'type' => 'number'],
+                ['key' => 'constituents_count', 'label' => 'Constituents', 'type' => 'number'],
             ],
             'Giving' => [
                 ['key' => 'campaigns_count', 'label' => 'Campaigns', 'type' => 'number'],
@@ -82,12 +80,18 @@ class InstitutionReportDataset implements HasMonetaryFields, PreparesReportRecor
      */
     public function mapRow(Model $record, array $nativeFieldKeys): array
     {
+        $stats = $record->statsPayload();
+
         $all = [
             'institution_id' => $record->code(),
             'name' => $record->name,
             'slug' => $record->slug,
             'email' => $record->email,
-            ...$record->statsPayload(),
+            // Reports show one combined "Constituents" figure, not the Alumni/Non-Alumni/
+            // Organisation breakdown - the live Partner Institutions screen still shows the
+            // breakdown via Institution::statsPayload(), untouched here.
+            'constituents_count' => ($stats['alumni_count'] ?? 0) + ($stats['non_alumni_count'] ?? 0) + ($stats['organisation_count'] ?? 0),
+            ...$stats,
             ...$record->moneyStatsPayload(),
             'status' => $record->status,
             'is_active' => $record->is_active,

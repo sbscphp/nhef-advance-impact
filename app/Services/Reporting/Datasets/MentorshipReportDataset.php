@@ -22,7 +22,9 @@ class MentorshipReportDataset implements ReportDatasetInterface
         return [
             'Match' => [
                 ['key' => 'mentor_name', 'label' => 'Mentor Name', 'type' => 'string'],
+                ['key' => 'mentor_institution', 'label' => 'Mentor Institution', 'type' => 'string'],
                 ['key' => 'mentee_name', 'label' => 'Mentee Name', 'type' => 'string'],
+                ['key' => 'mentee_institution', 'label' => 'Mentee Institution', 'type' => 'string'],
                 ['key' => 'status', 'label' => 'Status', 'type' => 'string'],
                 ['key' => 'matched_by', 'label' => 'Matched By', 'type' => 'string'],
                 ['key' => 'average_rating', 'label' => 'Average Review Rating', 'type' => 'number'],
@@ -38,7 +40,7 @@ class MentorshipReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return MentorshipMatch::query()
-            ->with(['mentorProfile.user', 'menteeProfile.user', 'review'])
+            ->with(['mentorProfile.user.tertiaryInstitution', 'menteeProfile.user.tertiaryInstitution', 'review'])
             ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
             ->when(filled($search), function ($query) use ($search): void {
@@ -56,7 +58,9 @@ class MentorshipReportDataset implements ReportDatasetInterface
     {
         $all = [
             'mentor_name' => $record->mentorProfile?->user?->displayName(),
+            'mentor_institution' => $record->mentorProfile?->user?->tertiaryInstitution?->name,
             'mentee_name' => $record->menteeProfile?->user?->displayName(),
+            'mentee_institution' => $record->menteeProfile?->user?->tertiaryInstitution?->name,
             'status' => $record->status,
             'matched_by' => $record->matched_by,
             'average_rating' => $record->review?->averageRating(),

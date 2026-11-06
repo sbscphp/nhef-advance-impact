@@ -17,14 +17,14 @@ class AlumniReportDataset implements ReportDatasetInterface
 
     public function label(): string
     {
-        return 'Alumni';
+        return 'Constituents';
     }
 
     public function nativeFields(): array
     {
         return [
             'Identity' => [
-                ['key' => 'alumni_id', 'label' => 'Alumni ID', 'type' => 'string'],
+                ['key' => 'alumni_id', 'label' => 'Constituent ID', 'type' => 'string'],
                 ['key' => 'full_name', 'label' => 'Full Name', 'type' => 'string'],
             ],
             'Contact' => [
@@ -44,7 +44,7 @@ class AlumniReportDataset implements ReportDatasetInterface
             ],
             'Status' => [
                 ['key' => 'status', 'label' => 'Status', 'type' => 'string'],
-                ['key' => 'alumni_type', 'label' => 'Alumni Type', 'type' => 'string'],
+                ['key' => 'alumni_type', 'label' => 'Constituent Type', 'type' => 'string'],
                 ['key' => 'donor_status', 'label' => 'Donor Status', 'type' => 'string'],
                 ['key' => 'last_active_at', 'label' => 'Last Active', 'type' => 'date'],
                 ['key' => 'joined_at', 'label' => 'Joined Date', 'type' => 'date'],
@@ -120,7 +120,7 @@ class AlumniReportDataset implements ReportDatasetInterface
             ['key' => 'degree_earned', 'label' => 'Degree Earned', 'type' => 'string'],
             ['key' => 'department', 'label' => 'Department', 'type' => 'string'],
             ['key' => 'status', 'label' => 'Status', 'type' => 'string'],
-            ['key' => 'alumni_type', 'label' => 'Alumni Type', 'type' => 'string'],
+            ['key' => 'alumni_type', 'label' => 'Constituent Type', 'type' => 'string'],
         ];
     }
 

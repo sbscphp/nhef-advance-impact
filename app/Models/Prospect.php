@@ -30,6 +30,11 @@ class Prospect extends Model
         return $this->belongsTo(Admin::class, 'assigned_admin_id')->withTrashed();
     }
 
+    public function institution(): BelongsTo
+    {
+        return $this->belongsTo(Institution::class);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(Admin::class, 'created_by', 'uuid')->withTrashed();

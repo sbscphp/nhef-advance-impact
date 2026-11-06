@@ -27,6 +27,7 @@ class EventReportDataset implements ReportDatasetInterface
         return [
             'Event' => [
                 ['key' => 'event_title', 'label' => 'Event Title', 'type' => 'string'],
+                ['key' => 'institution_name', 'label' => 'Institution', 'type' => 'string'],
             ],
             'Attendee' => [
                 ['key' => 'attendee_name', 'label' => 'Attendee Name', 'type' => 'string'],
@@ -49,7 +50,7 @@ class EventReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return EventRegistration::query()
-            ->with(['event', 'user', 'items.ticketType', 'payments'])
+            ->with(['event.institution', 'user', 'items.ticketType', 'payments'])
             ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
             ->when(filled($search), function ($query) use ($search): void {
@@ -74,6 +75,7 @@ class EventReportDataset implements ReportDatasetInterface
 
         $all = [
             'event_title' => $record->event?->title,
+            'institution_name' => $record->event?->institution?->name,
             'attendee_name' => $record->attendeeName(),
             'attendee_email' => $record->attendeeEmail(),
             'is_guest' => $record->isGuest(),

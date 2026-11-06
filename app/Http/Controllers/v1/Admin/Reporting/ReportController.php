@@ -104,6 +104,7 @@ class ReportController extends Controller
                 $filters['start_date'] ?? null,
                 $filters['end_date'] ?? null,
                 $filters['search'] ?? null,
+                $filters['institution_uuid'] ?? null,
                 $perPage,
             );
 
@@ -148,8 +149,13 @@ class ReportController extends Controller
     public function showPreview(Request $request, string $uuid)
     {
         try {
+            $validated = Validator::make($request->all(), [
+                'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+                'institution_uuid' => ['sometimes', 'nullable', 'string', 'exists:institutions,uuid'],
+            ])->validate();
+
             $perPage = max(1, min((int) $request->query('per_page', 15), 100));
-            $paginator = $this->reportService->previewSaved($uuid, $perPage);
+            $paginator = $this->reportService->previewSaved($uuid, $perPage, $validated['search'] ?? null, $validated['institution_uuid'] ?? null);
 
             return JsonResponser::send(false, 'Report preview retrieved.', $paginator->toArray());
         } catch (\Throwable $th) {
@@ -162,10 +168,12 @@ class ReportController extends Controller
         try {
             $validated = Validator::make($request->all(), [
                 'format' => ['required', 'in:csv,pdf'],
+                'search' => ['sometimes', 'nullable', 'string', 'max:255'],
+                'institution_uuid' => ['sometimes', 'nullable', 'string', 'exists:institutions,uuid'],
             ])->validate();
 
             $report = $this->reportService->findForAdmin($uuid);
-            $export = $this->reportService->exportRows($report);
+            $export = $this->reportService->exportRows($report, $validated['search'] ?? null, $validated['institution_uuid'] ?? null);
             $fieldLabels = $this->fieldLabels($report->dataset, $report->fields);
             $fieldTypes = $this->fieldTypes($report->dataset, $report->fields);
 
