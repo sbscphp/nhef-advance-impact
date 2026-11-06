@@ -295,7 +295,15 @@ final class ListingFilterRules
         }
 
         $queryFilters = $request->query('filters');
-        $bodyFilters = $request->request->get('filters');
+        // Symfony's InputBag::get()/all() both throw BadRequestException when `filters` isn't
+        // absent-or-array (get() on ANY array, all() on a non-array) - request->query() above
+        // dodges this via Laravel's own InputBag-aware retrieveItem(), but reaching into the raw
+        // bag here does not, so a JSON body `filters` object (not just query-string
+        // `filters[x]=y`) used to 400 outright. Read the raw value as a plain array lookup first,
+        // so a malformed non-array `filters` value falls through to a normal 422 from this
+        // method's own `filters` validation rule instead of a raw 400 crash here.
+        $rawBodyFilters = $request->request->all()['filters'] ?? null;
+        $bodyFilters = is_array($rawBodyFilters) ? $rawBodyFilters : [];
 
         $queryFilters = is_array($queryFilters) ? $queryFilters : [];
         $bodyFilters = is_array($bodyFilters) ? $bodyFilters : [];

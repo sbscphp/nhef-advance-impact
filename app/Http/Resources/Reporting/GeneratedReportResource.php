@@ -23,6 +23,7 @@ class GeneratedReportResource extends JsonResource
             'fields' => $this->fields,
             'search' => $this->search,
             'institution_uuid' => $this->institution_uuid,
+            'filters' => $this->filters,
             'period' => $this->period,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),

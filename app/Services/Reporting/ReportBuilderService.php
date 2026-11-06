@@ -18,6 +18,7 @@ use App\Services\Reporting\Datasets\PreparesReportRecords;
 use App\Services\Reporting\Datasets\ReportDatasetInterface;
 use App\Support\ViewerVisibility;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -145,17 +146,20 @@ class ReportBuilderService
 
     /**
      * @param  list<string>  $fieldKeys
+     * @param  array<string, mixed>  $filters  discrete per-field filters, keyed by whatever this
+     *   dataset's own {@see \App\Services\Reporting\Datasets\ReportDatasetInterface::groupableFields()}
+     *   declares (e.g. `['status' => 'active']`); unknown/inapplicable keys are ignored, not errored
      */
-    public function preview(string $datasetKey, array $fieldKeys, ?string $period, ?string $startDate, ?string $endDate, ?string $search, ?string $institutionUuid, int $perPage): LengthAwarePaginator
+    public function preview(string $datasetKey, array $fieldKeys, ?string $period, ?string $startDate, ?string $endDate, ?string $search, ?string $institutionUuid, ?string $institutionName, array $filters, int $perPage): LengthAwarePaginator
     {
         $dataset = $this->datasetResolver->make($datasetKey);
         [$start, $end] = $this->resolveRange($period, $startDate, $endDate);
         [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($this->visibleFieldKeys($datasetKey, $fieldKeys));
-        $institution = $this->landlordGuardedInstitution($institutionUuid);
+        $institution = $this->landlordGuardedInstitution($institutionUuid, $institutionName);
 
         $paginator = $this->withInstitutionScope(
             $institution,
-            fn () => $dataset->query($start, $end, $search)->paginate($perPage),
+            fn () => $this->applyFilters($dataset->query($start, $end, $search), $dataset, $filters)->paginate($perPage),
         );
         $paginator->setCollection($this->mapRows($dataset, $paginator->getCollection(), $nativeKeys, $customDefinitions));
 
@@ -170,7 +174,7 @@ class ReportBuilderService
     {
         [$start, $end] = $this->resolveRange($payload['period'] ?? null, $payload['start_date'] ?? null, $payload['end_date'] ?? null);
         $datasetEnum = ReportDatasetEnum::from($payload['dataset']);
-        $institution = $this->landlordGuardedInstitution($payload['institution_uuid'] ?? null);
+        $institution = $this->landlordGuardedInstitution($payload['institution_uuid'] ?? null, $payload['institution_name'] ?? null);
 
         $report = $this->reportRepository->create([
             'name' => filled($payload['name'] ?? null) ? $payload['name'] : $datasetEnum->label().' Report - '.now()->format('M d, Y'),
@@ -178,6 +182,7 @@ class ReportBuilderService
             'fields' => $this->visibleFieldKeys($payload['dataset'], $payload['fields']),
             'search' => $payload['search'] ?? null,
             'institution_uuid' => $institution?->uuid,
+            'filters' => $payload['filters'] ?? null,
             'period' => $payload['period'] ?? null,
             'start_date' => $start?->toDateString(),
             'end_date' => $end?->toDateString(),
@@ -211,23 +216,28 @@ class ReportBuilderService
     }
 
     /**
-     * $searchOverride/$institutionUuidOverride let the viewer re-filter an already-generated
-     * report's preview on the fly, without mutating the values the report was originally
-     * generated with. A tenant-scoped viewer can never override institution - see
-     * {@see self::landlordGuardedInstitution()}.
+     * $searchOverride/$institutionUuidOverride/$institutionNameOverride/$filtersOverride let the
+     * viewer re-filter an already-generated report's preview on the fly, without mutating the
+     * values the report was originally generated with. A tenant-scoped viewer can never override
+     * institution - see {@see self::landlordGuardedInstitution()}.
+     *
+     * @param  ?array<string, mixed>  $filtersOverride
      */
-    public function previewSaved(string $uuid, int $perPage, ?string $searchOverride = null, ?string $institutionUuidOverride = null): LengthAwarePaginator
+    public function previewSaved(string $uuid, int $perPage, ?string $searchOverride = null, ?string $institutionUuidOverride = null, ?array $filtersOverride = null, ?string $institutionNameOverride = null): LengthAwarePaginator
     {
         $report = $this->findForAdmin($uuid);
         $dataset = $this->datasetResolver->make($report->dataset);
         [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($this->visibleFieldKeys($report->dataset, $report->fields));
 
         $search = $searchOverride ?? $report->search;
-        $institution = $this->landlordGuardedInstitution($institutionUuidOverride ?? $report->institution_uuid);
+        $filters = $filtersOverride ?? $report->filters ?? [];
+        $institution = ($institutionUuidOverride ?? $institutionNameOverride) !== null
+            ? $this->landlordGuardedInstitution($institutionUuidOverride, $institutionNameOverride)
+            : $this->landlordGuardedInstitution($report->institution_uuid);
 
         $paginator = $this->withInstitutionScope(
             $institution,
-            fn () => $dataset->query($report->start_date, $report->end_date, $search)->paginate($perPage),
+            fn () => $this->applyFilters($dataset->query($report->start_date, $report->end_date, $search), $dataset, $filters)->paginate($perPage),
         );
         $paginator->setCollection($this->mapRows($dataset, $paginator->getCollection(), $nativeKeys, $customDefinitions));
 
@@ -235,22 +245,27 @@ class ReportBuilderService
     }
 
     /**
-     * $searchOverride/$institutionUuidOverride let a download re-filter an already-generated
-     * report on the fly, same as {@see self::previewSaved()} - without them, falls back to the
-     * report's own saved `search`/`institution_uuid`.
+     * $searchOverride/$institutionUuidOverride/$institutionNameOverride/$filtersOverride let a
+     * download re-filter an already-generated report on the fly, same as
+     * {@see self::previewSaved()} - without them, falls back to the report's own saved
+     * `search`/`institution_uuid`/`filters`.
      *
+     * @param  ?array<string, mixed>  $filtersOverride
      * @return array{rows: Collection<int, array<string, mixed>>, truncated: bool}
      */
-    public function exportRows(GeneratedReport $report, ?string $searchOverride = null, ?string $institutionUuidOverride = null): array
+    public function exportRows(GeneratedReport $report, ?string $searchOverride = null, ?string $institutionUuidOverride = null, ?array $filtersOverride = null, ?string $institutionNameOverride = null): array
     {
         $dataset = $this->datasetResolver->make($report->dataset);
         [$nativeKeys, $customDefinitions] = $this->splitFieldKeys($this->visibleFieldKeys($report->dataset, $report->fields));
 
         $search = $searchOverride ?? $report->search;
-        $institution = $this->landlordGuardedInstitution($institutionUuidOverride ?? $report->institution_uuid);
+        $filters = $filtersOverride ?? $report->filters ?? [];
+        $institution = ($institutionUuidOverride ?? $institutionNameOverride) !== null
+            ? $this->landlordGuardedInstitution($institutionUuidOverride, $institutionNameOverride)
+            : $this->landlordGuardedInstitution($report->institution_uuid);
 
-        [$records, $truncated] = $this->withInstitutionScope($institution, function () use ($dataset, $report, $search) {
-            $query = $dataset->query($report->start_date, $report->end_date, $search);
+        [$records, $truncated] = $this->withInstitutionScope($institution, function () use ($dataset, $report, $search, $filters) {
+            $query = $this->applyFilters($dataset->query($report->start_date, $report->end_date, $search), $dataset, $filters);
             $truncated = (clone $query)->count() > self::MAX_EXPORT_ROWS;
 
             return [$query->limit(self::MAX_EXPORT_ROWS)->get(), $truncated];
@@ -260,18 +275,46 @@ class ReportBuilderService
     }
 
     /**
-     * Resolves an institution filter to an {@see Institution} model - null when none was given,
-     * and forced to null for a viewer who is already tenant-scoped (an Institution Admin), who
-     * must never be able to switch the query's scope to a DIFFERENT institution via this filter.
-     * Mirrors {@see ReportDatasetEnum} landlord-only semantics.
+     * Applies discrete per-field filters generically, against whatever this dataset itself
+     * declares via groupableFields()/groupableColumn() - the exact same contract already used by
+     * the distribution chart. A dataset needs zero new code to become filterable this way; an
+     * unknown/inapplicable key for this dataset is silently ignored rather than erroring, since
+     * the same `filters` payload may be reused across different datasets by the frontend.
+     *
+     * @param  array<string, mixed>  $filters
      */
-    private function landlordGuardedInstitution(?string $uuid): ?Institution
+    private function applyFilters(Builder $query, ReportDatasetInterface $dataset, array $filters): Builder
     {
-        if ($uuid === null || Institution::checkCurrent()) {
+        $groupable = collect($dataset->groupableFields())->keyBy('key');
+
+        foreach ($filters as $key => $value) {
+            if ($value === null || $value === '' || ! $groupable->has($key)) {
+                continue;
+            }
+
+            $query->where($dataset->groupableColumn($key), $value);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Resolves an institution filter (by uuid, or by name when uuid isn't given - `name` has a
+     * real DB-level unique constraint, so there's never more than one match) to an
+     * {@see Institution} model - null when neither was given, and forced to null for a viewer who
+     * is already tenant-scoped (an Institution Admin), who must never be able to switch the
+     * query's scope to a DIFFERENT institution via this filter. Mirrors {@see ReportDatasetEnum}
+     * landlord-only semantics.
+     */
+    private function landlordGuardedInstitution(?string $uuid, ?string $name = null): ?Institution
+    {
+        if (($uuid === null && $name === null) || Institution::checkCurrent()) {
             return null;
         }
 
-        return $this->institutionRepository->findByUuid($uuid);
+        return $uuid !== null
+            ? $this->institutionRepository->findByUuid($uuid)
+            : $this->institutionRepository->findByName((string) $name);
     }
 
     /**
