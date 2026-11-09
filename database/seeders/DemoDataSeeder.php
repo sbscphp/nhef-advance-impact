@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\AuditActionEnum;
+use App\Enums\CommunicationLogTypeEnum;
 use App\Enums\ConstituentTypeEnum;
 use App\Enums\CustomFieldTypeEnum;
 use App\Enums\DonationFrequencyEnum;
@@ -1076,14 +1077,16 @@ class DemoDataSeeder extends Seeder
 
         $callLogService->create([
             'contact_user_uuid' => $contacts[0]->uuid,
-            'purpose' => 'Annual giving check-in',
-            'description' => 'Called to thank them for their continued support and discuss this year\'s priorities.',
+            'log_type' => CommunicationLogTypeEnum::PHONE->value,
+            'summary' => 'Called to thank them for their continued support and discuss this year\'s priorities.',
+            'phone_number' => $this->nigerianPhoneNumber(),
         ], $admin, $this->request);
 
         $callLogService->create([
             'contact_user_uuid' => $contacts[1]->uuid,
-            'purpose' => 'Event follow-up',
-            'description' => 'Followed up after the alumni homecoming to gauge interest in future involvement.',
+            'log_type' => CommunicationLogTypeEnum::VISIT->value,
+            'summary' => 'Followed up after the alumni homecoming to gauge interest in future involvement.',
+            'location' => $institution->name.' Alumni Office',
             'follow_up_tasks' => [[
                 'title' => 'Send thank-you note to '.$contacts[1]->displayName(),
                 'assigned_to' => $admin->uuid,
