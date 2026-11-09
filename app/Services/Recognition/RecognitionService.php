@@ -4,9 +4,13 @@ namespace App\Services\Recognition;
 
 use App\Enums\ConstituentTypeEnum;
 use App\Enums\PaymentStatusEnum;
+use App\Http\Requests\Concerns\ListingFilterRules;
+use App\Models\Campaign;
 use App\Models\DonationPayment;
 use App\Models\DonorTier;
 use App\Models\User;
+use App\Repositories\Contracts\Campaign\CampaignRepositoryInterface;
+use App\Repositories\Contracts\Donation\DonationPaymentRepositoryInterface;
 use App\Repositories\Contracts\DonorTier\DonorTierRepositoryInterface;
 use App\Repositories\Contracts\Institution\InstitutionRepositoryInterface;
 use App\Support\Money;
@@ -23,6 +27,8 @@ class RecognitionService
     public function __construct(
         private readonly DonorTierRepositoryInterface $donorTierRepository,
         private readonly InstitutionRepositoryInterface $institutionRepository,
+        private readonly DonationPaymentRepositoryInterface $paymentRepository,
+        private readonly CampaignRepositoryInterface $campaignRepository,
     ) {}
 
     /**
@@ -31,10 +37,26 @@ class RecognitionService
     public function leaderboard(array $filters): LengthAwarePaginator
     {
         $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $search = filled($filters['search'] ?? null) ? (string) $filters['search'] : null;
 
-        $paginator = $this->baseAggregateQuery()
-            ->orderByDesc('total')
-            ->paginate($perPage);
+        // `rank` always means true position by total given across every donor, never this row's
+        // position within whatever `sort_by` the caller asked this *page* to be displayed in -
+        // so it's computed once, up front, independent of the query below.
+        $trueRanks = $this->rankMap($this->baseAggregateQuery()->orderByDesc('total')->get());
+
+        $query = $this->baseAggregateQuery($search);
+
+        ListingFilterRules::applySort($query, $filters, [
+            'rank' => fn ($q, string $dir) => $q->orderBy('total', $dir === 'asc' ? 'desc' : 'asc'),
+            'total' => fn ($q, string $dir) => $q->orderBy('total', $dir),
+            'donor_name' => fn ($q, string $dir) => $q
+                ->leftJoin('users', 'users.id', '=', 'donation_payments.user_id')
+                ->groupBy('users.id')
+                ->orderBy('users.firstname', $dir)
+                ->orderBy('users.lastname', $dir),
+        ], 'total', 'desc');
+
+        $paginator = $query->paginate($perPage);
 
         $users = User::query()
             ->with('tertiaryInstitution')
@@ -44,14 +66,12 @@ class RecognitionService
 
         $tiersByInstitution = $this->tiersForUsers($users);
 
-        $startRank = ($paginator->currentPage() - 1) * $paginator->perPage() + 1;
-
-        $entries = collect($paginator->items())->values()->map(function ($row, int $index) use ($users, $tiersByInstitution, $startRank) {
+        $entries = collect($paginator->items())->values()->map(function ($row) use ($users, $tiersByInstitution, $trueRanks) {
             $user = $users->get($row->user_id);
             $tier = $user !== null ? $this->tierFor($this->tiersForUser($user, $tiersByInstitution), (string) $row->total) : null;
 
             return (object) [
-                'rank' => $startRank + $index,
+                'rank' => $trueRanks[$row->user_id] ?? null,
                 'donor_name' => $user?->displayName() ?? 'Donor',
                 'avatar_url' => $user?->profile_picture_url,
                 'user_type' => $user?->constituent_type,
@@ -65,6 +85,20 @@ class RecognitionService
         $paginator->setCollection($entries);
 
         return $paginator;
+    }
+
+    /**
+     * @param  Collection<int, object{user_id: int, total: string}>  $orderedByTotalDesc
+     * @return array<int, int>
+     */
+    private function rankMap(Collection $orderedByTotalDesc): array
+    {
+        $ranks = [];
+        foreach ($orderedByTotalDesc->values() as $index => $row) {
+            $ranks[$row->user_id] = $index + 1;
+        }
+
+        return $ranks;
     }
 
     /**
@@ -105,13 +139,86 @@ class RecognitionService
     }
 
     /**
+     * One row per campaign this donor has contributed to - the "Recognition Wall" donor screen's
+     * top-three cards (`sort_by=position`) and campaigns table (`sort_by=total`, search, date
+     * range) both come from this same endpoint, just called with different query params.
+     *
+     * `position_change` is always null for now: there's no snapshot/history mechanism anywhere
+     * in the codebase recording a donor's *previous* rank in a campaign to compare against - this
+     * needs a product decision (e.g. a scheduled job periodically snapshotting ranks) before it
+     * can mean anything real, flagged rather than fabricated.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function myCampaigns(User $user, array $filters): LengthAwarePaginator
+    {
+        $window = ListingFilterRules::resolveDateWindow($filters);
+        $search = filled($filters['search'] ?? null) ? (string) $filters['search'] : null;
+
+        $rows = $this->paymentRepository->campaignTotalsForUser(
+            $user->id,
+            $search,
+            $window['start']?->toDateString(),
+            $window['end']?->toDateString(),
+        );
+
+        $perPage = max(1, min((int) ($filters['per_page'] ?? 15), 100));
+        $page = max(1, (int) ($filters['page'] ?? 1));
+
+        $paginatorOptions = ['path' => request()->url(), 'query' => request()->query()];
+
+        if ($rows->isEmpty()) {
+            return new LengthAwarePaginator([], 0, $perPage, $page, $paginatorOptions);
+        }
+
+        $campaignIds = $rows->pluck('campaign_id')->map(fn ($id) => (int) $id)->all();
+        $campaigns = $this->campaignRepository->findManyByIds($campaignIds)->keyBy('id');
+        $donorsCounts = $this->paymentRepository->nonAnonymousDonorsCountByCampaigns($campaignIds);
+
+        $lifetimeTotal = $this->paymentRepository->sumSuccessfulForUser($user->id, null, null);
+        $tier = $this->tierFor($this->donorTierRepository->activeOrderedByThreshold($this->institutionIdFor($user)), $lifetimeTotal);
+
+        $entries = $rows->map(function ($row) use ($user, $campaigns, $donorsCounts, $tier) {
+            /** @var ?Campaign $campaign */
+            $campaign = $campaigns->get((int) $row->campaign_id);
+
+            return (object) [
+                'campaign_uuid' => $campaign?->uuid,
+                'campaign_name' => $campaign?->title,
+                'tier' => $tier?->name,
+                'total' => (string) $row->total,
+                'position' => $this->paymentRepository->positionForUserInCampaign($user->id, (int) $row->campaign_id),
+                'donors_count' => $donorsCounts[(int) $row->campaign_id] ?? 0,
+                'position_change' => null,
+            ];
+        });
+
+        $sortBy = is_string($filters['sort_by'] ?? null) ? $filters['sort_by'] : 'total';
+        $direction = strtolower((string) ($filters['sort_direction'] ?? ($sortBy === 'position' ? 'asc' : 'desc'))) === 'asc' ? 'asc' : 'desc';
+
+        $sorted = $sortBy === 'position'
+            ? $entries->sortBy(fn ($entry) => $entry->position ?? PHP_INT_MAX, SORT_REGULAR, $direction === 'desc')
+            : $entries->sortBy(fn ($entry) => (float) $entry->total, SORT_REGULAR, $direction === 'desc');
+
+        $sorted = $sorted->values();
+
+        return new LengthAwarePaginator(
+            $sorted->slice(($page - 1) * $perPage, $perPage)->values(),
+            $sorted->count(),
+            $perPage,
+            $page,
+            $paginatorOptions,
+        );
+    }
+
+    /**
      * Shared base for the leaderboard and myRank()'s rank-comparison query: one row per user,
      * their lifetime NGN total from successful, non-anonymous donations. Guests are excluded
      * automatically (no account to rank).
      */
-    private function baseAggregateQuery(): Builder
+    private function baseAggregateQuery(?string $search = null): Builder
     {
-        return DonationPayment::query()
+        $query = DonationPayment::query()
             ->select('donation_payments.user_id')
             ->selectRaw('SUM(donation_payments.amount) as total')
             ->join('donations', 'donations.id', '=', 'donation_payments.donation_id')
@@ -120,6 +227,15 @@ class RecognitionService
             ->where('donations.is_anonymous', false)
             ->whereNotNull('donation_payments.user_id')
             ->groupBy('donation_payments.user_id');
+
+        if ($search !== null) {
+            $query->whereHas('user', fn ($u) => $u
+                ->where('firstname', 'like', '%'.$search.'%')
+                ->orWhere('lastname', 'like', '%'.$search.'%')
+                ->orWhere('email', 'like', '%'.$search.'%'));
+        }
+
+        return $query;
     }
 
     /**

@@ -16,6 +16,8 @@ interface NationalGivingDayOpeningRepositoryInterface
 
     public function slugExists(string $slug): bool;
 
+    public function countTotal(): int;
+
     /**
      * @param  array<string, mixed>  $filters
      */

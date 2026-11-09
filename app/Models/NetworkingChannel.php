@@ -31,6 +31,11 @@ class NetworkingChannel extends Model
         return $this->belongsTo(Admin::class, 'created_by_admin_id')->withTrashed();
     }
 
+    public function institution(): BelongsTo
+    {
+        return $this->belongsTo(Institution::class);
+    }
+
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'networking_channel_members', 'channel_id', 'user_id')

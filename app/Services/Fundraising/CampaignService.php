@@ -6,6 +6,7 @@ use App\Enums\AdminScopeEnum;
 use App\Enums\AuditActionEnum;
 use App\Enums\CampaignStatusEnum;
 use App\Enums\CampaignTypeEnum;
+use App\Enums\ConstituentTypeEnum;
 use App\Enums\ePermission;
 use App\Enums\ModuleEnums;
 use App\Enums\UserTypeEnum;
@@ -1280,6 +1281,11 @@ class CampaignService
             // 2026-10-16: "active_campaigns" alone never tallied with the list below it, since it
             // only ever counts active-status campaigns while the list includes every status.
             'total_campaigns' => $this->campaignRepository->countTotal($type),
+            // Alternate count (2026-11-05): standard campaigns + every NGD *opening*, instead of
+            // the one real NGD-type campaign row that happens to exist under one of them. An
+            // opening with zero institutions participating still counts here, unlike
+            // `total_campaigns` above - for if the product decision ends up wanting that instead.
+            'total_campaigns_with_openings' => $this->campaignRepository->countTotal('standard') + $this->openingRepository->countTotal(),
             'active_campaigns' => $this->campaignRepository->countActive(),
             'ongoing_campaigns' => $this->campaignRepository->countOngoing($type),
             ...ViewerVisibility::money([
@@ -1434,32 +1440,45 @@ class CampaignService
      * the tier shown everywhere else in the product (same rule as {@see self::donorBreakdown()}).
      *
      * @param  array<string, mixed>  $filters
-     * @return list<array{rank: int, donor_code: string, donor_name: string, avatar_url: ?string, tier: ?string}>
      */
-    public function leaderboard(string $uuid, array $filters): array
+    public function leaderboard(string $uuid, array $filters): LengthAwarePaginator
     {
         $campaign = $this->findForAdmin($uuid);
-        $limit = max(1, min((int) ($filters['limit'] ?? self::LEADERBOARD_DEFAULT_LIMIT), self::LEADERBOARD_MAX_LIMIT));
+        $perPage = max(1, min((int) ($filters['per_page'] ?? self::LEADERBOARD_DEFAULT_LIMIT), self::LEADERBOARD_MAX_LIMIT));
 
-        $rows = $this->paymentRepository->topDonorsForCampaign($campaign->id, $limit);
-        $users = User::query()->whereIn('id', $rows->pluck('user_id'))->get()->keyBy('id');
+        // True rank by total given within this campaign, independent of whatever `sort_by` the
+        // paginated query below is currently displaying the page in.
+        $trueRanks = [];
+        foreach ($this->paymentRepository->fullRankingForCampaign($campaign->id)->values() as $index => $row) {
+            $trueRanks[$row->user_id] = $index + 1;
+        }
 
-        return $rows->values()->map(function ($row, int $index) use ($users, $campaign): array {
+        $paginator = $this->paymentRepository->paginateDonorsForCampaign($campaign->id, $filters, $perPage);
+
+        $users = User::query()->whereIn('id', collect($paginator->items())->pluck('user_id'))->get()->keyBy('id');
+
+        $entries = collect($paginator->items())->values()->map(function ($row) use ($users, $campaign, $trueRanks) {
             $user = $users->get($row->user_id);
             $lifetimeTotal = $this->paymentRepository->sumSuccessfulForUser((int) $row->user_id, null, null);
+            $tier = $this->donorTierRepository->findForAmount($lifetimeTotal);
 
-            return [
-                'rank' => $index + 1,
+            return (object) [
+                'rank' => $trueRanks[$row->user_id] ?? null,
                 'donor_code' => $user?->code() ?? '',
                 'donor_name' => $user?->displayName() ?? 'Donor',
                 'avatar_url' => $user?->profile_picture_url,
-                'tier' => $this->donorTierRepository->findForAmount($lifetimeTotal)?->name,
-                ...ViewerVisibility::money([
-                    'amount' => (string) $row->total,
-                    'amount_formatted' => Money::format($row->total, $campaign->currency),
-                ]),
+                'user_type' => $user?->constituent_type,
+                'user_type_label' => ConstituentTypeEnum::tryFrom((string) $user?->constituent_type)?->label(),
+                'tier' => $tier?->name,
+                'tier_color' => $tier?->color,
+                'amount' => (string) $row->total,
+                'amount_formatted' => Money::format($row->total, $campaign->currency),
             ];
-        })->all();
+        });
+
+        $paginator->setCollection($entries);
+
+        return $paginator;
     }
 
     private function uniqueSlug(string $title): string

@@ -191,10 +191,44 @@ interface DonationPaymentRepositoryInterface
     public function geographyDistributionForCampaign(int $campaignId, ?string $from, ?string $to): Collection;
 
     /**
-     * Top donors to one campaign by lifetime-to-this-campaign total, non-anonymous only; feeds
-     * its "Donor Recognition Wall" leaderboard.
+     * Every donor's total to one campaign, non-anonymous only, ordered highest first - the full,
+     * unpaginated ranking used to compute each donor's true rank independent of whatever page/
+     * sort the paginated listing below is currently showing.
      *
      * @return Collection<int, object{user_id: int, total: string}>
      */
-    public function topDonorsForCampaign(int $campaignId, int $limit): Collection;
+    public function fullRankingForCampaign(int $campaignId): Collection;
+
+    /**
+     * Paginated, searchable, sortable version of the above - feeds the admin "Donor Recognition
+     * Wall" campaign leaderboard screen.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateDonorsForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
+     * One row per campaign this donor has a successful payment in, their own total (anonymous
+     * gifts included - it's their own money), optionally narrowed by campaign title and a
+     * `paid_at` date window. Feeds the donor-facing Recognition Wall's "my campaigns" list.
+     *
+     * @return Collection<int, object{campaign_id: int, total: string}>
+     */
+    public function campaignTotalsForUser(int $userId, ?string $search, ?string $from, ?string $to): Collection;
+
+    /**
+     * Non-anonymous donor count per campaign - the same visible pool a donor's own `position`
+     * (see below) is ranked against.
+     *
+     * @param  list<int>  $campaignIds
+     * @return array<int, int>
+     */
+    public function nonAnonymousDonorsCountByCampaigns(array $campaignIds): array;
+
+    /**
+     * This donor's rank within one campaign, among non-anonymous donors only (by total given to
+     * that campaign) - null if every gift they made to this campaign was anonymous, since they
+     * have no total in the publicly-visible pool to rank.
+     */
+    public function positionForUserInCampaign(int $userId, int $campaignId): ?int;
 }

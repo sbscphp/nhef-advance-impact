@@ -18,6 +18,9 @@ interface InstitutionRepositoryInterface
 
     public function findByUuid(string $uuid): ?Institution;
 
+    /** Case-insensitive; `name` has a real DB-level unique constraint, so at most one match. */
+    public function findByName(string $name): ?Institution;
+
     public function nameExists(string $name): bool;
 
     public function emailExists(string $email): bool;

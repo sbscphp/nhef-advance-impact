@@ -33,6 +33,11 @@ class InstitutionRepository implements InstitutionRepositoryInterface
         return Institution::query()->with(['tertiaryInstitution', 'officers'])->where('uuid', $uuid)->first();
     }
 
+    public function findByName(string $name): ?Institution
+    {
+        return Institution::query()->where('name', $name)->first();
+    }
+
     public function nameExists(string $name): bool
     {
         return Institution::query()->where('name', $name)->exists();

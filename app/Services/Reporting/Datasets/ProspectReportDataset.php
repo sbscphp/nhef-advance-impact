@@ -24,6 +24,7 @@ class ProspectReportDataset implements ReportDatasetInterface
                 ['key' => 'full_name', 'label' => 'Full Name', 'type' => 'string'],
                 ['key' => 'email', 'label' => 'Email', 'type' => 'string'],
                 ['key' => 'phone', 'label' => 'Phone', 'type' => 'string'],
+                ['key' => 'institution_name', 'label' => 'Institution', 'type' => 'string'],
             ],
             'Pipeline' => [
                 ['key' => 'lead_source', 'label' => 'Lead Source', 'type' => 'string'],
@@ -42,7 +43,7 @@ class ProspectReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return Prospect::query()
-            ->with('assignedAdmin')
+            ->with(['assignedAdmin', 'institution'])
             ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
             ->when(filled($search), function ($query) use ($search): void {
@@ -63,6 +64,7 @@ class ProspectReportDataset implements ReportDatasetInterface
             'full_name' => $record->fullName(),
             'email' => $record->email,
             'phone' => $record->phone,
+            'institution_name' => $record->institution?->name,
             'lead_source' => $record->lead_source,
             'stage' => $record->stage,
             'estimated_value' => (string) $record->estimated_value,

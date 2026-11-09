@@ -16,7 +16,10 @@ interface ReportDatasetInterface
     public function nativeFields(): array;
 
     /**
-     * Scoped by date range and search, not yet paginated/limited.
+     * Scoped by date range and search, not yet paginated/limited. Discrete per-field filters
+     * (e.g. a dataset-specific "status" or "type" value) are NOT applied here - they're applied
+     * generically afterward by {@see \App\Services\Reporting\ReportBuilderService}, against
+     * whatever this dataset declares via {@see self::groupableFields()}/{@see self::groupableColumn()}.
      *
      * @return Builder<Model>
      */

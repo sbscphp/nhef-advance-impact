@@ -81,6 +81,12 @@ interface UserRepositoryInterface
     public function findManyByUuids(array $uuids): Collection;
 
     /**
+     * @param  list<string>  $emails
+     * @return Collection<int, User>
+     */
+    public function findManyByEmails(array $emails): Collection;
+
+    /**
      * Alumni belonging to one tertiary institution, matched by `users.tertiary_institution_id`.
      *
      * @param  array<string, mixed>  $filters

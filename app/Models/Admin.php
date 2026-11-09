@@ -54,6 +54,7 @@ class Admin extends Authenticatable
             'is_locked' => 'boolean',
             'locked_at' => 'datetime',
             'last_active_at' => 'datetime',
+            'welcome_message_dismissed_at' => 'datetime',
         ];
     }
 

@@ -23,6 +23,11 @@ class CreateMailRequest extends ApiFormRequest
             'segment.graduation_year_to' => ['sometimes', 'nullable', 'integer', 'digits:4', 'gte:segment.graduation_year_from'],
             'recipient_user_ids' => ['sometimes', 'array'],
             'recipient_user_ids.*' => ['uuid', 'exists:users,uuid'],
+            // "Other Recipient": pasted emails, matched back against real constituents in
+            // MailService where possible (no `exists` here, since a non-constituent email is
+            // equally valid).
+            'recipient_emails' => ['sometimes', 'array'],
+            'recipient_emails.*' => ['email'],
         ];
     }
 }

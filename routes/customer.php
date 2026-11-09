@@ -99,6 +99,7 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->prefix('recognition')->group(function () {
         Route::get('/me', [RecognitionController::class, 'me']);
+        Route::get('/me/campaigns', [RecognitionController::class, 'myCampaigns']);
     });
 
     Route::middleware('auth:sanctum')->prefix('events')->group(function () {

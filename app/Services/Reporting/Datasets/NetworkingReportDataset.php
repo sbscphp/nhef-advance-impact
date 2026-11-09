@@ -23,6 +23,7 @@ class NetworkingReportDataset implements ReportDatasetInterface
             'Channel' => [
                 ['key' => 'name', 'label' => 'Name', 'type' => 'string'],
                 ['key' => 'type', 'label' => 'Type', 'type' => 'string'],
+                ['key' => 'institution_name', 'label' => 'Institution', 'type' => 'string'],
                 ['key' => 'is_archived', 'label' => 'Archived', 'type' => 'boolean'],
                 ['key' => 'created_by', 'label' => 'Created By', 'type' => 'string'],
                 ['key' => 'members_count', 'label' => 'Members', 'type' => 'number'],
@@ -37,7 +38,7 @@ class NetworkingReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return NetworkingChannel::query()
-            ->with('createdByAdmin')
+            ->with(['createdByAdmin', 'institution'])
             ->withCount(['members', 'messages'])
             ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
@@ -52,6 +53,7 @@ class NetworkingReportDataset implements ReportDatasetInterface
         $all = [
             'name' => $record->name,
             'type' => $record->type,
+            'institution_name' => $record->institution?->name,
             'is_archived' => (bool) $record->is_archived,
             'created_by' => $record->createdByAdmin?->displayName(),
             'members_count' => $record->members_count,

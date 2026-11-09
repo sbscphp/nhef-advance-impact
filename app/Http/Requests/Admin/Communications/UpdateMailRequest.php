@@ -23,6 +23,10 @@ class UpdateMailRequest extends ApiFormRequest
             'segment.graduation_year_to' => ['sometimes', 'nullable', 'integer', 'digits:4', 'gte:segment.graduation_year_from'],
             'recipient_user_ids' => ['sometimes', 'array'],
             'recipient_user_ids.*' => ['uuid', 'exists:users,uuid'],
+            'recipient_emails' => ['sometimes', 'array'],
+            'recipient_emails.*' => ['email'],
+            // Clears a previously-saved banner; takes precedence over `banner` if both are sent.
+            'remove_banner' => ['sometimes', 'boolean'],
         ];
     }
 }

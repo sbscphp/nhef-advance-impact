@@ -17,6 +17,7 @@ class GeneratedReport extends Model
     {
         return [
             'fields' => 'array',
+            'filters' => 'array',
             'start_date' => 'date',
             'end_date' => 'date',
         ];

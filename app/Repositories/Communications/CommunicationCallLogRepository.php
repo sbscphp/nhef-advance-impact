@@ -31,11 +31,15 @@ class CommunicationCallLogRepository implements CommunicationCallLogRepositoryIn
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where(function ($query) use ($filters) {
-                    $query->where('purpose', 'like', '%'.$filters['search'].'%')
+                    $query->where('description', 'like', '%'.$filters['search'].'%')
                         ->orWhereHas('contact', fn ($query) => $query
                             ->where('firstname', 'like', '%'.$filters['search'].'%')
                             ->orWhere('lastname', 'like', '%'.$filters['search'].'%'));
                 })
+            )
+            ->when(
+                filled($filters['log_type'] ?? null),
+                fn ($query) => $query->where('log_type', $filters['log_type'])
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'call_date');

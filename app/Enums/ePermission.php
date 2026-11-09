@@ -114,6 +114,11 @@ enum ePermission: string
     // stay ungated for every admin regardless of role.
     case NOTIFICATIONS_READ = 'notifications.read';
 
+    // Read-only; pledges are created by donors/guests, never by an admin. Split out from
+    // campaigns.read (which the institution-wide pledges listing used before) so it can be
+    // granted/revoked independently of campaign management.
+    case PLEDGES_READ = 'pledges.read';
+
     // Advance-Impact-only: projects, milestones, deliverables, budgets, expenditures, impact reports, documents.
     case PROJECTS_CREATE = 'projects.create';
     case PROJECTS_READ = 'projects.read';

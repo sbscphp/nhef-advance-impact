@@ -194,6 +194,15 @@ class UserRepository implements UserRepositoryInterface
         return User::query()->whereIn('uuid', $uuids)->get();
     }
 
+    public function findManyByEmails(array $emails): Collection
+    {
+        if ($emails === []) {
+            return new Collection;
+        }
+
+        return User::query()->whereIn('email', $emails)->get();
+    }
+
     public function paginateForInstitution(int $tertiaryInstitutionId, array $filters, int $perPage): LengthAwarePaginator
     {
         $query = User::query()

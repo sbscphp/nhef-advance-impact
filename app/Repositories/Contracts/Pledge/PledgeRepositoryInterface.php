@@ -30,6 +30,14 @@ interface PledgeRepositoryInterface
     public function paginateForCampaign(int $campaignId, array $filters, int $perPage): LengthAwarePaginator;
 
     /**
+     * All pledges visible to the acting admin, each with its campaign; tenant-scoped via the
+     * Pledge model's own BelongsToTenant (no institution_id filter needed here).
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function paginateForAdmin(array $filters, int $perPage): LengthAwarePaginator;
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function update(Pledge $pledge, array $data): Pledge;

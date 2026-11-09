@@ -23,6 +23,7 @@ class PledgeReportDataset implements ReportDatasetInterface
             'Donor' => [
                 ['key' => 'donor_name', 'label' => 'Donor Name', 'type' => 'string'],
                 ['key' => 'donor_email', 'label' => 'Donor Email', 'type' => 'string'],
+                ['key' => 'donor_institution', 'label' => 'Institution', 'type' => 'string'],
             ],
             'Pledge' => [
                 ['key' => 'campaign_title', 'label' => 'Campaign', 'type' => 'string'],
@@ -44,7 +45,7 @@ class PledgeReportDataset implements ReportDatasetInterface
     public function query(?CarbonInterface $start, ?CarbonInterface $end, ?string $search): Builder
     {
         return Pledge::query()
-            ->with('campaign')
+            ->with(['campaign', 'user.tertiaryInstitution'])
             ->when($start !== null, fn ($query) => $query->where('created_at', '>=', $start))
             ->when($end !== null, fn ($query) => $query->where('created_at', '<=', $end))
             ->when(filled($search), function ($query) use ($search): void {
@@ -64,6 +65,7 @@ class PledgeReportDataset implements ReportDatasetInterface
         $all = [
             'donor_name' => $record->donorName(),
             'donor_email' => $record->donorEmail(),
+            'donor_institution' => $record->user?->tertiaryInstitution?->name,
             'campaign_title' => $record->campaign?->title,
             'total_amount' => (string) $record->total_amount,
             'amount_paid' => (string) $record->amount_paid,

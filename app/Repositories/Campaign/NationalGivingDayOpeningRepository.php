@@ -27,6 +27,11 @@ class NationalGivingDayOpeningRepository implements NationalGivingDayOpeningRepo
         return NationalGivingDayOpening::query()->where('slug', $slug)->exists();
     }
 
+    public function countTotal(): int
+    {
+        return NationalGivingDayOpening::query()->count();
+    }
+
     public function paginateAdmin(array $filters, int $perPage): LengthAwarePaginator
     {
         $query = NationalGivingDayOpening::query()

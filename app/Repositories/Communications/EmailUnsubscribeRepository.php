@@ -61,6 +61,10 @@ class EmailUnsubscribeRepository implements EmailUnsubscribeRepositoryInterface
             ->when(
                 filled($filters['search'] ?? null),
                 fn ($query) => $query->where('email', 'like', '%'.$filters['search'].'%')
+            )
+            ->when(
+                filled($filters['mail_uuid'] ?? null),
+                fn ($query) => $query->whereHas('mail', fn ($m) => $m->where('uuid', $filters['mail_uuid']))
             );
 
         ListingFilterRules::applyResolvedDateRange($query, $filters, 'unsubscribed_at');

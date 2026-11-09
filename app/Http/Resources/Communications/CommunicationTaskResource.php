@@ -31,7 +31,7 @@ class CommunicationTaskResource extends JsonResource
             ]),
             'call_log' => $this->whenLoaded('callLog', fn () => $this->callLog === null ? null : [
                 'uuid' => $this->callLog->uuid,
-                'purpose' => $this->callLog->purpose,
+                'summary' => $this->callLog->description,
                 'contact' => $this->callLog->relationLoaded('contact') && $this->callLog->contact !== null
                     ? ['uuid' => $this->callLog->contact->uuid, 'name' => $this->callLog->contact->displayName()]
                     : null,
