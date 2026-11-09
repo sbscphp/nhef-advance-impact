@@ -62,8 +62,9 @@ class CustomerRegisterRequest extends ApiFormRequest
     }
 
     /**
-     * Alumni and Non-Alumni are people, with a personal name and their own (optional) employer;
-     * Organisation is an entity with no personal name field, whose own name is required instead.
+     * Alumni and Individual (non_alumni) are people, with a personal name and their own
+     * (optional) employer; Organisation is an entity with no personal name field, whose own name
+     * is required instead.
      */
     private function personOrOrganizationRules(): array
     {
@@ -74,8 +75,8 @@ class CustomerRegisterRequest extends ApiFormRequest
             'lastname' => [Rule::requiredIf($isPerson), 'prohibited_if:constituent_type,organization', 'string', 'min:2', 'max:50', 'regex:'.self::NAME_REGEX],
             'employment_status' => [Rule::requiredIf($isPerson), 'prohibited_if:constituent_type,organization', Rule::in(EmploymentStatusEnum::values())],
             'position' => ['nullable', 'string', 'max:255', 'prohibited_if:constituent_type,organization'],
-            // Alumni/Non-Alumni's own current employer (optional); for Organisation this is instead
-            // the organisation's own required name.
+            // Alumni/Individual's own current employer (optional); for Organisation this is
+            // instead the organisation's own required name.
             'organisation_name' => [Rule::requiredIf($this->isType(ConstituentTypeEnum::ORGANIZATION)), 'string', 'max:255'],
         ];
     }
